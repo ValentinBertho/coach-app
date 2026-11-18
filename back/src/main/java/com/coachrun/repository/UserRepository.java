@@ -221,4 +221,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             order by u.fullName
             """)
     java.util.List<User> findCoachesByClub(@Param("clubId") UUID clubId);
+
+    /**
+     * Suppression par requête : la base emporte le compte athlète, les jetons, les notifications
+     * (ON DELETE CASCADE). Mêmes raisons que {@code AthleteRepository.hardDelete}.
+     */
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from User u where u.id = :id")
+    int hardDelete(@Param("id") UUID id);
 }

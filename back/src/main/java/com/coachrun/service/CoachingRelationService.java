@@ -6,7 +6,6 @@ import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.User;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
-import com.coachrun.repository.AthleteAccountRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.UserRepository;
@@ -55,7 +54,7 @@ public class CoachingRelationService {
     private final AthleteRepository athleteRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
-    private final AthleteAccountRepository accountRepository;
+    private final AthleteAccountService accountService;
     private final PersonalSpaceService personalSpace;
     // Fournisseurs paresseux : les services de montre tirent eux-mêmes une longue chaîne de
     // dépendances, et la fin d'un coaching n'en a besoin qu'à l'instant où elle se produit.
@@ -407,32 +406,9 @@ public class CoachingRelationService {
      *
      * <p>Un athlète invité par son coach (lien magique) entrait avec un accès au portail mais sans
      * compte : une fois parti, il ne pouvait ni chercher un coach ni envoyer une demande — les
-     * deux supposent ce compte. On le crée ici, à partir de ce que la fiche sait de lui. Le
-     * consentement santé ne voyage que s'il est actif sur la fiche.</p>
+     * deux supposent ce compte.</p>
      */
     private AthleteAccount ensureAccount(User athleteUser, Athlete athlete) {
-        AthleteAccount existing = accountRepository.findByUserId(athleteUser.getId()).orElse(null);
-        if (existing != null) {
-            return existing;
-        }
-        AthleteAccount account = new AthleteAccount();
-        account.setUser(athleteUser);
-        account.setFirstName(athlete.getFirstName());
-        account.setLastName(athlete.getLastName());
-        account.setBirthDate(athlete.getBirthDate());
-        account.setSex(athlete.getSex());
-        account.setLevel(athlete.getLevel());
-        account.setDiscipline(athlete.getDiscipline());
-        account.setLookingForCoach(true);
-        account.setTermsAcceptedAt(athleteUser.getTermsAcceptedAt());
-        if (athlete.isHealthDataConsentActive()) {
-            account.setHealthDataConsentAt(athlete.getHealthDataConsentAt());
-        }
-        account = accountRepository.save(account);
-        // La fiche garde la trace de la personne, comme pour un athlète venu du hub.
-        if (athlete.getAccount() == null) {
-            athlete.setAccount(account);
-        }
-        return account;
+        return accountService.ensure(athleteUser, athlete);
     }
 }
