@@ -16,17 +16,23 @@ public record AthleteSummaryResponse(
         boolean invitationPending,
         String groupName,
         /** Le coach courant peut-il prescrire/modifier cet athlète (sinon lecture seule) ? */
-        boolean canWrite) {
+        boolean canWrite,
+        /** Le suivi est terminé : la fiche reste en lecture chez le coach qui l'a tenue. */
+        boolean coachingEnded) {
 
     public static AthleteSummaryResponse from(Athlete a) {
         return from(a, true);
     }
 
     public static AthleteSummaryResponse from(Athlete a, boolean canWrite) {
+        return from(a, canWrite, false);
+    }
+
+    public static AthleteSummaryResponse from(Athlete a, boolean canWrite, boolean coachingEnded) {
         return new AthleteSummaryResponse(
                 a.getId(), a.getFirstName(), a.getLastName(),
                 a.getLevel(), a.getStatus(), a.getInviteToken() != null,
                 a.getGroup() != null ? a.getGroup().getName() : null,
-                canWrite);
+                canWrite, coachingEnded);
     }
 }

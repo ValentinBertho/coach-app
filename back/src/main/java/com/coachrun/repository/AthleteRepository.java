@@ -57,6 +57,13 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
               and (:groupId is null or a.group.id = :groupId)
               and (lower(a.firstName) like lower(concat('%', :q, '%'))
                    or lower(a.lastName) like lower(concat('%', :q, '%')))
+              and (:follow = 'ALL'
+                   or (:follow = 'ENDED' and exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))
+                   or (:follow = 'FOLLOWED' and not (exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))))
             """,
             countQuery = """
             select count(distinct a) from Athlete a
@@ -66,11 +73,19 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
               and (:groupId is null or a.group.id = :groupId)
               and (lower(a.firstName) like lower(concat('%', :q, '%'))
                    or lower(a.lastName) like lower(concat('%', :q, '%')))
+              and (:follow = 'ALL'
+                   or (:follow = 'ENDED' and exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))
+                   or (:follow = 'FOLLOWED' and not (exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))))
             """)
     Page<Athlete> search(@Param("clubId") UUID clubId,
                          @Param("status") AthleteStatus status,
                          @Param("groupId") UUID groupId,
                          @Param("q") String q,
+                         @Param("follow") String follow,
                          Pageable pageable);
 
     /**
@@ -108,6 +123,18 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
                    or exists (select 1 from CoachAthleteRelation m
                                where m.athlete = a and m.referent = true and m.active = true
                                  and m.coach.id = :viewerId))
+              and (:follow = 'ALL'
+                   or (:follow = 'ENDED' and exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))
+                   or (:follow = 'FOLLOWED' and not (exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))))
+              and (not (exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))
+                   or exists (select 1 from CoachAthleteRelation o
+                               where o.athlete = a and o.referent = true and o.coach.id = :viewerId))
             """,
             countQuery = """
             select count(distinct a) from Athlete a
@@ -123,12 +150,25 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
                    or exists (select 1 from CoachAthleteRelation m
                                where m.athlete = a and m.referent = true and m.active = true
                                  and m.coach.id = :viewerId))
+              and (:follow = 'ALL'
+                   or (:follow = 'ENDED' and exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))
+                   or (:follow = 'FOLLOWED' and not (exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))))
+              and (not (exists (select 1 from CoachAthleteRelation e where e.athlete = a and e.referent = true)
+                   and not exists (select 1 from CoachAthleteRelation x
+                                   where x.athlete = a and x.referent = true and x.active = true))
+                   or exists (select 1 from CoachAthleteRelation o
+                               where o.athlete = a and o.referent = true and o.coach.id = :viewerId))
             """)
     Page<Athlete> searchVisibleTo(@Param("clubId") UUID clubId,
                                   @Param("status") AthleteStatus status,
                                   @Param("groupId") UUID groupId,
                                   @Param("q") String q,
                                   @Param("viewerId") UUID viewerId,
+                                  @Param("follow") String follow,
                                   Pageable pageable);
 
     /** Athlètes rattachés à un coach (modèle multi-club : « mes athlètes » transverse aux clubs). */

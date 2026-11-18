@@ -35,6 +35,10 @@ export interface ConfirmRequest {
   optionLabel?: string;
   /** Précision affichée sous la case, quand sa portée ne tient pas dans son libellé. */
   optionHint?: string;
+  /** L'invite peut être validée vide (motif facultatif). Sans ça, on tapait « . » pour passer. */
+  promptOptional?: boolean;
+  /** Case cochée à l'ouverture (défaut : décochée). */
+  optionInitial?: boolean;
   /**
    * Libellé d'une <b>liste déroulante</b> facultative, posée sous le champ de saisie.
    *
@@ -63,6 +67,12 @@ export interface ConfirmTextAndChoice {
   choice: string | null;
 }
 
+/** Réponse d'une invite à option : le texte saisi, et l'état de la case. */
+export interface ConfirmTextAndOption {
+  text: string;
+  option: boolean;
+}
+
 /** Réponse d'une confirmation à option : l'accord, et l'état de la case. */
 export interface ConfirmWithOption {
   confirmed: boolean;
@@ -77,6 +87,8 @@ interface PendingConfirm extends ConfirmRequest {
   resolveText?: (value: string | null) => void;
   /** Présent pour une invite à liste : reçoit texte et choix, ou `null` si l'utilisateur renonce. */
   resolveTextAndChoice?: (answer: ConfirmTextAndChoice | null) => void;
+  /** Présent pour une invite à case : reçoit texte et case, ou `null` si l'utilisateur renonce. */
+  resolveTextAndOption?: (answer: ConfirmTextAndOption | null) => void;
 }
 
 /**
@@ -123,6 +135,18 @@ export class ConfirmService {
   }
 
   /**
+   * Invite de saisie portant une case à cocher : résout le texte <i>et</i> l'état de la case, ou
+   * `null` si l'utilisateur renonce.
+   */
+  promptWithOption(
+    request: ConfirmRequest & { promptLabel: string; optionLabel: string },
+  ): Promise<ConfirmTextAndOption | null> {
+    return new Promise<ConfirmTextAndOption | null>((resolve) => {
+      this.pending.set({ ...request, resolve: () => undefined, resolveTextAndOption: resolve });
+    });
+  }
+
+  /**
    * Invite de saisie doublée d'un classement : résout le texte <i>et</i> le choix retenu.
    *
    * <p>Une seule modale plutôt que deux questions enchaînées : nommer et ranger relèvent de la
@@ -145,6 +169,10 @@ export class ConfirmService {
     this.pending.set(null);
     if (p.resolveOption) {
       p.resolveOption({ confirmed: ok, option: ok && option });
+      return;
+    }
+    if (p.resolveTextAndOption) {
+      p.resolveTextAndOption(ok ? { text: (value ?? '').trim(), option } : null);
       return;
     }
     if (p.resolveTextAndChoice) {

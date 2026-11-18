@@ -20,6 +20,7 @@
     <option value="ACTIVE">Actifs</option>
     <option value="PAUSED">En pause</option>
     <option value="ARCHIVED">Archivés</option>
+    <option value="ENDED">Suivi terminé</option>
     <option value="">Tous les statuts</option>
   </select>
   @if (groups().length) {
@@ -80,7 +81,11 @@
             <div class="athlete-tags">
               @if (a.groupName) { <span class="badge badge-neutral">{{ a.groupName }}</span> }
               @if (a.invitationPending) { <span class="badge badge-info">Invité</span> }
-              <span class="badge" [class]="statusClass(a.status)">{{ statusLabel(a.status) }}</span>
+              @if (a.coachingEnded) {
+                <span class="badge badge-warning" title="Cet athlète n'est plus suivi par vous : sa fiche reste consultable, en lecture.">Suivi terminé</span>
+              } @else {
+                <span class="badge" [class]="statusClass(a.status)">{{ statusLabel(a.status) }}</span>
+              }
             </div>
           </a>
         }

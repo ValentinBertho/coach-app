@@ -56,6 +56,18 @@ public class ZoneSetController {
         zoneSetService.delete(clubId, id);
     }
 
+    /**
+     * Fait de ce modèle le modèle par défaut du club. Les athlètes sans modèle choisi basculent
+     * dessus : leurs cibles sont recalculées dans la foulée.
+     */
+    @PutMapping("/zone-sets/{id}/default")
+    public List<ZoneSetResponse> makeDefault(@PathVariable UUID clubId, @PathVariable UUID id) {
+        for (UUID athleteId : zoneSetService.setDefault(clubId, id)) {
+            zoneValueSyncService.resync(clubId, athleteId);
+        }
+        return zoneSetService.list(clubId);
+    }
+
     /** Modèle de zones appliqué à un athlète ({@code zoneSetId} null = jeu par défaut du club). */
     @GetMapping("/athletes/{athleteId}/zone-set")
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")

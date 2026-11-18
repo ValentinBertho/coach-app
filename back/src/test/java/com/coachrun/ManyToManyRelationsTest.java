@@ -51,29 +51,29 @@ class ManyToManyRelationsTest {
         String bearer = "Bearer " + auth.get("accessToken").asText();
         String clubId = auth.get("user").get("clubId").asText();
 
-        // Le seed rattache plusieurs coachs à au moins un athlète et l'inscrit à un club additionnel.
-        // Toute la liste, pas une page : les autres classes de test (non transactionnelles) ajoutent
-        // des athlètes au club de démonstration, et selon l'ordre d'exécution, ceux du seed qui
-        // ont un coach pouvaient tomber au-delà des 50 premiers noms.
-        JsonNode athletes = objectMapper.readTree(mvc.perform(
-                        get("/clubs/{c}/athletes?size=1000", clubId).header("Authorization", bearer))
+        // L'athlète est créé ici plutôt que pris dans le seed : le club de démonstration est
+        // partagé par toute la suite, et selon l'ordre des classes (variable d'un runner à
+        // l'autre), les athlètes du seed qui avaient plusieurs coachs ne l'étaient plus, ou
+        // n'étaient plus visibles de ce coach — le test échouait sans rapport avec ce qu'il vérifie.
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Multi\",\"lastName\":\"Coachs\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        JsonNode assignable = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/assignable-coaches", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        // L'ordre de la liste (tri par nom) départage mal les homonymes et diffère entre H2 et
-        // PostgreSQL : on cherche l'athlète suivi plutôt que de supposer qu'il est le premier.
-        String athleteId = null;
-        JsonNode detail = null;
-        for (JsonNode a : athletes.get("content")) {
-            JsonNode d = objectMapper.readTree(mvc.perform(
-                            get("/clubs/{c}/athletes/{a}", clubId, a.get("id").asText()).header("Authorization", bearer))
-                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-            if (d.get("coaches") != null && !d.get("coaches").isEmpty()) {
-                athleteId = a.get("id").asText();
-                detail = d;
-                break;
-            }
+        assertThat(assignable.size()).as("le club de démo a plusieurs coachs").isGreaterThanOrEqualTo(2);
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(put("/clubs/{c}/athletes/{a}/coaches/{co}", clubId, athleteId,
+                            assignable.get(i).get("id").asText())
+                    .header("Authorization", bearer)).andExpect(status().isOk());
         }
-        assertThat(athleteId).as("au moins un athlète du seed a un coach").isNotNull();
-        assertThat(detail.get("coaches")).isNotEmpty();          // plusieurs coachs possibles
+        JsonNode detail = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}", clubId, athleteId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(detail.get("coaches")).as("plusieurs coachs sur un même athlète").hasSize(2);
         assertThat(detail.get("clubs").size()).isGreaterThanOrEqualTo(1);
 
         // Coachs assignables du club.

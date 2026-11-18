@@ -69,6 +69,13 @@ import { ToastService } from '../../core/services/toast.service';
             </option>
           }
         </select>
+        @if (activeSet()?.isDefault) {
+          <span
+            class="badge badge-success"
+            title="Appliqué aux athlètes qui n'ont pas de modèle choisi"
+            >Par défaut</span
+          >
+        }
         <button
           type="button"
           class="btn btn-ghost btn-sm"
@@ -84,6 +91,15 @@ import { ToastService } from '../../core/services/toast.service';
           [disabled]="setBusy() || !activeSet()"
         >
           <app-icon name="pencil" [size]="15" /> Renommer
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="makeDefaultSet()"
+          [disabled]="setBusy() || !activeSet() || activeSet()!.isDefault"
+          title="Les athlètes sans modèle choisi passeront sur celui-ci"
+        >
+          <app-icon name="check" [size]="15" /> Définir par défaut
         </button>
         <button
           type="button"
@@ -1014,6 +1030,37 @@ export class TrainingZonesComponent implements OnInit {
         this.toast.success('Modèle renommé.');
       },
       error: () => this.toast.error('Renommage impossible.'),
+    });
+  }
+
+  /**
+   * Change le modèle par défaut du club. La portée doit être dite avant : tous les athlètes qui
+   * n'ont pas de modèle choisi basculent, et leurs allures sont recalculées.
+   */
+  async makeDefaultSet(): Promise<void> {
+    const set = this.activeSet();
+    if (!set || set.isDefault) return;
+    const ok = await this.confirm.ask({
+      title: 'Changer le modèle par défaut',
+      message:
+        `« ${set.name} » devient le modèle par défaut du club. Les athlètes qui n'ont pas de ` +
+        'modèle choisi sur leur fiche passent sur celui-ci et leurs allures sont recalculées. ' +
+        'Ceux qui ont un modèle choisi le gardent, et les séances existantes continuent de ' +
+        'trouver leurs cibles.',
+      confirmLabel: 'Définir par défaut',
+    });
+    if (!ok) return;
+    this.setBusy.set(true);
+    this.setService.makeDefault(set.id).subscribe({
+      next: (sets) => {
+        this.sets.set(sets);
+        this.setBusy.set(false);
+        this.toast.success(`« ${set.name} » est le nouveau modèle par défaut.`);
+      },
+      error: () => {
+        this.setBusy.set(false);
+        this.toast.error('Changement impossible.');
+      },
     });
   }
 

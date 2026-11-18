@@ -209,6 +209,12 @@ export class AdminService {
     return this.http.post<AdminUser>(`${this.base}/users/${id}/reset-mfa`, {});
   }
 
+  /** Rattrapage d'un changement de coach : profil, montres et calendrier passé ramenés. */
+  recoverCoachingData(id: string, shareWithCurrentCoach: boolean): Observable<unknown> {
+    return this.http.post(`${this.base}/users/${id}/recover-coaching-data`, {},
+      { params: { shareWithCurrentCoach } });
+  }
+
   revokeSessions(id: string): Observable<AdminUser> {
     return this.http.post<AdminUser>(`${this.base}/users/${id}/revoke-sessions`, {});
   }
