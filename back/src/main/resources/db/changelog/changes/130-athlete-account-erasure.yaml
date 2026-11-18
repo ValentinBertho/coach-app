@@ -1,0 +1,74 @@
+# ============================================================================
+# 130 — Le droit à l'oubli atteint le compte athlète.
+#
+#   La suppression d'une fiche emporte l'utilisateur (users.athlete_id en
+#   cascade), mais le compte athlète qui pointe vers cet utilisateur, lui,
+#   n'était pas prévu : la base refusait tout (« conflit avec des données
+#   existantes ») dès que l'athlète avait un compte — c'est-à-dire tous ceux
+#   venus de l'annuaire, et ceux qui avaient déjà changé de coach.
+#
+#   - le compte part avec son utilisateur, et ses demandes de coaching avec lui ;
+#   - une fiche qui survivrait à son compte (supprimé par ailleurs) perd le
+#     lien plutôt que de bloquer ;
+#   - un signalement de fiche coach survit à son auteur, devenu anonyme (la
+#     colonne l'accepte déjà) ; idem pour l'administrateur qui l'a traité.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 130-athlete-account-erasure
+      author: coachrun
+      changes:
+        - dropForeignKeyConstraint:
+            baseTableName: athlete_accounts
+            constraintName: fk_athlete_accounts_user
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_accounts_user
+            baseTableName: athlete_accounts
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - dropForeignKeyConstraint:
+            baseTableName: coaching_requests
+            constraintName: fk_coaching_requests_account
+        - addForeignKeyConstraint:
+            constraintName: fk_coaching_requests_account
+            baseTableName: coaching_requests
+            baseColumnNames: athlete_account_id
+            referencedTableName: athlete_accounts
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - dropForeignKeyConstraint:
+            baseTableName: athletes
+            constraintName: fk_athletes_account
+        - addForeignKeyConstraint:
+            constraintName: fk_athletes_account
+            baseTableName: athletes
+            baseColumnNames: athlete_account_id
+            referencedTableName: athlete_accounts
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+        - dropForeignKeyConstraint:
+            baseTableName: coach_profile_reports
+            constraintName: fk_coach_profile_reports_reporter
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_profile_reports_reporter
+            baseTableName: coach_profile_reports
+            baseColumnNames: reporter_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+        - dropForeignKeyConstraint:
+            baseTableName: coach_profile_reports
+            constraintName: fk_coach_profile_reports_handler
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_profile_reports_handler
+            baseTableName: coach_profile_reports
+            baseColumnNames: handled_by_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL

@@ -7,7 +7,6 @@ import com.coachrun.entity.User;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.ForbiddenException;
 import com.coachrun.exception.NotFoundException;
-import com.coachrun.repository.AthleteAccountRepository;
 import com.coachrun.repository.CoachTestimonialRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,7 +30,7 @@ public class CoachTestimonialService {
     public static final int MAX_LENGTH = 600;
 
     private final CoachTestimonialRepository repository;
-    private final AthleteAccountRepository accountRepository;
+    private final AthleteAccountService accountService;
     private final CoachingRelationService relations;
     private final NotificationService notifications;
 
@@ -47,7 +46,7 @@ public class CoachTestimonialService {
     public record Published(String authorName, String body, Instant date) {
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<Mine> mine(UUID userId) {
         CoachAthleteRelation relation = requireCoach(userId);
         AthleteAccount account = requireAccount(userId);
@@ -115,8 +114,7 @@ public class CoachTestimonialService {
     }
 
     private AthleteAccount requireAccount(UUID userId) {
-        return accountRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("Compte athlète introuvable."));
+        return accountService.require(userId);
     }
 
     static String author(AthleteAccount a) {

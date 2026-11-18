@@ -36,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -72,6 +74,7 @@ public class GdprService {
     private final NotificationService notificationService;
     private final com.coachrun.repository.UserRepository userRepository;
     private final PushNotificationService pushNotificationService;
+    private final com.coachrun.repository.AthleteAccountRepository accountRepository;
     /**
      * Journal. Les quatre gestes de ce service sont ceux qu'un athlète peut vouloir prouver, et
      * ceux dont un coach peut avoir à répondre : exercer un droit RGPD sans qu'il en reste trace
@@ -139,15 +142,36 @@ public class GdprService {
         // il n'y aura plus rien à nommer. Le refus reste le même qu'avant pour un identifiant
         // inconnu (require lève la même NotFoundException).
         Athlete athlete = require(athleteId);
-        userRepository.findByAthleteId(athleteId)
-                .ifPresent(user -> pushNotificationService.unsubscribeUser(user.getId()));
+        var user = userRepository.findByAthleteId(athleteId).orElse(null);
+
+        // La personne, pas seulement la fiche courante : un athlète qui a changé de coach a encore
+        // une fiche chez l'ancien (reliée par son compte), et une fiche dans son espace personnel.
+        // L'effacement les emporte toutes ; en laisser une garderait ses séances et ses ressentis.
+        var account = athlete.getAccount() != null ? athlete.getAccount()
+                : user != null ? accountRepository.findByUserId(user.getId()).orElse(null) : null;
+        Set<UUID> fiches = new LinkedHashSet<>();
+        fiches.add(athleteId);
+        if (account != null) {
+            athleteRepository.findByAccountId(account.getId()).forEach(a -> fiches.add(a.getId()));
+        }
+
+        if (user != null) {
+            pushNotificationService.unsubscribeUser(user.getId());
+        }
         // Consigné AVANT la suppression. La trace ne porte aucune clé étrangère : elle survit à
         // la disparition de sa cible — c'est précisément ce pour quoi le journal a été conçu sans FK.
         audit.record(AdminAuditAction.ATHLETE_DATA_ERASED, AdminAuditTarget.ATHLETE,
                 athleteId, label(athlete),
-                "Effacement complet du dossier (art. 17 — droit à l'oubli)");
-        athleteRepository.hardDelete(athleteId);
-        log.warn("[RGPD] Données de l'athlète {} supprimées (droit à l'oubli).", athleteId);
+                "Effacement complet du dossier (art. 17 — droit à l'oubli)"
+                        + (fiches.size() > 1 ? " — " + fiches.size() + " fiches" : ""));
+        fiches.forEach(athleteRepository::hardDelete);
+        // L'utilisateur part avec sa fiche (users.athlete_id en cascade) et son compte athlète avec
+        // lui ; la suppression explicite couvre le cas où le compte ne pointait plus sur ces fiches.
+        if (user != null) {
+            userRepository.hardDelete(user.getId());
+        }
+        log.warn("[RGPD] Données de l'athlète {} supprimées (droit à l'oubli, {} fiche(s)).",
+                athleteId, fiches.size());
     }
 
     /** État courant du consentement au traitement des données de santé. */

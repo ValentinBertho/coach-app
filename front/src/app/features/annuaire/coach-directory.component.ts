@@ -12,6 +12,7 @@ import {
   DirectorySort,
   FacetValue,
 } from '../../core/services/coach-directory.service';
+import { AuthService } from '../../core/services/auth.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
@@ -45,7 +46,13 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
         <a routerLink="/" class="dir__brand" aria-label="Accueil">
           <app-logo [size]="36" [showText]="true" />
         </a>
-        <a routerLink="/login" class="btn btn-ghost btn-sm">Connexion</a>
+        <!-- Même logique que l'accueil : un utilisateur connecté retourne à son espace, on ne lui
+             propose pas de se connecter une seconde fois. -->
+        @if (isAuthenticated()) {
+          <a [routerLink]="home()" class="btn btn-primary btn-sm">Mon espace</a>
+        } @else {
+          <a routerLink="/login" class="btn btn-ghost btn-sm">Connexion</a>
+        }
       </header>
 
       <section class="dir__hero">
@@ -267,6 +274,10 @@ export class CoachDirectoryComponent implements OnInit {
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly auth = inject(AuthService);
+
+  readonly isAuthenticated = this.auth.isAuthenticated;
+  readonly home = computed(() => this.auth.homeRoute());
 
   readonly sorts = DIRECTORY_SORTS;
   readonly sort = signal<DirectorySort>('DEFAULT');

@@ -269,3 +269,5 @@ databaseChangeLog:
       file: db/changelog/changes/128-coach-testimonials.yaml
   - include:
       file: db/changelog/changes/129-zone-reference-models.yaml
+  - include:
+      file: db/changelog/changes/130-athlete-account-erasure.yaml

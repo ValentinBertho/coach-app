@@ -4,6 +4,7 @@ import com.coachrun.dto.request.AthleteAccountRequest;
 import com.coachrun.dto.request.AthleteRegistrationRequest;
 import com.coachrun.dto.response.AthleteAccountResponse;
 import com.coachrun.dto.response.AuthResponse;
+import com.coachrun.entity.Athlete;
 import com.coachrun.entity.AthleteAccount;
 import com.coachrun.entity.CoachProfile;
 import com.coachrun.entity.User;
@@ -182,6 +183,7 @@ public class AthleteAccountService {
         return AthleteAccountResponse.from(account, pending);
     }
 
+    @Transactional
     public AthleteAccountResponse myAccount(UUID userId) {
         return render(require(userId));
     }
@@ -211,11 +213,55 @@ public class AthleteAccountService {
         return render(account);
     }
 
-    /** Le compte de cet utilisateur, ou 404 — un coach n'en a pas, et n'a pas à en avoir. */
+    /**
+     * Le compte de cet utilisateur, ou 404 — un coach n'en a pas, et n'a pas à en avoir.
+     *
+     * <p>Un athlète invité par son coach (lien magique) entre avec une fiche mais sans compte :
+     * son profil, son témoignage et toute demande de coaching lui répondaient « Ressource
+     * introuvable ». Son compte est créé ici, à la première occasion, à partir de sa fiche.</p>
+     */
+    @Transactional
     public AthleteAccount require(UUID userId) {
         return accountRepository.findByUserId(userId)
+                .or(() -> userRepository.findById(userId)
+                        .filter(u -> u.getRole() == UserRole.ATHLETE && u.getAthlete() != null)
+                        .map(u -> ensure(u, u.getAthlete())))
                 .orElseThrow(() -> new NotFoundException(
                         "Aucun compte athlète pour cet utilisateur."));
+    }
+
+    /**
+     * Garantit qu'un athlète arrivé par une fiche (invitation de son coach) a un compte athlète.
+     *
+     * <p>On le crée à partir de ce que la fiche sait de lui. Le consentement santé ne voyage que
+     * s'il est actif sur la fiche.</p>
+     */
+    @Transactional
+    public AthleteAccount ensure(User athleteUser, Athlete athlete) {
+        AthleteAccount existing = accountRepository.findByUserId(athleteUser.getId()).orElse(null);
+        if (existing != null) {
+            return existing;
+        }
+        AthleteAccount account = new AthleteAccount();
+        account.setUser(athleteUser);
+        account.setFirstName(athlete.getFirstName());
+        account.setLastName(athlete.getLastName());
+        account.setBirthDate(athlete.getBirthDate());
+        account.setSex(athlete.getSex());
+        account.setLevel(athlete.getLevel());
+        account.setDiscipline(athlete.getDiscipline());
+        account.setLookingForCoach(true);
+        account.setTermsAcceptedAt(athleteUser.getTermsAcceptedAt());
+        if (athlete.isHealthDataConsentActive()) {
+            account.setHealthDataConsentAt(athlete.getHealthDataConsentAt());
+        }
+        account = accountRepository.save(account);
+        // La fiche garde la trace de la personne, comme pour un athlète venu du hub.
+        if (athlete.getAccount() == null) {
+            athlete.setAccount(account);
+        }
+        log.info("Compte athlète créé depuis sa fiche (user={})", athleteUser.getId());
+        return account;
     }
 
     /**
