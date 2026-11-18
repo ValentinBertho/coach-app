@@ -73,6 +73,14 @@ export class PushService {
    */
   readonly subscribed = signal(false);
 
+  /**
+   * Vrai pendant {@link enable} : c'est lui qui enregistre l'abonnement qu'il vient de créer. Le
+   * réalignement de {@link watchSubscription}, déclenché par ce même abonnement, envoyait sinon
+   * une seconde requête simultanée — le serveur répondait 409 à l'une des deux, et l'activation,
+   * croyant l'enregistrement raté, défaisait l'abonnement du téléphone.
+   */
+  private enabling = false;
+
   get available(): boolean {
     return this.swPush.isEnabled;
   }
@@ -117,7 +125,7 @@ export class PushService {
       this.subscribed.set(!!sub);
       // Sans session, il n'y a personne à réenregistrer : cet appel partait quand même au
       // démarrage — y compris sur l'écran de connexion — et repartait en 401.
-      if (sub && this.auth.isAuthenticated()) {
+      if (sub && this.auth.isAuthenticated() && !this.enabling) {
         this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()).subscribe({
           error: () => { /* hors ligne ou non connecté : le prochain démarrage réessaiera */ },
         });
@@ -153,20 +161,25 @@ export class PushService {
       throw new PushError("Les notifications ne sont pas activées sur ce serveur.");
     }
 
-    let sub: PushSubscription;
+    this.enabling = true;
     try {
-      sub = await this.swPush.requestSubscription({ serverPublicKey: cfg.publicKey });
-    } catch (err) {
-      throw new PushError(this.subscriptionErrorMessage(err));
-    }
+      let sub: PushSubscription;
+      try {
+        sub = await this.swPush.requestSubscription({ serverPublicKey: cfg.publicKey });
+      } catch (err) {
+        throw new PushError(this.subscriptionErrorMessage(err));
+      }
 
-    try {
-      await firstValueFrom(this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()));
-    } catch (err) {
-      // L'abonnement existe côté navigateur mais le serveur ne le connaît pas : on le défait,
-      // sinon l'appareil se croit abonné pour toujours et n'est jamais notifié.
-      await this.swPush.unsubscribe().catch(() => undefined);
-      throw new PushError(this.registrationErrorMessage(err));
+      try {
+        await firstValueFrom(this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()));
+      } catch (err) {
+        // L'abonnement existe côté navigateur mais le serveur ne le connaît pas : on le défait,
+        // sinon l'appareil se croit abonné pour toujours et n'est jamais notifié.
+        await this.swPush.unsubscribe().catch(() => undefined);
+        throw new PushError(this.registrationErrorMessage(err));
+      }
+    } finally {
+      this.enabling = false;
     }
     this.subscribed.set(true);
     return true;
