@@ -391,6 +391,11 @@
               <app-icon name="lock" [size]="15" /> Envoyer un lien de mot de passe
             </button>
           }
+          @if (u.role === 'ATHLETE') {
+            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="recoverCoachingData()">
+              <app-icon name="rotate-ccw" [size]="15" /> Récupérer les données d'un changement de coach
+            </button>
+          }
           <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="revokeSessions()">
             <app-icon name="rotate-ccw" [size]="15" /> Fermer toutes les sessions
           </button>

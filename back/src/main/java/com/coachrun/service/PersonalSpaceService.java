@@ -48,6 +48,7 @@ public class PersonalSpaceService {
     private final DeviceConnectionRepository connectionRepository;
     private final ClubStarterKitService starterKitService;
     private final com.coachrun.repository.ActivityRepository activityRepository;
+    private final AthleteCarryOverService carryOver;
 
     /** La fiche personnelle du compte, créée si elle n'existe pas encore. */
     @Transactional
@@ -104,7 +105,9 @@ public class PersonalSpaceService {
      * <p>La fiche reste chez le coach, qui garde son suivi ; l'athlète, lui, repartait avec un
      * historique vide. Ses sorties — importées de sa montre ou saisies par lui — sont recopiées
      * dans son espace personnel. Une sortie déjà présente (même source, même identifiant) n'est pas
-     * dupliquée. Les séances prescrites ne le sont pas : elles sont le travail du coach.</p>
+     * dupliquée. Les séances passées l'accompagnent, avec ses retours, pour que son calendrier ne
+     * reparte pas vide ; une sortie rapprochée d'une séance le reste sur la copie. Les séances à
+     * venir ne suivent pas.</p>
      *
      * @return nombre de sorties recopiées
      */
@@ -113,6 +116,7 @@ public class PersonalSpaceService {
         if (from == null || to == null || from.getId().equals(to.getId())) {
             return 0;
         }
+        java.util.Map<UUID, UUID> workouts = carryOver.copyPastWorkouts(from, to);
         int copied = 0;
         for (com.coachrun.entity.Activity src : activityRepository.findByAthleteIdOrderByActivityDateDesc(from.getId())) {
             if (src.getExternalId() != null && src.getSource() != null
@@ -125,7 +129,14 @@ public class PersonalSpaceService {
                     "matchedWorkoutId", "manualMatch", "status");
             copy.setClub(to.getClub());
             copy.setAthlete(to);
-            copy.setStatus(com.coachrun.entity.enums.ActivityStatus.IMPORTED);
+            UUID matched = src.getMatchedWorkoutId() == null ? null : workouts.get(src.getMatchedWorkoutId());
+            if (matched != null) {
+                copy.setMatchedWorkoutId(matched);
+                copy.setManualMatch(src.isManualMatch());
+                copy.setStatus(src.getStatus());
+            } else {
+                copy.setStatus(com.coachrun.entity.enums.ActivityStatus.IMPORTED);
+            }
             activityRepository.save(copy);
             copied++;
         }

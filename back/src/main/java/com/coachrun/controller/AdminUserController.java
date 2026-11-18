@@ -45,6 +45,7 @@ public class AdminUserController {
     private final AdminUserService adminUserService;
     private final ImpersonationService impersonationService;
     private final AdminAuditService adminAuditService;
+    private final com.coachrun.service.CoachingDataRecoveryService coachingDataRecovery;
 
     /**
      * Ouvre une session au nom de cet utilisateur, pour voir l'application exactement comme lui.
@@ -117,6 +118,17 @@ public class AdminUserController {
     @PostMapping("/{id}/reset-mfa")
     public AdminUserResponse resetMfa(@PathVariable UUID id) {
         return adminUserService.resetMfa(id);
+    }
+
+    /**
+     * Rattrapage d'un changement de coach fait avant que le profil ne suive l'athlète : records,
+     * seuils, montres et calendrier passé ramenés depuis ses anciennes fiches (copie, rien
+     * d'écrasé). {@code shareWithCurrentCoach} : à la demande de l'athlète seulement.
+     */
+    @PostMapping("/{id}/recover-coaching-data")
+    public com.coachrun.service.CoachingDataRecoveryService.Result recoverCoachingData(
+            @PathVariable UUID id, @RequestParam(defaultValue = "false") boolean shareWithCurrentCoach) {
+        return coachingDataRecovery.recover(id, shareWithCurrentCoach);
     }
 
     /** Ferme toutes les sessions sans suspendre : « j'ai perdu mon téléphone ». */

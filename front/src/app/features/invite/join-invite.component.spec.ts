@@ -74,7 +74,7 @@ describe('rejoindre par un lien d’invitation', () => {
     button.click();
     const req = http.expectOne((r) => r.url.endsWith('/me/invites/Abc123/join'));
     expect(req.request.body.switchCoach).toBeTrue();
-    expect(req.request.body.shareHistory).toBeFalse();
+    expect(req.request.body.shareHistory).toBeTrue();
     req.flush({ outcome: 'JOINED', coachName: 'Sarah Lemoine' });
     http.match((r) => r.url.endsWith('/refresh')).forEach((r) => r.flush({}));
   });

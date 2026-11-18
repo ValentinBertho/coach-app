@@ -86,6 +86,7 @@ public class CoachingRequestService {
     private final NotificationService notificationService;
     private final ClockService clock;
     private final PersonalSpaceService personalSpace;
+    private final AthleteCarryOverService carryOver;
     private final org.springframework.beans.factory.ObjectProvider<CoachingRelationService> coachingRelations;
 
     // ---------------------------------------------------------------- côté athlète
@@ -409,7 +410,12 @@ public class CoachingRequestService {
             athlete.setGroup(link.getGroup());
         }
         athlete = athleteRepository.save(athlete);
-        // L'historique de ses sorties, s'il a choisi de le transmettre.
+        // Son profil le suit toujours : sans records ni seuils, le coach ne pourrait calculer
+        // aucune zone.
+        if (personalFiche != null) {
+            carryOver.carryProfile(personalFiche, athlete);
+        }
+        // Son calendrier passé et ses sorties, s'il a choisi de les transmettre.
         if (request.isShareHistory() && personalFiche != null) {
             personalSpace.copyHistory(personalFiche, athlete);
         }

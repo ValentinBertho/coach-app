@@ -56,6 +56,7 @@ public class CoachingRelationService {
     private final NotificationService notificationService;
     private final AthleteAccountService accountService;
     private final PersonalSpaceService personalSpace;
+    private final AthleteCarryOverService carryOver;
     // Fournisseurs paresseux : les services de montre tirent eux-mêmes une longue chaîne de
     // dépendances, et la fin d'un coaching n'en a besoin qu'à l'instant où elle se produit.
     private final ObjectProvider<GarminService> garmin;
@@ -327,7 +328,11 @@ public class CoachingRelationService {
         // plutôt qu'un compte vide qui n'aurait plus que l'annuaire.
         Athlete personal = personalSpace.attach(athleteUser, account);
         returnDevices(athlete, personal);
-        // Les deux gardent une copie : la fiche reste chez le coach, les sorties suivent l'athlète.
+        // Son profil (records, seuils, FC, VMA, objectifs) le suit : c'est le sien, et c'est de lui
+        // que dépendent ses zones chez le prochain coach.
+        carryOver.carryProfile(athlete, personal);
+        // Les deux gardent une copie : la fiche reste chez le coach, les sorties et le calendrier
+        // passé suivent l'athlète.
         int copied = personalSpace.copyHistory(athlete, personal);
         athleteUser.setSessionsInvalidatedAt(Instant.now());
         if (coachName != null) {

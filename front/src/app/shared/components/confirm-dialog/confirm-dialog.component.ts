@@ -201,6 +201,16 @@ export class ConfirmDialogComponent {
     viewChild<ElementRef<HTMLInputElement>>('promptInput');
 
   constructor() {
+    // Une case peut être proposée déjà cochée (ex. transmettre son historique au nouveau coach).
+    effect(
+      () => {
+        const pending = this.confirm.pending();
+        if (pending?.optionLabel) {
+          this.optionChecked.set(pending.optionInitial ?? false);
+        }
+      },
+      { allowSignalWrites: true },
+    );
     // Ouverture d'une invite : on pré-remplit avec la valeur proposée, puis on sélectionne le
     // texte. Sans la sélection, l'utilisateur doit effacer le nom du modèle avant d'écrire le
     // sien — le geste rapide qu'on cherchait à offrir devient plus lent que d'ouvrir la séance.
