@@ -5,7 +5,11 @@ public record StravaStatusResponse(
         boolean configured,
         boolean connected,
         String providerAthleteId,
+        /** Curseur d'import : départ de la dernière sortie vue, reculé de deux jours. */
         Long lastImportEpoch,
+
+        /** Fin de la dernière synchro réussie (epoch, secondes) ; null avant la première. */
+        Long lastSyncEpoch,
 
         /**
          * L'athlète a demandé que le renommage se répercute sur son compte Strava.

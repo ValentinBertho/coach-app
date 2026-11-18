@@ -83,6 +83,7 @@ public class StravaService {
                 conn != null,
                 conn != null ? conn.getProviderAthleteId() : null,
                 conn != null ? conn.getLastImportEpoch() : null,
+                conn != null && conn.getLastSyncAt() != null ? conn.getLastSyncAt().getEpochSecond() : null,
                 conn != null && conn.isRenameOnProvider(),
                 conn != null && canWriteToStrava(conn));
     }
@@ -185,6 +186,7 @@ public class StravaService {
             }
         }
         conn.setLastImportEpoch(nextWatermark(after, latestStart));
+        conn.setLastSyncAt(Instant.now());
         connectionRepository.save(conn);
         log.info("Import Strava athlète {} : {} activité(s)", athleteId, imported);
         // Une seule notification pour tout l'import, jamais une par activité : la synchro horaire

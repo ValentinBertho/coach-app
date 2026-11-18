@@ -287,4 +287,43 @@ class ZoneSetTest {
         mvc.perform(delete("/clubs/{c}/zone-sets/{id}", clubId, oldDefault).header("Authorization", bearer))
                 .andExpect(status().is2xxSuccessful());
     }
+
+    /** L'aperçu d'un modèle pour un athlète calcule ses cibles sans rien écrire sur sa fiche. */
+    @Test
+    void previewComputesTargetsWithoutWriting() throws Exception {
+        String defaultId = setIdNamed("Zones par défaut");
+        String vcId = setIdNamed("Zones Vitesses Critiques");
+        String before = mvc.perform(get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        JsonNode own = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/zone-sets/{id}/preview/{a}", clubId, defaultId, athleteId)
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(own.get("athleteUsesThisSet").asBoolean()).isTrue();
+
+        JsonNode vc = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/zone-sets/{id}/preview/{a}", clubId, vcId, athleteId)
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(vc.get("athleteUsesThisSet").asBoolean()).isFalse();
+        if (!vc.get("references").get("vcPaceS").isNull()) {
+            // Allure : la borne basse est la plus rapide (moins de secondes au km).
+            JsonNode pace = null;
+            for (JsonNode v : vc.get("values")) {
+                if ("PACE".equals(v.get("metricCode").asText())) {
+                    pace = v;
+                    break;
+                }
+            }
+            assertThat(pace).isNotNull();
+            assertThat(pace.get("min").asDouble()).isLessThan(pace.get("max").asDouble());
+        }
+
+        String after = mvc.perform(get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(after).isEqualTo(before);
+    }
 }

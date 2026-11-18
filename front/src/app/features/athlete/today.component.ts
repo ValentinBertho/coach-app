@@ -44,6 +44,7 @@ import { ReadinessCardComponent } from './readiness-card.component';
 import { TrajectoryBannerComponent } from '../../shared/components/trajectory-banner/trajectory-banner.component';
 import { Proposal, Trajectory } from '../../core/models/decision.model';
 import { StravaCardComponent } from './strava-card.component';
+import { WatchSyncCardsComponent } from './watch-sync-cards.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
@@ -83,6 +84,7 @@ type State = 'loading' | 'ready' | 'error';
     ReadinessCardComponent,
     TrajectoryBannerComponent,
     StravaCardComponent,
+    WatchSyncCardsComponent,
     HelpHintComponent,
     PushPromptComponent,
     CycleBannerComponent,
@@ -343,6 +345,9 @@ export class TodayComponent implements OnInit {
    * elle compte dans le volume de la semaine — sans ce rafraîchissement, l'athlète synchronise et
    * ne voit rien changer.
    */
+  /** Garmin ou COROS relié : l'invitation à connecter Strava n'a plus lieu d'être. */
+  readonly otherWatchConnected = signal(false);
+
   onStravaSynced(): void {
     this.load();
     this.loadPending();

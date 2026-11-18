@@ -73,6 +73,14 @@ public class DeviceConnection extends BaseEntity {
     private Long lastImportEpoch;
 
     /**
+     * Fin de la dernière synchro réussie, quelle qu'elle soit (bouton ou passage automatique).
+     * À ne pas confondre avec {@link #lastImportEpoch}, qui est un curseur sur l'heure de départ
+     * des sorties et ne dit rien de l'heure à laquelle on est allé les chercher.
+     */
+    @Column(name = "last_sync_at")
+    private java.time.Instant lastSyncAt;
+
+    /**
      * L'athlète accepte que Darilab renomme ses sorties <b>sur Strava</b>, et pas seulement ici.
      *
      * <p>Faux par défaut, et volontairement : écrire dans le fil Strava de quelqu'un est visible de

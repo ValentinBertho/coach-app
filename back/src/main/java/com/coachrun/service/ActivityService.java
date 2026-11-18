@@ -85,7 +85,7 @@ public class ActivityService {
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ConflictException.class)
     public ActivityResponse importActivity(UUID clubId, UUID athleteId, ActivityImportRequest request) {
         return importActivity(clubId, athleteId, request, null);
     }
@@ -113,7 +113,12 @@ public class ActivityService {
         }
     }
 
-    @Transactional
+    // Un doublon refusé ne condamne pas l'import qui l'appelle. Les synchros Strava, Garmin et
+    // COROS appellent cette méthode dans leur propre transaction et passent le doublon : sans
+    // cette exemption, l'exception marquait la transaction entière « à annuler », et la synchro
+    // perdait tout, sorties nouvelles et curseur compris, puis échouait en 500 (« erreur interne »).
+    // Le refus survient avant toute écriture, il n'y a donc rien à défaire.
+    @Transactional(noRollbackFor = ConflictException.class)
     public ActivityResponse importActivity(UUID clubId, UUID athleteId, ActivityImportRequest request,
                                            ImportExtras extras) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)

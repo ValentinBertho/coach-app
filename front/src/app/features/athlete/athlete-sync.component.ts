@@ -52,9 +52,9 @@ import { ActivityExclusion } from '../../core/models/activity.model';
               } @else if (st.connected) {
                 <span class="field-hint"
                   >Synchro automatique toutes les heures
-                  @if (st.lastImportEpoch) {
-                    · dernier import
-                    {{ st.lastImportEpoch * 1000 | date: 'd MMM HH:mm' }}
+                  @if (st.lastSyncEpoch) {
+                    · dernière synchro
+                    {{ st.lastSyncEpoch * 1000 | date: 'd MMM HH:mm' }}
                   }
                   @if (st.providerAthleteId) {
                     · #{{ st.providerAthleteId }}

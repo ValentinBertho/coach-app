@@ -4,6 +4,7 @@ import {
   OnInit,
   computed,
   inject,
+  input,
   output,
   signal,
 } from '@angular/core';
@@ -167,6 +168,9 @@ export class StravaCardComponent implements OnInit {
   /** Émis après un import ayant ramené au moins une activité : l'écran appelant se rafraîchit. */
   readonly synced = output<number>();
 
+  /** Une autre montre (Garmin, COROS) est déjà reliée : l'invitation Strava n'a plus lieu d'être. */
+  readonly otherWatchConnected = input(false);
+
   readonly status = signal<StravaStatus | null>(null);
   readonly busy = signal(false);
   private readonly snoozed = signal(this.isSnoozed());
@@ -178,7 +182,7 @@ export class StravaCardComponent implements OnInit {
   readonly visible = computed(() => {
     const st = this.status();
     if (!st?.configured) return false;
-    return st.connected || !this.snoozed();
+    return st.connected || (!this.snoozed() && !this.otherWatchConnected());
   });
 
   ngOnInit(): void {
@@ -252,9 +256,10 @@ export class StravaCardComponent implements OnInit {
 
   /** « Synchro auto toutes les heures · dernier import il y a 2 h ». */
   lastSyncLabel(): string {
-    const epoch = this.status()?.lastImportEpoch;
-    if (!epoch)
-      return 'Synchro automatique toutes les heures · aucun import pour l’instant';
+    // L'heure de la dernière synchro, pas le curseur d'import : celui-ci suit le départ de la
+    // dernière sortie, reculé de deux jours, et affichait « il y a 3 j » juste après une synchro.
+    const epoch = this.status()?.lastSyncEpoch;
+    if (!epoch) return 'Synchro automatique toutes les heures';
 
     const minutes = Math.max(
       0,
@@ -265,7 +270,7 @@ export class StravaCardComponent implements OnInit {
     else if (minutes < 60) ago = `il y a ${minutes} min`;
     else if (minutes < 60 * 24) ago = `il y a ${Math.round(minutes / 60)} h`;
     else ago = `il y a ${Math.round(minutes / (60 * 24))} j`;
-    return `Synchro automatique toutes les heures · dernier import ${ago}`;
+    return `Synchro automatique toutes les heures · dernière synchro ${ago}`;
   }
 
   private isSnoozed(): boolean {
