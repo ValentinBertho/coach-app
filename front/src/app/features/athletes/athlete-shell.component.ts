@@ -327,6 +327,14 @@ const SECTION_LABELS: Record<string, string> = {
           </div>
         </dl>
 
+        @if (a.coachingEnded) {
+          <!-- Sans ce bandeau, la fiche d'un athlète parti se lisait comme celle d'un athlète
+               suivi : même statut « Actif », mêmes onglets. -->
+          <p class="shell-ended" role="status">
+            Vous ne suivez plus {{ a.firstName }}. Sa fiche reste consultable, en lecture seule,
+            avec l'historique de votre suivi.
+          </p>
+        }
         <nav class="shell-tabs" aria-label="Sections de l'athlète">
           @for (t of tabs; track t.path) {
             <a [routerLink]="[t.path]" routerLinkActive="active">{{
@@ -558,6 +566,14 @@ const SECTION_LABELS: Record<string, string> = {
       }
 
       /* Barre d'onglets : elle ne disparaît plus quand on change de section. */
+      .shell-ended {
+        margin: var(--sp-2) 0 0;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: var(--warning-bg);
+        color: var(--warning-text);
+        font-size: 0.9rem;
+      }
       .shell-tabs {
         display: flex;
         gap: var(--sp-1);

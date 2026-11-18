@@ -84,13 +84,31 @@ public class AthleteService {
     public PageResponse<AthleteSummaryResponse> list(UUID clubId, AthleteStatus status,
                                                      UUID groupId, String query, Pageable pageable,
                                                      AuthPrincipal principal) {
+        return list(clubId, status, groupId, query, null, pageable, principal);
+    }
+
+    /**
+     * @param follow {@code FOLLOWED} (suivi en cours), {@code ENDED} (suivi terminé) ou rien
+     *               (tous). Une fiche dont le suivi est terminé reste chez le coach qui l'a tenue,
+     *               en lecture, mais ne doit plus passer pour un athlète « actif ».
+     */
+    public PageResponse<AthleteSummaryResponse> list(UUID clubId, AthleteStatus status,
+                                                     UUID groupId, String query, String follow,
+                                                     Pageable pageable, AuthPrincipal principal) {
         String q = StringUtils.hasText(query) ? query.trim() : "";
+        String f = "FOLLOWED".equals(follow) || "ENDED".equals(follow) ? follow : "ALL";
         UUID viewerId = principal.userId();
         var page = principal.role() == UserRole.PLATFORM_ADMIN
-                ? athleteRepository.search(clubId, status, groupId, q, pageable)
-                : athleteRepository.searchVisibleTo(clubId, status, groupId, q, viewerId, pageable);
+                ? athleteRepository.search(clubId, status, groupId, q, f, pageable)
+                : athleteRepository.searchVisibleTo(clubId, status, groupId, q, viewerId, f, pageable);
         return PageResponse.from(page,
-                a -> AthleteSummaryResponse.from(a, canWrite(viewerId, a.getId())));
+                a -> AthleteSummaryResponse.from(a, canWrite(viewerId, a.getId()), coachingEnded(a.getId())));
+    }
+
+    /** Le suivi de cette fiche est-il terminé (une relation référente a existé, aucune n'est active) ? */
+    private boolean coachingEnded(UUID athleteId) {
+        return relationRepository.existsByAthleteIdAndReferentTrue(athleteId)
+                && relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athleteId).isEmpty();
     }
 
     /** Le coach peut-il prescrire/modifier cet athlète ? (cohérent avec @athleteAccessValidator) */
@@ -103,7 +121,8 @@ public class AthleteService {
     public AthleteResponse get(UUID clubId, UUID athleteId) {
         Athlete athlete = requireAthlete(clubId, athleteId);
         return AthleteResponse.from(athlete,
-                athlete.getAccount() != null || userRepository.findByAthleteId(athleteId).isPresent());
+                athlete.getAccount() != null || userRepository.findByAthleteId(athleteId).isPresent(),
+                coachingEnded(athleteId));
     }
 
     // ---------------------------------------------------------------------

@@ -226,6 +226,7 @@ export class MyRequestsComponent implements OnInit {
         + 'séances. Votre historique reste chez lui ; vous pourrez chercher un autre coach.',
       confirmLabel: 'Mettre fin',
       promptLabel: 'Motif (facultatif)',
+      promptOptional: true,
     });
     if (note === null) {
       return;

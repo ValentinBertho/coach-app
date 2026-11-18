@@ -170,6 +170,7 @@ export class AdminUserDetailComponent implements OnInit {
       confirmLabel: 'Suspendre',
       danger: true,
       promptLabel: 'Motif (facultatif, consigné au journal)',
+      promptOptional: true,
     });
     if (reason === null) return;
 

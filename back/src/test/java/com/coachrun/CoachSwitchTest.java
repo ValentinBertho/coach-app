@@ -186,6 +186,36 @@ class CoachSwitchTest {
                 .as("l'ancien coach garde son suivi").hasSize(1);
     }
 
+    /** Chez l'ancien coach, l'athlète parti n'est plus « actif » : il passe en « Suivi terminé ». */
+    @Test
+    void formerCoachSeesTheAthleteAsEnded() throws Exception {
+        String email = "noa-" + UUID.randomUUID() + "@exemple.fr";
+        String athlete = registerAthlete(email);
+        join(athlete, link(clubCoach, "{\"directEntry\":true}"), "{}").andExpect(status().isOk());
+        Athlete old = fiche(email);
+        UUID clubId = old.getClub().getId();
+        athlete = login(email, "password1234");
+        join(athlete, link(soloCoach, "{\"directEntry\":true}"), "{\"switchCoach\":true}")
+                .andExpect(status().isOk());
+
+        assertThat(json(mvc.perform(get("/clubs/{c}/athletes", clubId).param("status", "ACTIVE")
+                        .param("follow", "FOLLOWED").param("size", "200").header("Authorization", clubCoach)))
+                .get("content").toString()).doesNotContain(old.getId().toString());
+        JsonNode ended = json(mvc.perform(get("/clubs/{c}/athletes", clubId).param("follow", "ENDED")
+                .param("size", "200").header("Authorization", clubCoach)).andExpect(status().isOk())).get("content");
+        boolean found = false;
+        for (JsonNode a : ended) {
+            if (a.get("id").asText().equals(old.getId().toString())) {
+                found = true;
+                assertThat(a.get("coachingEnded").asBoolean()).isTrue();
+                assertThat(a.get("canWrite").asBoolean()).isFalse();
+            }
+        }
+        assertThat(found).as("l'ancien coach retrouve la fiche sous « Suivi terminé »").isTrue();
+        assertThat(json(mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, old.getId())
+                .header("Authorization", clubCoach))).get("coachingEnded").asBoolean()).isTrue();
+    }
+
     /** Case cochée : le nouveau coach voit le calendrier passé, sortie rapprochée comprise. */
     @Test
     void sharedHistoryBringsPastCalendarToTheNewCoach() throws Exception {

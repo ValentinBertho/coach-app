@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -87,6 +86,7 @@ public class CoachingRelationService {
                 .orElseThrow(() -> new ConflictException("Vous n'avez pas de coach actuellement."));
 
         String coachName = relation.getCoach().getFullName();
+        reason = meaningful(reason);
         // Ses séances à venir n'ont plus de coach pour les ajuster : elles sont retirées.
         finish(relation, athleteUser, userId, reason, false);
 
@@ -117,7 +117,7 @@ public class CoachingRelationService {
 
         Athlete athlete = relation.getAthlete();
         User athleteUser = userRepository.findByAthleteId(athlete.getId()).orElse(null);
-        String note = StringUtils.hasText(reason) ? reason.trim() : null;
+        String note = meaningful(reason);
         if (athleteUser == null) {
             finish(relation, null, coachId, note, keepFutureWorkouts);
             log.info("Coaching terminé à l'initiative du coach (relation={}, sans compte)", relation.getId());
@@ -298,7 +298,18 @@ public class CoachingRelationService {
     }
 
     private void close(CoachAthleteRelation relation, UUID byUserId, String reason) {
-        relation.end(byUserId, StringUtils.hasText(reason) ? reason.trim() : null);
+        relation.end(byUserId, meaningful(reason));
+    }
+
+    /**
+     * Un motif sans une lettre ni un chiffre (« . », « - ») n'en est pas un : l'invite le rendait
+     * obligatoire, et l'on tapait un point pour passer — qui revenait au coach en « Motif : . ».
+     */
+    static String meaningful(String reason) {
+        if (reason == null || reason.codePoints().noneMatch(Character::isLetterOrDigit)) {
+            return null;
+        }
+        return reason.trim();
     }
 
     /**

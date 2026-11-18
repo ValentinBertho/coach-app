@@ -274,6 +274,7 @@ export class AthleteDetailComponent implements OnInit {
       message: 'Facultatif. Il est transmis à l\'athlète avec l\'annonce.',
       confirmLabel: 'Annoncer la fin',
       promptLabel: 'Motif (facultatif, transmis à l\'athlète)',
+      promptOptional: true,
     });
     if (note === null) {
       return;

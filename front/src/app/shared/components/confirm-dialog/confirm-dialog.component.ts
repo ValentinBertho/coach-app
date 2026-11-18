@@ -244,7 +244,7 @@ export class ConfirmDialogComponent {
     const pending = this.confirm.pending();
     // Une invite ne se valide pas à vide : renommer une séance « rien » n'est pas une intention.
     if (pending?.promptLabel) {
-      return this.typed().trim().length > 0;
+      return pending.promptOptional === true || this.typed().trim().length > 0;
     }
     const required = pending?.requiredText;
     if (!required) return true;

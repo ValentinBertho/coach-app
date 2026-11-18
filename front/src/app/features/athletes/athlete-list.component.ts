@@ -63,7 +63,7 @@ export class AthleteListComponent implements OnInit {
   search = '';
   filterGroup = '';
   /** Par défaut on ne montre que les actifs : un athlète archivé n'a rien à faire dans la file. */
-  filterStatus: '' | AthleteStatus = 'ACTIVE';
+  filterStatus: '' | AthleteStatus | 'ENDED' = 'ACTIVE';
 
   /**
    * État de forme par athlète, chargé une fois depuis le tableau de bord (même source que la
@@ -125,7 +125,10 @@ export class AthleteListComponent implements OnInit {
       .list({
         q: this.search || undefined,
         groupId: this.filterGroup || undefined,
-        status: this.filterStatus || undefined,
+        // « Actifs » = suivis en ce moment : un athlète parti garde sa fiche ACTIVE chez son
+        // ancien coach, mais n'est plus suivi. « Suivi terminé » les regroupe.
+        status: this.filterStatus === 'ENDED' ? undefined : (this.filterStatus as AthleteStatus) || undefined,
+        follow: this.filterStatus === 'ACTIVE' ? 'FOLLOWED' : this.filterStatus === 'ENDED' ? 'ENDED' : undefined,
         page: this.page(),
       })
       .subscribe({

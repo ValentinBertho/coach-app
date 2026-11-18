@@ -42,7 +42,9 @@ public record AthleteResponse(
         String groupName,
         List<RefResponse> coaches,
         List<RefResponse> clubs,
-        boolean appAccount) {
+        boolean appAccount,
+        /** Le suivi est terminé : la fiche reste en lecture chez le coach qui l'a tenue. */
+        boolean coachingEnded) {
 
     /**
      * Sans savoir si la personne a un accès à l'application : on s'en tient au lien de compte du
@@ -58,6 +60,10 @@ public record AthleteResponse(
      *                   accès, n'a rien à quitter — pour lui, l'archivage suffit.
      */
     public static AthleteResponse from(Athlete a, boolean appAccount) {
+        return from(a, appAccount, false);
+    }
+
+    public static AthleteResponse from(Athlete a, boolean appAccount, boolean coachingEnded) {
         // Coachs explicitement rattachés (modèle many-to-many).
         List<RefResponse> coaches = a.getCoaches().stream()
                 .map(u -> new RefResponse(u.getId(), u.getFullName()))
@@ -81,6 +87,6 @@ public record AthleteResponse(
                 a.getInviteToken() != null,
                 a.getGroup() != null ? a.getGroup().getId() : null,
                 a.getGroup() != null ? a.getGroup().getName() : null,
-                coaches, clubs, appAccount);
+                coaches, clubs, appAccount, coachingEnded);
     }
 }

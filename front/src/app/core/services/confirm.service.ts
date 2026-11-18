@@ -35,6 +35,8 @@ export interface ConfirmRequest {
   optionLabel?: string;
   /** Précision affichée sous la case, quand sa portée ne tient pas dans son libellé. */
   optionHint?: string;
+  /** L'invite peut être validée vide (motif facultatif). Sans ça, on tapait « . » pour passer. */
+  promptOptional?: boolean;
   /** Case cochée à l'ouverture (défaut : décochée). */
   optionInitial?: boolean;
   /**
