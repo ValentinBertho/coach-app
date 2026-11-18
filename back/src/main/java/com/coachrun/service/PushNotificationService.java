@@ -185,8 +185,31 @@ public class PushNotificationService {
                         userId, java.time.Instant.now().minus(REACHABILITY_GRACE)) > 0;
     }
 
-    @Transactional
+    /**
+     * Enregistre (ou met à jour) l'abonnement d'un appareil.
+     *
+     * <p><b>Idempotent, y compris en concurrence.</b> À l'activation, le navigateur envoie
+     * l'abonnement deux fois presque en même temps (demande explicite + réalignement au signal
+     * d'abonnement). Les deux requêtes ne trouvaient aucune ligne, inséraient toutes deux, et la
+     * seconde échouait sur l'unicité de l'endpoint : 409 « conflit avec des données
+     * existantes », et l'application défaisait l'abonnement du téléphone — plus aucune
+     * notification, alors que la ligne existait bien côté serveur. Sur ce conflit, l'autre requête
+     * a déjà inséré la ligne : on la relit et on la met à jour.</p>
+     *
+     * <p>Volontairement hors transaction englobante : l'échec d'insertion doit pouvoir être
+     * rattrapé sans rendre toute l'opération « rollback-only ». Chaque appel au dépôt porte sa
+     * propre transaction.</p>
+     */
     public void subscribe(UUID userId, String endpoint, String p256dh, String auth, String userAgent) {
+        try {
+            upsertSubscription(userId, endpoint, p256dh, auth, userAgent);
+        } catch (org.springframework.dao.DataIntegrityViolationException raced) {
+            upsertSubscription(userId, endpoint, p256dh, auth, userAgent);
+        }
+    }
+
+    private void upsertSubscription(UUID userId, String endpoint, String p256dh, String auth,
+                                    String userAgent) {
         PushSubscription sub = repository.findByEndpoint(endpoint).orElseGet(PushSubscription::new);
         sub.setUserId(userId);
         sub.setEndpoint(endpoint);
@@ -197,7 +220,7 @@ public class PushNotificationService {
             // et ce qui identifie l'appareil se trouve toujours au début.
             sub.setUserAgent(userAgent.length() > 255 ? userAgent.substring(0, 255) : userAgent);
         }
-        repository.save(sub);
+        repository.saveAndFlush(sub);
     }
 
     /** Appareils abonnés de l'utilisateur, pour qu'il puisse voir — et retirer — ce qui le suit. */
