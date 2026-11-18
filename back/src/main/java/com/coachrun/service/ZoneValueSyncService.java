@@ -72,6 +72,57 @@ public class ZoneValueSyncService {
         return written;
     }
 
+    /**
+     * Aperçu d'un modèle de zones pour un athlète : la fourchette que chaque règle lui donnerait.
+     * Lecture seule, rien n'est écrit sur sa fiche.
+     */
+    @Transactional(readOnly = true)
+    public com.coachrun.dto.response.ZoneSetPreviewResponse preview(UUID clubId, UUID setId, UUID athleteId) {
+        AthletePaceContext ctx = calculatorService.contextFor(clubId, athleteId);
+        List<TrainingZone> zones = zoneSetService.zones(clubId, setId);
+        UUID athleteSet = zoneSetService.zoneSetIdOf(clubId, athleteId);
+        boolean uses = setId != null && (setId.equals(athleteSet) || (athleteSet == null
+                && setId.equals(zoneSetService.defaultSetId(clubId))));
+
+        // Valeurs saisies à la main ou verrouillées sur la fiche : elles priment sur la règle.
+        java.util.Map<String, AthleteZoneValue> pinned = new java.util.HashMap<>();
+        for (AthleteZoneValue v : valueRepository.findByAthleteId(athleteId)) {
+            if (v.getSource() == ZoneValueSource.MANUAL || v.isLocked()) {
+                pinned.put(v.getZone().getId() + ":" + v.getMetricType().getId(), v);
+            }
+        }
+
+        List<com.coachrun.dto.response.ZoneSetPreviewResponse.Value> values = new java.util.ArrayList<>();
+        for (TrainingZone zone : zones) {
+            for (ZoneMetric zm : zone.getMetrics()) {
+                MetricType metric = zm.getMetricType();
+                AthleteZoneValue manual = pinned.get(zone.getId() + ":" + metric.getId());
+                if (manual != null && manual.getValueMin() != null && manual.getValueMax() != null) {
+                    values.add(new com.coachrun.dto.response.ZoneSetPreviewResponse.Value(zone.getId(),
+                            metric.getId(), metric.getCode(), manual.getValueMin(), manual.getValueMax(), true));
+                    continue;
+                }
+                double[] range = computeRange(zm, ctx);
+                if (range != null) {
+                    values.add(new com.coachrun.dto.response.ZoneSetPreviewResponse.Value(zone.getId(),
+                            metric.getId(), metric.getCode(), range[0], range[1], false));
+                }
+            }
+        }
+        return new com.coachrun.dto.response.ZoneSetPreviewResponse(uses,
+                new com.coachrun.dto.response.ZoneSetPreviewResponse.References(
+                        paceOfMs(ctx.vcMs()),
+                        ctx.vmaKmh() == null || ctx.vmaKmh() <= 0 ? null
+                                : (int) Math.round(3600.0 / ctx.vmaKmh()),
+                        paceOfMs(ctx.lt1Ms()), paceOfMs(ctx.lt2Ms()),
+                        ctx.fcMax(), ctx.fcLt2(), ctx.hrRest()),
+                values);
+    }
+
+    private static Integer paceOfMs(Double ms) {
+        return ms == null || ms <= 0 ? null : (int) Math.round(1000.0 / ms);
+    }
+
     /** Calcule la fourchette [min, max] d'un couple (zone, métrique) depuis sa règle, ou null. */
     double[] computeRange(ZoneMetric zm, AthletePaceContext ctx) {
         String code = zm.getMetricType().getCode();

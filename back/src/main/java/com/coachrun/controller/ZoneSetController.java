@@ -68,6 +68,18 @@ public class ZoneSetController {
         return zoneSetService.list(clubId);
     }
 
+    /**
+     * Ce que les règles de ce modèle donnent pour un athlète (allures, FC), sans rien écrire :
+     * l'écran « Mes zones » s'en sert pour régler les pourcentages en voyant le résultat.
+     */
+    @GetMapping("/zone-sets/{id}/preview/{athleteId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
+    public com.coachrun.dto.response.ZoneSetPreviewResponse preview(@PathVariable UUID clubId,
+                                                                   @PathVariable UUID id,
+                                                                   @PathVariable UUID athleteId) {
+        return zoneValueSyncService.preview(clubId, id, athleteId);
+    }
+
     /** Modèle de zones appliqué à un athlète ({@code zoneSetId} null = jeu par défaut du club). */
     @GetMapping("/athletes/{athleteId}/zone-set")
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")

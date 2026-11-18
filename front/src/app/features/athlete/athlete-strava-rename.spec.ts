@@ -20,7 +20,7 @@ describe('renommage sur Strava (côté athlète)', () => {
   let http: HttpTestingController;
 
   const status = (over: Partial<StravaStatus> = {}): StravaStatus => ({
-    configured: true, connected: true, providerAthleteId: '99', lastImportEpoch: null,
+    configured: true, connected: true, providerAthleteId: '99', lastImportEpoch: null, lastSyncEpoch: null,
     renameOnStrava: false, canRenameOnStrava: true, ...over,
   });
 

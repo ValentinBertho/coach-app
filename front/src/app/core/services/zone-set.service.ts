@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ZoneSet, ZoneSetRequest } from '../models/zone-set.model';
+import { ZoneSet, ZoneSetPreview, ZoneSetRequest } from '../models/zone-set.model';
 import { AuthService } from './auth.service';
 
 /**
@@ -36,6 +36,11 @@ export class ZoneSetService {
   }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
+  }
+
+  /** Ce que les règles de ce modèle donnent pour un athlète (allures, FC), sans rien écrire. */
+  preview(setId: string, athleteId: string): Observable<ZoneSetPreview> {
+    return this.http.get<ZoneSetPreview>(`${this.base()}/${setId}/preview/${athleteId}`);
   }
 
   /** Modèle appliqué à un athlète ('' = jeu par défaut du club). */

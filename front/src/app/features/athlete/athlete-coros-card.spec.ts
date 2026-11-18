@@ -35,7 +35,7 @@ describe('carte COROS (côté athlète)', () => {
     const fixture = TestBed.createComponent(AthleteSyncComponent);
     fixture.detectChanges();
     http.expectOne((r) => r.url.endsWith('/me/strava')).flush({
-      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null,
+      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null, lastSyncEpoch: null,
       renameOnStrava: false, canRenameOnStrava: false,
     });
     http.expectOne((r) => r.url.endsWith('/me/garmin')).flush({
@@ -100,7 +100,7 @@ describe('carte COROS (côté athlète)', () => {
     const fixture = TestBed.createComponent(AthleteSyncComponent);
     fixture.detectChanges();
     http.expectOne((r) => r.url.endsWith('/me/strava')).flush({
-      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null,
+      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null, lastSyncEpoch: null,
       renameOnStrava: false, canRenameOnStrava: false,
     });
     http.expectOne((r) => r.url.endsWith('/me/garmin')).flush({
@@ -123,7 +123,7 @@ describe('carte COROS (côté athlète)', () => {
     const fixture = TestBed.createComponent(AthleteSyncComponent);
     fixture.detectChanges();
     http.expectOne((r) => r.url.endsWith('/me/strava')).flush({
-      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null,
+      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null, lastSyncEpoch: null,
       renameOnStrava: false, canRenameOnStrava: false,
     });
     http.expectOne((r) => r.url.endsWith('/me/garmin')).flush({

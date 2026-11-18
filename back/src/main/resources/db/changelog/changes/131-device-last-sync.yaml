@@ -1,0 +1,17 @@
+# ============================================================================
+# 131 — Heure de la dernière synchro réussie d'une montre connectée.
+#
+#   L'écran d'accueil athlète affichait « dernier import il y a 3 j » à partir
+#   du curseur d'import (départ de la dernière sortie vue, reculé de deux
+#   jours) : même juste après une synchro réussie, il disait « il y a 2 j ».
+#   Cette colonne dit enfin quand la synchro a tourné pour la dernière fois.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 131-device-last-sync
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: device_connections
+            columns:
+              - column: { name: last_sync_at, type: TIMESTAMP }

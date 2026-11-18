@@ -8,9 +8,11 @@ import {
   Component,
   OnInit,
   computed,
+  effect,
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -27,10 +29,16 @@ import {
 } from '../../core/models/training-zone.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
-import { ZoneSet } from '../../core/models/zone-set.model';
+import { ZoneSet, ZoneSetPreview } from '../../core/models/zone-set.model';
+import { AthleteService } from '../../core/services/athlete.service';
+import { AthleteSummary } from '../../core/models/athlete.model';
+import { formatPace } from '../../core/utils/pace';
 import { ZoneSetService } from '../../core/services/zone-set.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
+
+/** Athlète retenu pour l'aperçu des cibles, d'une visite à l'autre (confort, pas un état). */
+const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
 
 /**
  * Écran « Zones du club » (niveau club) — chantier Z1. Le modèle de zones ; les valeurs par
@@ -116,6 +124,46 @@ import { ToastService } from '../../core/services/toast.service';
         modèle par défaut tant qu'un autre ne lui est pas appliqué depuis son
         onglet « Zones ».
       </p>
+    </div>
+
+    <!-- Aperçu pour un athlète : régler un pourcentage en voyant tout de suite l'allure ou la FC
+         qu'il donnera, comme l'aperçu des cibles de la bibliothèque de séances. Rien n'est
+         écrit sur la fiche de l'athlète. -->
+    <div class="card preview-card">
+      <label class="pv-row">
+        <span class="sets-lb">Aperçu des cibles pour</span>
+        <select
+          class="form-control set-select"
+          [ngModel]="previewAthleteId()"
+          (ngModelChange)="onPreviewAthlete($event)"
+          aria-label="Athlète pour l'aperçu des cibles"
+        >
+          <option value="">Aucun athlète</option>
+          @for (a of athletes(); track a.id) {
+            <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+          }
+        </select>
+      </label>
+      @if (previewAthleteId()) {
+        @if (preview(); as p) {
+          <p class="field-hint pv-refs">
+            @if (referencesLabel(p); as refs) {
+              Références : {{ refs }}.
+            } @else {
+              Aucune valeur de référence sur sa fiche (VC, VMA, seuils, FC
+              max) : les cibles ne peuvent pas être calculées.
+            }
+            @if (!p.athleteUsesThisSet) {
+              <span class="pv-other"
+                >Cet athlète travaille sur un autre modèle : simple
+                aperçu.</span
+              >
+            }
+          </p>
+        } @else if (previewLoading()) {
+          <p class="field-hint">Calcul des cibles…</p>
+        }
+      }
     </div>
 
     <div class="card create">
@@ -328,6 +376,19 @@ import { ToastService } from '../../core/services/toast.service';
                     }
                   } @else {
                     <span class="field-hint">—</span>
+                  }
+                  @if (previewLabel(z); as pv) {
+                    <span
+                      class="rule-preview"
+                      [title]="previewTitle(pv.manual)"
+                      data-testid="rule-preview"
+                    >
+                      <app-icon name="arrow-right" [size]="12" />
+                      {{ pv.text }}
+                      @if (pv.manual) {
+                        <span class="pv-manual">fiche</span>
+                      }
+                    </span>
                   }
                 </span>
                 <span class="zcell zcell--actions">
@@ -798,6 +859,41 @@ import { ToastService } from '../../core/services/toast.service';
       .rule-ref {
         white-space: nowrap;
       }
+      .preview-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .pv-row {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+      }
+      .pv-refs {
+        margin: 0;
+      }
+      .pv-other {
+        display: block;
+      }
+      .rule-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--primary);
+        font-variant-numeric: tabular-nums;
+      }
+      .pv-manual {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        padding: 0 6px;
+        border-radius: var(--radius-full);
+        background: var(--surface-2, var(--primary-wash));
+        color: var(--ink-2);
+      }
       .rule-warn {
         display: inline-flex;
         align-items: center;
@@ -866,8 +962,32 @@ export class TrainingZonesComponent implements OnInit {
   private readonly metricService = inject(MetricTypeService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
+  private readonly athleteService = inject(AthleteService);
 
   readonly zones = signal<TrainingZone[]>([]);
+
+  // --- Aperçu des cibles pour un athlète -------------------------------------
+
+  readonly athletes = signal<AthleteSummary[]>([]);
+  readonly previewAthleteId = signal<string>(this.rememberedPreviewAthlete());
+  readonly preview = signal<ZoneSetPreview | null>(null);
+  readonly previewLoading = signal(false);
+  readonly previewAthleteName = computed(() => {
+    const a = this.athletes().find((x) => x.id === this.previewAthleteId());
+    return a ? `${a.firstName} ${a.lastName}` : '';
+  });
+  private previewSeq = 0;
+
+  /**
+   * Recalcule l'aperçu quand l'athlète, le modèle ou les zones changent. Les zones changent à
+   * chaque pourcentage enregistré : l'allure affichée suit donc le réglage, sans autre geste.
+   */
+  private readonly previewRefresh = effect(() => {
+    const athleteId = this.previewAthleteId();
+    const setId = this.activeSetId();
+    this.zones();
+    untracked(() => this.loadPreview(setId, athleteId));
+  });
   readonly metrics = signal<MetricType[]>([]);
   readonly loading = signal(true);
   readonly editingId = signal<string | null>(null);
@@ -923,6 +1043,9 @@ export class TrainingZonesComponent implements OnInit {
   readonly highlighted = signal<string | null>(null);
 
   ngOnInit(): void {
+    this.athleteService
+      .list({ page: 0 })
+      .subscribe({ next: (p) => this.athletes.set(p.content), error: () => {} });
     forkJoin({
       sets: this.setService.list(),
       metrics: this.metricService.list(),
@@ -975,6 +1098,114 @@ export class TrainingZonesComponent implements OnInit {
       }),
     );
     setTimeout(() => this.highlighted.set(null), 4000);
+  }
+
+  onPreviewAthlete(id: string): void {
+    this.previewAthleteId.set(id || '');
+    try {
+      if (id) localStorage.setItem(PREVIEW_ATHLETE_KEY, id);
+      else localStorage.removeItem(PREVIEW_ATHLETE_KEY);
+    } catch {
+      // Stockage indisponible : l'aperçu ne sera simplement pas retenu.
+    }
+  }
+
+  private rememberedPreviewAthlete(): string {
+    try {
+      return localStorage.getItem(PREVIEW_ATHLETE_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private loadPreview(setId: string, athleteId: string): void {
+    const seq = ++this.previewSeq;
+    if (!setId || !athleteId) {
+      this.preview.set(null);
+      this.previewLoading.set(false);
+      return;
+    }
+    this.previewLoading.set(true);
+    this.setService.preview(setId, athleteId).subscribe({
+      next: (p) => {
+        if (seq !== this.previewSeq) return; // une réponse plus récente est attendue
+        this.preview.set(p);
+        this.previewLoading.set(false);
+      },
+      error: () => {
+        if (seq !== this.previewSeq) return;
+        this.preview.set(null);
+        this.previewLoading.set(false);
+        // Athlète retenu qui n'est plus dans le club : on l'oublie plutôt que d'échouer en boucle.
+        this.onPreviewAthlete('');
+      },
+    });
+  }
+
+  /** « VC 3'45 /km · VMA 3'20 /km · FC max 192 », en n'écrivant que ce qui est connu. */
+  referencesLabel(p: ZoneSetPreview): string {
+    const r = p.references;
+    const parts: string[] = [];
+    if (r.vcPaceS) parts.push(`VC ${formatPace(r.vcPaceS)} /km`);
+    if (r.vmaPaceS) parts.push(`VMA ${formatPace(r.vmaPaceS)} /km`);
+    if (r.lt1PaceS) parts.push(`SL1 ${formatPace(r.lt1PaceS)} /km`);
+    if (r.lt2PaceS) parts.push(`SL2 ${formatPace(r.lt2PaceS)} /km`);
+    if (r.fcMax) parts.push(`FC max ${r.fcMax}`);
+    if (r.fcLt2) parts.push(`FC seuil ${r.fcLt2}`);
+    if (r.hrRest) parts.push(`FC repos ${r.hrRest}`);
+    return parts.join(' · ');
+  }
+
+  /**
+   * Cible de l'athlète pour une zone, en une ligne. Sur l'onglet d'une métrique, celle-ci ; sur
+   * « Toutes », l'allure (à défaut la vitesse) et la FC (à défaut le %FCmax).
+   */
+  previewLabel(z: TrainingZone): { text: string; manual: boolean } | null {
+    const p = this.preview();
+    if (!p || !this.previewAthleteId()) return null;
+    const mine = p.values.filter((v) => v.zoneId === z.id);
+    if (mine.length === 0) return null;
+    const tab = this.scaleTab();
+    let picked: ZoneSetPreview['values'];
+    if (tab) {
+      picked = mine.filter((v) => v.metricTypeId === tab);
+    } else {
+      const by = (code: string) => mine.find((v) => v.metricCode === code);
+      picked = [by('PACE') ?? by('SPEED'), by('HR') ?? by('PCT_HRMAX')].filter(
+        (v): v is ZoneSetPreview['values'][number] => !!v,
+      );
+      if (picked.length === 0) picked = mine.slice(0, 1);
+    }
+    const texts = picked
+      .map((v) => this.formatPreview(v.metricCode, v.min, v.max))
+      .filter((t): t is string => !!t);
+    if (texts.length === 0) return null;
+    return { text: texts.join(' · '), manual: picked.some((v) => v.manual) };
+  }
+
+  previewTitle(manual: boolean): string {
+    return manual
+      ? "Valeur saisie sur la fiche de l'athlète : elle prime sur la règle"
+      : `Cible calculée pour ${this.previewAthleteName()}`;
+  }
+
+  private formatPreview(code: string, min: number, max: number): string | null {
+    const n = (v: number) =>
+      v.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+    switch (code) {
+      case 'PACE':
+        return `${formatPace(min)} – ${formatPace(max)} /km`;
+      case 'SPEED':
+        return `${n(min)} – ${n(max)} km/h`;
+      case 'HR':
+        return `${Math.round(min)} – ${Math.round(max)} bpm`;
+      case 'PCT_HRMAX':
+        return `${Math.round(min)} – ${Math.round(max)} % FCmax`;
+      case 'RPE':
+        return `RPE ${Math.round(min)} – ${Math.round(max)}`;
+      default:
+        return `${n(min)} – ${n(max)}`;
+    }
   }
 
   onSetChange(id: string): void {

@@ -307,6 +307,11 @@ public class ZoneSetService {
                 .orElseGet(() -> zoneRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId));
     }
 
+    /** Modèle par défaut du club, sans le créer ; null s'il n'existe pas encore. */
+    public UUID defaultSetId(UUID clubId) {
+        return setRepository.findFirstByClubIdAndDefaultSetTrue(clubId).map(ZoneSet::getId).orElse(null);
+    }
+
     /** Modèle appliqué à un athlète ({@code null} = jeu par défaut). */
     public UUID zoneSetIdOf(UUID clubId, UUID athleteId) {
         return athleteRepository.findByIdAndClubMembership(athleteId, clubId)
