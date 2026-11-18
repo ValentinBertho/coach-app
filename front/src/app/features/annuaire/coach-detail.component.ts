@@ -386,26 +386,31 @@ export class CoachDetailComponent implements OnInit {
     // Déjà suivi : on ne lui demande pas de « quitter puis chercher ». Il confirme le changement,
     // et son suivi actuel s'arrêtera de lui-même si ce coach accepte.
     const switching = this.auth.hasCoach();
-    let shareHistory = false;
     if (switching) {
-      const choice = await this.confirm.askWithOption({
+      const confirmed = await this.confirm.ask({
         title: `Changer de coach pour ${c.name} ?`,
         message: 'Votre suivi actuel continue tant que ' + c.name + ' n\'a pas répondu. S\'il accepte, '
           + 'il s\'arrête à ce moment-là : votre coach actuel en est prévenu, vos séances à venir avec '
-          + 'lui sont retirées, et vous gardez tout votre historique.',
+          + 'lui sont retirées, et vous gardez tout votre historique. Vos montres, vos records et vos '
+          + 'seuils vous suivent.',
         confirmLabel: 'Oui, changer de coach',
-        optionLabel: `Transmettre l'historique de mes sorties à ${c.name}`,
       });
-      if (!choice.confirmed) return;
-      shareHistory = choice.option;
+      if (!confirmed) return;
     }
 
-    const message = await this.confirm.prompt({
+    // La case est posée à tout le monde, coaché ou non : un athlète qui s'entraîne seul a lui
+    // aussi un calendrier et des sorties à transmettre.
+    const answer = await this.confirm.promptWithOption({
       title: `Demander à ${c.name} de vous coacher`,
       message: 'Dites-lui votre objectif et votre contexte : c\'est sur ce mot qu\'il décidera.',
       confirmLabel: 'Envoyer ma demande',
       promptLabel: 'Votre message',
+      optionLabel: `Transmettre mon calendrier passé et mes sorties à ${c.name}`,
+      optionHint: 'Vos montres, records et seuils le suivent dans tous les cas : il en a besoin pour calculer vos zones.',
+      optionInitial: true,
     });
+    const message = answer?.text ?? null;
+    const shareHistory = answer?.option ?? false;
     if (message === null || message.trim().length < 20) {
       if (message !== null) {
         this.toast.error('Quelques lignes au moins : une demande sans contexte ne peut être que refusée.');

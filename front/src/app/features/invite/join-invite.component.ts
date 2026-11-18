@@ -91,7 +91,8 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
                 }
                 <label class="ji__check">
                   <input type="checkbox" [(ngModel)]="shareHistory" />
-                  <span>Transmettre l'historique de mes sorties à {{ p.coachName }}</span>
+                  <span>Transmettre mon calendrier passé et mes sorties à {{ p.coachName }}
+                    <small>Vos montres, records et seuils le suivent dans tous les cas.</small></span>
                 </label>
                 @if (error(); as e) { <p class="ji__warn"><app-icon name="info" [size]="16" /> {{ e }}</p> }
                 <button type="button" class="btn btn-primary btn-lg" [disabled]="busy()" (click)="join()">
@@ -141,7 +142,7 @@ export class JoinInviteComponent implements OnInit {
   readonly outcome = signal<InviteOutcome | null>(null);
   readonly error = signal<string | null>(null);
   message = '';
-  shareHistory = false;
+  shareHistory = true;
 
   readonly isAthlete = computed(() => this.auth.currentUser()?.role === 'ATHLETE');
   readonly photo = computed(() => this.invites.photoSrc(this.preview()?.coachPhotoUrl ?? null));

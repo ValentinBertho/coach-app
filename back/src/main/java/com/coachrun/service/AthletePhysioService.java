@@ -252,6 +252,17 @@ public class AthletePhysioService {
     // Recalcul automatique
     // ---------------------------------------------------------------------
 
+    /**
+     * Après le report du profil d'une fiche à l'autre (changement de coach) : VDOT, allures et
+     * zones recalculés sur la fiche d'arrivée, dans le modèle de zones de son espace.
+     */
+    @Transactional
+    public void recomputeAfterCarryOver(Athlete athlete) {
+        performanceRepository.flush();
+        recomputeVdot(athlete);
+        zoneValueSyncService.resync(athlete.getClub().getId(), athlete.getId());
+    }
+
     /** Recalcule le meilleur VDOT de l'athlète et ses allures d'équivalence. */
     private void recomputeVdot(Athlete athlete) {
         Double best = performanceRepository.findByAthleteIdOrderByDateSetDescCreatedAtDesc(athlete.getId())

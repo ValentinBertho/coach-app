@@ -170,6 +170,7 @@ export class AdminUserDetailComponent implements OnInit {
       confirmLabel: 'Suspendre',
       danger: true,
       promptLabel: 'Motif (facultatif, consigné au journal)',
+      promptOptional: true,
     });
     if (reason === null) return;
 
@@ -183,6 +184,24 @@ export class AdminUserDetailComponent implements OnInit {
     const u = this.user();
     if (!u) return;
     this.run(this.admin.reactivateUser(u.id), 'Compte réactivé.');
+  }
+
+  /** Rattrapage d'un changement de coach fait avant que le profil ne suive l'athlète. */
+  async recoverCoachingData(): Promise<void> {
+    const u = this.user();
+    if (!u) return;
+    const choice = await this.confirm.askWithOption({
+      title: 'Récupérer les données d\'un changement de coach',
+      message:
+        `Les records, seuils, montres et le calendrier passé de ${u.fullName || u.email} restés sur ` +
+        'ses anciennes fiches sont recopiés dans son espace et sur sa fiche actuelle. Rien n\'est ' +
+        'écrasé ni retiré à l\'ancien coach.',
+      confirmLabel: 'Récupérer',
+      optionLabel: 'Transmettre aussi son calendrier passé à son coach actuel',
+      optionHint: 'Seulement si l\'athlète l\'a demandé.',
+    });
+    if (!choice.confirmed) return;
+    this.run(this.admin.recoverCoachingData(u.id, choice.option), 'Données récupérées.');
   }
 
   async revokeSessions(): Promise<void> {

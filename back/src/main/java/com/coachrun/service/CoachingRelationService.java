@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -56,6 +55,7 @@ public class CoachingRelationService {
     private final NotificationService notificationService;
     private final AthleteAccountService accountService;
     private final PersonalSpaceService personalSpace;
+    private final AthleteCarryOverService carryOver;
     // Fournisseurs paresseux : les services de montre tirent eux-mêmes une longue chaîne de
     // dépendances, et la fin d'un coaching n'en a besoin qu'à l'instant où elle se produit.
     private final ObjectProvider<GarminService> garmin;
@@ -86,6 +86,7 @@ public class CoachingRelationService {
                 .orElseThrow(() -> new ConflictException("Vous n'avez pas de coach actuellement."));
 
         String coachName = relation.getCoach().getFullName();
+        reason = meaningful(reason);
         // Ses séances à venir n'ont plus de coach pour les ajuster : elles sont retirées.
         finish(relation, athleteUser, userId, reason, false);
 
@@ -116,7 +117,7 @@ public class CoachingRelationService {
 
         Athlete athlete = relation.getAthlete();
         User athleteUser = userRepository.findByAthleteId(athlete.getId()).orElse(null);
-        String note = StringUtils.hasText(reason) ? reason.trim() : null;
+        String note = meaningful(reason);
         if (athleteUser == null) {
             finish(relation, null, coachId, note, keepFutureWorkouts);
             log.info("Coaching terminé à l'initiative du coach (relation={}, sans compte)", relation.getId());
@@ -297,7 +298,18 @@ public class CoachingRelationService {
     }
 
     private void close(CoachAthleteRelation relation, UUID byUserId, String reason) {
-        relation.end(byUserId, StringUtils.hasText(reason) ? reason.trim() : null);
+        relation.end(byUserId, meaningful(reason));
+    }
+
+    /**
+     * Un motif sans une lettre ni un chiffre (« . », « - ») n'en est pas un : l'invite le rendait
+     * obligatoire, et l'on tapait un point pour passer — qui revenait au coach en « Motif : . ».
+     */
+    static String meaningful(String reason) {
+        if (reason == null || reason.codePoints().noneMatch(Character::isLetterOrDigit)) {
+            return null;
+        }
+        return reason.trim();
     }
 
     /**
@@ -327,7 +339,11 @@ public class CoachingRelationService {
         // plutôt qu'un compte vide qui n'aurait plus que l'annuaire.
         Athlete personal = personalSpace.attach(athleteUser, account);
         returnDevices(athlete, personal);
-        // Les deux gardent une copie : la fiche reste chez le coach, les sorties suivent l'athlète.
+        // Son profil (records, seuils, FC, VMA, objectifs) le suit : c'est le sien, et c'est de lui
+        // que dépendent ses zones chez le prochain coach.
+        carryOver.carryProfile(athlete, personal);
+        // Les deux gardent une copie : la fiche reste chez le coach, les sorties et le calendrier
+        // passé suivent l'athlète.
         int copied = personalSpace.copyHistory(athlete, personal);
         athleteUser.setSessionsInvalidatedAt(Instant.now());
         if (coachName != null) {

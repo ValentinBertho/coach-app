@@ -27,9 +27,10 @@ export class AthleteService {
     return `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes`;
   }
 
-  list(opts: { status?: AthleteStatus; groupId?: string; q?: string; page?: number } = {}): Observable<PageResponse<AthleteSummary>> {
+  list(opts: { status?: AthleteStatus; follow?: 'FOLLOWED' | 'ENDED'; groupId?: string; q?: string; page?: number } = {}): Observable<PageResponse<AthleteSummary>> {
     let params = new HttpParams().set('page', opts.page ?? 0);
     if (opts.status) params = params.set('status', opts.status);
+    if (opts.follow) params = params.set('follow', opts.follow);
     if (opts.groupId) params = params.set('groupId', opts.groupId);
     if (opts.q) params = params.set('q', opts.q);
     return this.http.get<PageResponse<AthleteSummary>>(this.base(), { params });

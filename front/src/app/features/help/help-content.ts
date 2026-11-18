@@ -212,8 +212,9 @@ const ATHLETE: HelpGuide = {
         ] },
         { kind: 'list', items: [
           'Changer de coach : envoie ta demande au nouveau coach et confirme le changement. Ton suivi actuel continue jusqu\'à ce qu\'il accepte, puis s\'arrête de lui-même. Ton ancien coach est prévenu.',
-          'Ton historique : tu choisis de le transmettre ou non au nouveau coach (case à cocher, jamais par défaut).',
-          'Quitter ton coach : Profil → « Mon coaching » → « Gérer mon coaching ». C\'est immédiat, sans motif. Ta montre et une copie de tes sorties restent dans ton espace personnel.',
+          'Ce qui te suit toujours : tes montres et Strava, tes records, tes seuils (VMA, FC, lactate) et tes objectifs. Le nouveau coach en a besoin pour calculer tes zones.',
+          'Ton calendrier passé et tes sorties : tu choisis de les transmettre ou non au nouveau coach (case cochée par défaut, tu peux la décocher).',
+          'Quitter ton coach : Profil → « Mon coaching » → « Gérer mon coaching ». C\'est immédiat, sans motif. Ta montre, ton profil, ton calendrier passé et tes sorties restent dans ton espace personnel.',
           'Si ton coach met fin au suivi : il le fait avec 7 jours de préavis, tu reçois un rappel la veille, et ton espace personnel prend le relais.',
           'Club : tu peux quitter le club en gardant ton coach (Profil → « Quitter le club, garder mon coach »). Si ton coach quitte le club, soit tu le suis dans son nouvel espace (athlète privé), soit un autre coach du club prend le relais (athlète du club) : tu es prévenu dans les deux cas.',
         ] },

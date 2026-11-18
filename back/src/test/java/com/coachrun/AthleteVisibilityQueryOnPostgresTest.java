@@ -41,7 +41,7 @@ class AthleteVisibilityQueryOnPostgresTest {
     @Test
     void theVisibilityFilteredSearchRunsOnPostgres() {
         assertThatCode(() -> athleteRepository.searchVisibleTo(
-                UUID.randomUUID(), null, null, "", UUID.randomUUID(), PageRequest.of(0, 20)))
+                UUID.randomUUID(), null, null, "", UUID.randomUUID(), "ALL", PageRequest.of(0, 20)))
                 .doesNotThrowAnyException();
     }
 
@@ -50,7 +50,18 @@ class AthleteVisibilityQueryOnPostgresTest {
     void theSameSearchRunsWithEveryFilterSet() {
         assertThatCode(() -> athleteRepository.searchVisibleTo(
                 UUID.randomUUID(), com.coachrun.entity.enums.AthleteStatus.ACTIVE,
-                UUID.randomUUID(), "dupont", UUID.randomUUID(), PageRequest.of(0, 20)))
+                UUID.randomUUID(), "dupont", UUID.randomUUID(), "FOLLOWED", PageRequest.of(0, 20)))
+                .doesNotThrowAnyException();
+    }
+
+    /** Le filtre « Suivi terminé », et la recherche admin qui porte le même filtre. */
+    @Test
+    void theEndedFilterRunsOnPostgres() {
+        assertThatCode(() -> athleteRepository.searchVisibleTo(
+                UUID.randomUUID(), null, null, "", UUID.randomUUID(), "ENDED", PageRequest.of(0, 20)))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> athleteRepository.search(
+                UUID.randomUUID(), null, null, "", "FOLLOWED", PageRequest.of(0, 20)))
                 .doesNotThrowAnyException();
     }
 }

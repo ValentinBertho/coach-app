@@ -223,6 +223,7 @@ export class CoachRequestsComponent implements OnInit {
       message: 'Votre motif lui sera transmis. Il n\'est jamais publié.',
       confirmLabel: 'Refuser',
       promptLabel: 'Motif (facultatif)',
+      promptOptional: true,
     });
     if (note === null) {
       return;
@@ -261,6 +262,7 @@ export class CoachRequestsComponent implements OnInit {
         + 'un autre coach. Sa fiche et son historique restent chez vous, en lecture.',
       confirmLabel: 'Mettre fin',
       promptLabel: 'Motif (facultatif)',
+      promptOptional: true,
     });
     if (note === null) {
       return;

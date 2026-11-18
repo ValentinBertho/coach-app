@@ -29,6 +29,8 @@ export interface AthleteSummary {
   groupName?: string | null;
   /** Le coach courant peut-il prescrire/modifier cet athlète (sinon lecture seule) ? */
   canWrite?: boolean;
+  /** Le suivi est terminé : la fiche reste en lecture chez le coach qui l'a tenue. */
+  coachingEnded?: boolean;
 }
 
 export interface Athlete extends AthleteSummary {
