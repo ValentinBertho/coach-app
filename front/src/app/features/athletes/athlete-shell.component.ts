@@ -5,9 +5,11 @@ import {
   OnInit,
   computed,
   effect,
+  ElementRef,
   inject,
   input,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -105,7 +107,11 @@ const SECTION_LABELS: Record<string, string> = {
   host: { '(window:scroll)': 'onScroll()' },
   template: `
     @if (athlete(); as a) {
-      <header class="shell-head" [class.shell-head--compact]="scrolled()">
+      <header
+        #shellHead
+        class="shell-head"
+        [class.shell-head--compact]="scrolled()"
+      >
         <div class="shell-id">
           <span class="avatar avatar-lg"
             >{{ a.firstName[0] }}{{ a.lastName[0] }}</span
@@ -359,6 +365,13 @@ const SECTION_LABELS: Record<string, string> = {
   `,
   styles: [
     `
+      /* Pas d'ancrage de défilement sur la fiche : la bascule du bandeau compense déjà sa
+         hauteur (voir onScroll), et l'ancrage du navigateur, trompé par le bandeau collant, la
+         « corrigeait » à tort — sur mobile, où le bandeau déplié fait ~500 px, la page était
+         renvoyée tout en haut dès qu'on dépassait 100 px. */
+      :host {
+        overflow-anchor: none;
+      }
       .shell-head {
         position: sticky;
         top: 0;
@@ -510,11 +523,12 @@ const SECTION_LABELS: Record<string, string> = {
       .shell-head--compact h1 {
         font-size: var(--text-lg);
       }
+      /* Pas de transition sur la hauteur du bandeau : la place qu'il occupe dans la page est
+         compensée d'un coup (voir onScroll) ; une hauteur animée la ferait varier pendant
+         l'animation et ferait sauter le contenu. */
       @media (prefers-reduced-motion: no-preference) {
         .shell-head {
-          transition:
-            padding-top var(--duration, 0.18s) ease,
-            gap var(--duration, 0.18s) ease;
+          transition: box-shadow var(--duration, 0.18s) ease;
         }
       }
 
@@ -786,10 +800,33 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
 
   /** Vrai dès qu'on a défilé : le bandeau passe en version compacte. */
   readonly scrolled = signal(false);
+  private readonly shellHead = viewChild<ElementRef<HTMLElement>>('shellHead');
 
+  /**
+   * Bascule le bandeau en version compacte <b>sans changer la place qu'il occupe dans la page</b>.
+   *
+   * <p>Le bandeau est collant mais reste dans le flux : en se réduisant, il raccourcissait la page
+   * d'environ 110 px. Le navigateur recalait alors le défilement (ancrage) sous le seuil, le
+   * bandeau se redéployait, la page rallongeait… et le scroll rebondissait, voire restait bloqué
+   * sur les onglets courts. On mesure donc la hauteur perdue et on la rend en marge basse, le tout
+   * de façon synchrone, avant que la page soit repeinte : le contenu ne bouge plus d'un pixel.</p>
+   */
   onScroll(): void {
     const past = (window.scrollY ?? 0) > 96;
-    if (past !== this.scrolled()) this.scrolled.set(past);
+    if (past === this.scrolled()) return;
+    const head = this.shellHead()?.nativeElement;
+    if (head) {
+      if (past) {
+        const full = head.offsetHeight;
+        head.classList.add('shell-head--compact');
+        const lost = Math.max(0, full - head.offsetHeight);
+        head.style.marginBottom = `calc(var(--sp-5) + ${lost}px)`;
+      } else {
+        head.classList.remove('shell-head--compact');
+        head.style.marginBottom = '';
+      }
+    }
+    this.scrolled.set(past);
   }
 
   /** Ouvre un autre athlète sur la <b>même section</b> — le geste central du coach. */
