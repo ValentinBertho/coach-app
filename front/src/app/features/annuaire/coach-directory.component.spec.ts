@@ -1,10 +1,11 @@
-import { importProvidersFrom } from '@angular/core';
+import { importProvidersFrom, signal } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICONS } from '../../app.config';
+import { AuthService } from '../../core/services/auth.service';
 import { CoachFacets, CoachSummary } from '../../core/services/coach-directory.service';
 import { CoachDirectoryComponent } from './coach-directory.component';
 
@@ -19,6 +20,7 @@ import { CoachDirectoryComponent } from './coach-directory.component';
 describe('annuaire — un visiteur ne tombe jamais sur un cul-de-sac', () => {
   let fixture: ComponentFixture<CoachDirectoryComponent>;
   let http: HttpTestingController;
+  const loggedIn = signal(false);
 
   const coach: CoachSummary = {
     slug: 'marie-dupont',
@@ -51,6 +53,7 @@ describe('annuaire — un visiteur ne tombe jamais sur un cul-de-sac', () => {
   };
 
   beforeEach(() => {
+    loggedIn.set(false);
     TestBed.configureTestingModule({
       imports: [CoachDirectoryComponent],
       providers: [
@@ -58,6 +61,10 @@ describe('annuaire — un visiteur ne tombe jamais sur un cul-de-sac', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         importProvidersFrom(LucideAngularModule.pick(ICONS)),
+        {
+          provide: AuthService,
+          useValue: { isAuthenticated: loggedIn.asReadonly(), homeRoute: () => '/app' },
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -208,5 +215,21 @@ describe('annuaire — un visiteur ne tombe jamais sur un cul-de-sac', () => {
 
     expect(host.querySelectorAll('.dir__card').length).toBe(2);
     expect(host.querySelector('.dir__more')).withContext('plus rien à charger').toBeNull();
+  });
+
+  it('propose « Connexion » à un visiteur sans compte', () => {
+    const host = start([coach]);
+    const action = host.querySelector('.dir__head .btn') as HTMLAnchorElement;
+    expect(action.textContent?.trim()).toBe('Connexion');
+    expect(action.getAttribute('href')).toBe('/login');
+  });
+
+  it('renvoie un utilisateur connecté vers son espace au lieu de lui proposer de se connecter', () => {
+    loggedIn.set(true);
+    const host = start([coach]);
+    const action = host.querySelector('.dir__head .btn') as HTMLAnchorElement;
+    expect(action.textContent?.trim()).toBe('Mon espace');
+    expect(action.getAttribute('href')).toBe('/app');
+    expect(host.querySelector('.dir__head')?.textContent).not.toContain('Connexion');
   });
 });
