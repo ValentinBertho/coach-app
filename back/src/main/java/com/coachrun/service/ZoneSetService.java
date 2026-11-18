@@ -224,6 +224,40 @@ public class ZoneSetService {
     }
 
     /**
+     * Fait d'un modèle le <b>modèle par défaut</b> du club.
+     *
+     * <p>Les athlètes qui n'ont pas de modèle choisi (rattachement nul) suivent le défaut : ils
+     * basculent donc sur la nouvelle échelle. Leurs cibles de l'ancienne échelle sont purgées ici ;
+     * l'appelant les repeuple ensuite ({@code ZoneValueSyncService.resync}) pour chaque athlète
+     * renvoyé. Les athlètes rattachés explicitement à un modèle ne bougent pas.</p>
+     *
+     * @return les athlètes dont l'échelle a changé (à resynchroniser)
+     */
+    @Transactional
+    public List<UUID> setDefault(UUID clubId, UUID id) {
+        ZoneSet target = require(clubId, id);
+        ZoneSet current = ensureDefault(clubId);
+        if (current.getId().equals(target.getId())) {
+            return List.of();
+        }
+        current.setDefaultSet(false);
+        setRepository.saveAndFlush(current);
+        target.setDefaultSet(true);
+        setRepository.saveAndFlush(target);
+
+        List<UUID> moved = athleteRepository.findByClubMembershipOrderByLastNameAsc(clubId).stream()
+                .filter(a -> a.getZoneSet() == null)
+                .map(Athlete::getId)
+                .toList();
+        for (UUID athleteId : moved) {
+            dropStaleValues(clubId, athleteId);
+        }
+        log.info("Club {} : modèle de zones par défaut → « {} » ({} athlète(s) basculé(s))",
+                clubId, target.getName(), moved.size());
+        return moved;
+    }
+
+    /**
      * Applique un modèle de zones à un athlète (null = jeu par défaut du club). Le
      * re-remplissage des cibles est déclenché ensuite par l'appelant
      * ({@code ZoneValueSyncService.resync}), une fois le rattachement écrit.
