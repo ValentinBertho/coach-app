@@ -16,6 +16,7 @@ import {
   referenceRule,
 } from '../../../core/models/training-zone.model';
 import { formatMetricRange } from '../../../core/utils/metric-format';
+import { zoneNameKey } from '../../../core/utils/zone-name-key';
 
 /** Cible pré-calculée d'une zone pour l'athlète courant (lue depuis ses valeurs). */
 interface ZoneHint {
@@ -23,6 +24,11 @@ interface ZoneHint {
   rule: string | null; // « 80–92 % » (règle allure)
   pace: string | null; // « 5:00–5:25/km »
   hr: string | null; // « 132–148 bpm »
+  /**
+   * Nom de la zone homologue dans le modèle de l'athlète, quand il diffère (« Récupération » pour
+   * « Footing facile ») : la cible affichée est la sienne, pas celle du modèle de la séance.
+   */
+  athleteName: string | null;
 }
 
 /**
@@ -49,6 +55,9 @@ interface ZoneHint {
         ></span>
         <span class="zp-name">{{ selectedHint()?.zone?.name || 'Zone…' }}</span>
         @if (!dense()) {
+          @if (selectedHint()?.athleteName; as an) {
+            <span class="zp-alias">= {{ an }}</span>
+          }
           @if (compact(selectedHint()); as t) {
             <span class="zp-target metric">{{ t }}</span>
           } @else if (selectedHint()?.rule) {
@@ -74,7 +83,13 @@ interface ZoneHint {
                   [style.background]="h.zone.color || 'var(--ink-3)'"
                 ></span>
                 <span class="zp-opt-name">{{ h.zone.name }}</span>
-                @if (h.rule) {
+                @if (h.athleteName) {
+                  <span
+                    class="zp-alias"
+                    title="Nom de cette zone dans le modèle de l'athlète"
+                    >= {{ h.athleteName }}</span
+                  >
+                } @else if (h.rule) {
                   <span class="zp-rule">{{ h.rule }}</span>
                 }
                 <span class="zp-opt-target metric">
@@ -344,6 +359,12 @@ interface ZoneHint {
       .zp-nada {
         color: var(--ink-4);
       }
+      .zp-alias {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--primary);
+        white-space: nowrap;
+      }
     `,
   ],
 })
@@ -451,15 +472,71 @@ export class ZonePickerComponent {
     return map;
   });
 
+  /**
+   * Valeurs de l'athlète indexées par <b>nom</b> de zone (clé de rapprochement). Une séance de
+   * bibliothèque liste les zones du modèle du club ; un athlète suivi sur un autre modèle (VC,
+   * VMA…) porte ses valeurs sur d'autres zones. Sans ce repli, la liste n'affichait que des « — »
+   * alors que le serveur, lui, retrouvait bien la cible par le nom.
+   */
+  private readonly valueByName = computed(() => {
+    const map = new Map<string, AthleteZoneValue>();
+    for (const v of this.values()) {
+      if (v.zoneName)
+        map.set(`${zoneNameKey(v.zoneName)}:${v.metricTypeId}`, v);
+    }
+    return map;
+  });
+
+  private readonly zoneIdsWithValues = computed(
+    () => new Set(this.values().map((v) => v.zoneId)),
+  );
+
+  /** Valeur d'une zone : la sienne, sinon celle de la zone homologue du modèle de l'athlète. */
+  private valueFor(
+    zone: TrainingZone,
+    metricId: string,
+  ): AthleteZoneValue | undefined {
+    if (this.zoneIdsWithValues().has(zone.id)) {
+      return this.valueMap().get(`${zone.id}:${metricId}`);
+    }
+    return this.valueByName().get(`${zoneNameKey(zone.name)}:${metricId}`);
+  }
+
+  /** Vrai quand la cible de cette zone vient d'une zone homologue d'un autre modèle. */
+  private matchedByName(zone: TrainingZone): boolean {
+    if (this.zoneIdsWithValues().has(zone.id)) return false;
+    const key = zoneNameKey(zone.name);
+    return this.values().some(
+      (v) => !!v.zoneName && zoneNameKey(v.zoneName) === key,
+    );
+  }
+
+  /** Nom de la zone homologue chez l'athlète, s'il suit un autre modèle et qu'il diffère. */
+  private athleteNameFor(zone: TrainingZone): string | null {
+    if (this.zoneIdsWithValues().has(zone.id)) return null;
+    const key = zoneNameKey(zone.name);
+    const match = this.values().find(
+      (v) => v.zoneName && zoneNameKey(v.zoneName) === key,
+    );
+    if (!match?.zoneName) return null;
+    return match.zoneName.trim().toLowerCase() ===
+      zone.name.trim().toLowerCase()
+      ? null
+      : match.zoneName;
+  }
+
   /** Une entrée par zone, avec règle + cible concrète (allure/FC) de l'athlète. */
   readonly hints = computed<ZoneHint[]>(() => {
     const pace = this.metricByCode().get('PACE');
     const hr = this.metricByCode().get('HR');
     return this.zones().map((zone) => ({
       zone,
-      rule: this.ruleLabel(zone, pace?.id),
-      pace: pace ? this.targetLabel(zone.id, pace) : null,
-      hr: hr ? this.targetLabel(zone.id, hr) : null,
+      // La règle (« 80–90 % · Seuil aérobie ») est celle du modèle de la séance : chez un athlète
+      // suivi sur un autre modèle, elle contredirait l'allure affichée, qui vient du sien.
+      rule: this.matchedByName(zone) ? null : this.ruleLabel(zone, pace?.id),
+      pace: pace ? this.targetLabel(zone, pace) : null,
+      hr: hr ? this.targetLabel(zone, hr) : null,
+      athleteName: this.athleteNameFor(zone),
     }));
   });
 
@@ -493,8 +570,8 @@ export class ZonePickerComponent {
   }
 
   /** Cible concrète d'une zone pour une métrique donnée, formatée selon son unité. */
-  private targetLabel(zoneId: string, m: MetricType): string | null {
-    const v = this.valueMap().get(`${zoneId}:${m.id}`);
+  private targetLabel(zone: TrainingZone, m: MetricType): string | null {
+    const v = this.valueFor(zone, m.id);
     if (!v || (v.valueMin == null && v.valueMax == null)) return null;
     return formatMetricRange(m, v.valueMin, v.valueMax, '–');
   }

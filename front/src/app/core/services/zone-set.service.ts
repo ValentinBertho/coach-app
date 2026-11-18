@@ -30,6 +30,10 @@ export class ZoneSetService {
   rename(id: string, name: string): Observable<ZoneSet> {
     return this.http.put<ZoneSet>(`${this.base()}/${id}`, { name });
   }
+  /** Fait de ce modèle le défaut du club ; renvoie la liste à jour des modèles. */
+  makeDefault(id: string): Observable<ZoneSet[]> {
+    return this.http.put<ZoneSet[]>(`${this.base()}/${id}/default`, {});
+  }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }

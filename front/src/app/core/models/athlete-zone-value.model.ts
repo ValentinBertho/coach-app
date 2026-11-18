@@ -7,6 +7,8 @@ export type ZoneValueSource = 'AUTO' | 'MANUAL';
 
 export interface AthleteZoneValue {
   zoneId: string;
+  /** Nom de la zone dans le modèle de l'athlète (rapprochement avec une zone d'un autre modèle). */
+  zoneName?: string;
   metricTypeId: string;
   valueMin: number | null;
   valueMax: number | null;

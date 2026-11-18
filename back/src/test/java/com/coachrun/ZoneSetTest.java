@@ -179,4 +179,112 @@ class ZoneSetTest {
         mvc.perform(delete("/clubs/{c}/zone-sets/{id}", clubId, defaultId).header("Authorization", bearer))
                 .andExpect(status().isConflict());
     }
+
+    private String setIdNamed(String name) throws Exception {
+        JsonNode sets = objectMapper.readTree(mvc.perform(get("/clubs/{c}/zone-sets", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode s : sets) {
+            if (s.get("name").asText().equals(name)) {
+                return s.get("id").asText();
+            }
+        }
+        throw new AssertionError("Modèle introuvable : " + name);
+    }
+
+    private String zoneIdNamed(JsonNode zones, String name) {
+        for (JsonNode z : zones) {
+            if (z.get("name").asText().equals(name)) {
+                return z.get("id").asText();
+            }
+        }
+        throw new AssertionError("Zone introuvable : " + name);
+    }
+
+    /**
+     * Une séance écrite sur le modèle par défaut (« Footing facile ») se lit chez un athlète en
+     * Vitesses Critiques sur sa zone homologue « Récupération » : même cible, au lieu de rien.
+     */
+    @Test
+    void lowestZoneIsMatchedAcrossModels() throws Exception {
+        String vcId = setIdNamed("Zones Vitesses Critiques");
+        mvc.perform(put("/clubs/{c}/athletes/{a}/zone-set", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"zoneSetId\":\"" + vcId + "\"}"))
+                .andExpect(status().isNoContent());
+
+        JsonNode defaults = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode vcZones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones?setId=" + vcId, clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        String footing = zoneIdNamed(defaults, "Footing facile");
+        String recup = zoneIdNamed(vcZones, "Récupération");
+        String viaDefault = mvc.perform(post("/clubs/{c}/athletes/{a}/session-calc", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"zoneId\":\"" + footing + "\",\"durationS\":1200}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String direct = mvc.perform(post("/clubs/{c}/athletes/{a}/session-calc", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"zoneId\":\"" + recup + "\",\"durationS\":1200}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(viaDefault)).isEqualTo(objectMapper.readTree(direct));
+
+        // Les valeurs de l'athlète portent le nom de zone de SON modèle (rapprochement côté éditeur).
+        JsonNode values = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(values.size()).isGreaterThan(0);
+        assertThat(values.toString()).contains("\"zoneName\":\"Récupération\"")
+                .doesNotContain("\"zoneName\":\"Footing facile\"");
+    }
+
+    /**
+     * Changer le modèle par défaut du club bascule les athlètes qui n'ont pas de modèle choisi ;
+     * ceux qui en ont un le gardent. L'ancien défaut devient un modèle comme un autre.
+     */
+    @Test
+    void defaultSetCanBeChanged() throws Exception {
+        String oldDefault = setIdNamed("Zones par défaut");
+        String vcId = setIdNamed("Zones Vitesses Critiques");
+        String vmaId = setIdNamed("Zones VMA");
+
+        JsonNode athletes = objectMapper.readTree(mvc.perform(get("/clubs/{c}/athletes?size=50", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String pinned = athletes.get("content").get(1).get("id").asText();
+        mvc.perform(put("/clubs/{c}/athletes/{a}/zone-set", clubId, pinned)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"zoneSetId\":\"" + vmaId + "\"}"))
+                .andExpect(status().isNoContent());
+
+        JsonNode sets = objectMapper.readTree(mvc.perform(put("/clubs/{c}/zone-sets/{id}/default", clubId, vcId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode s : sets) {
+            assertThat(s.get("isDefault").asBoolean()).isEqualTo(s.get("id").asText().equals(vcId));
+        }
+
+        JsonNode forAthlete = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/training-zones?athleteId={a}", clubId, athleteId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(forAthlete.get(0).get("name").asText()).isEqualTo("Récupération");
+        JsonNode values = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(values.toString()).doesNotContain("\"zoneName\":\"Footing facile\"");
+
+        JsonNode pinnedSet = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/zone-set", clubId, pinned).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(pinnedSet.get("zoneSetId").asText()).isEqualTo(vmaId);
+
+        // L'ancien défaut, désormais ordinaire, devient supprimable ; le nouveau ne l'est plus.
+        mvc.perform(delete("/clubs/{c}/zone-sets/{id}", clubId, vcId).header("Authorization", bearer))
+                .andExpect(status().isConflict());
+        mvc.perform(delete("/clubs/{c}/zone-sets/{id}", clubId, oldDefault).header("Authorization", bearer))
+                .andExpect(status().is2xxSuccessful());
+    }
 }

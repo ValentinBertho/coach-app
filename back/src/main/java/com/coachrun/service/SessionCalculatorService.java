@@ -56,7 +56,9 @@ public class SessionCalculatorService {
      * <p>Les zones sont aussi indexées <b>par nom</b>. Une séance de bibliothèque référence les
      * zones du modèle où elle a été écrite ; un athlète rattaché à un autre modèle de zones ne
      * porte pas ces identifiants — sans repli par nom, la séance s'afficherait sans aucune cible
-     * alors que son échelle contient bien une « EF » ou un « Seuil ».</p>
+     * alors que son échelle contient bien une « EF » ou un « Seuil ». Les synonymes d'un modèle à
+     * l'autre (« Footing facile » / « Récupération » / « Régénération ») sont rapprochés par
+     * {@link com.coachrun.util.ZoneNameKey}.</p>
      */
     private ZoneTargets zoneTargetsFor(UUID athleteId) {
         Map<UUID, Map<String, AthleteZoneValue>> byZone = new HashMap<>();
@@ -70,8 +72,9 @@ public class SessionCalculatorService {
         return new ZoneTargets(byZone, byName, zoneRepository);
     }
 
+    /** Nom de zone ramené à sa clé de rapprochement entre modèles (casse, accents, synonymes). */
     private static String normalized(String name) {
-        return name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT);
+        return com.coachrun.util.ZoneNameKey.of(name);
     }
 
     /**

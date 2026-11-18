@@ -8,6 +8,8 @@ import java.util.UUID;
 /** Valeur d'une métrique d'une zone pour un athlète (fourchette min/max, source, verrou). */
 public record AthleteZoneValueResponse(
         UUID zoneId,
+        /** Nom de la zone dans le modèle de l'athlète : sert à rapprocher une zone d'un autre modèle. */
+        String zoneName,
         UUID metricTypeId,
         Double valueMin,
         Double valueMax,
@@ -17,7 +19,7 @@ public record AthleteZoneValueResponse(
 
     public static AthleteZoneValueResponse from(AthleteZoneValue v) {
         return new AthleteZoneValueResponse(
-                v.getZone().getId(), v.getMetricType().getId(),
+                v.getZone().getId(), v.getZone().getName(), v.getMetricType().getId(),
                 v.getValueMin(), v.getValueMax(), v.getSource(), v.isLocked());
     }
 }
