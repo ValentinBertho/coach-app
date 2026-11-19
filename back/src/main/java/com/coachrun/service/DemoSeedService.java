@@ -189,11 +189,13 @@ public class DemoSeedService {
         // Administrateur plateforme (sans club)
         userRepository.save(account(ADMIN_EMAIL, "Admin Plateforme", UserRole.PLATFORM_ADMIN, null, null));
 
+        List<Club> demoClubs = new java.util.ArrayList<>();
         for (int c = 0; c < CLUBS.length; c++) {
             Club club = newClub(CLUBS[c]);
             seedClub(club, c == 0);
+            demoClubs.add(club);
         }
-        seedRelations();
+        seedRelations(demoClubs.get(0), demoClubs.get(1));
         log.info("[seed démo] Jeu de données de démonstration généré.");
         return true;
     }
@@ -1333,14 +1335,14 @@ public class DemoSeedService {
      * Démonstration du modèle ouvert (many-to-many) : un athlète a plusieurs coachs,
      * un plan est attribué à plusieurs athlètes, des coachs/athlètes appartiennent à
      * plusieurs clubs.
+     *
+     * <p>Les clubs sont ceux que {@link #seed()} vient de créer, passés tels quels. Les retrouver
+     * par leur nom ne suffit pas : un espace d'essai ({@link #seedTrialClub}) s'appelle lui aussi
+     * « Running Club Lyon ». Quand un essai existait déjà au moment du seed, le plan partagé et
+     * les athlètes à plusieurs coachs pouvaient atterrir dans l'essai au lieu du club de démo,
+     * selon l'ordre (non garanti) de {@code findAll()}.</p>
      */
-    private void seedRelations() {
-        List<Club> clubs = clubRepository.findAll();
-        Club primary = clubs.stream().filter(c -> CLUBS[0].equals(c.getName())).findFirst().orElse(null);
-        Club second = clubs.stream().filter(c -> CLUBS[1].equals(c.getName())).findFirst().orElse(null);
-        if (primary == null) {
-            return;
-        }
+    private void seedRelations(Club primary, Club second) {
         User headCoach = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
         User assistant = userRepository.findByEmailIgnoreCase(COACH_EMAIL).orElse(null);
         List<Athlete> athletes = athleteRepository.findByClubIdOrderByLastNameAsc(primary.getId());
