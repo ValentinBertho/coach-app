@@ -85,6 +85,109 @@
 @if (loading()) {
   <div class="card"><app-skeleton shape="card" [rows]="2" /></div>
 } @else if (viewMode() === 'edit') {
+<div class="compose" [class.compose--wide]="wide()">
+  @if (wide()) {
+    <!-- Bibliothèque ouverte en permanence : on compose en enchaînant les ajouts, sans rouvrir
+         un panneau pour chaque exercice. « + » ajoute à la section visée ; on peut aussi glisser
+         l'exercice à l'endroit voulu d'une section. -->
+    <aside class="ex-lib card" aria-label="Bibliothèque d'exercices">
+      <div class="ex-lib__hd">
+        <div>
+          <h3 class="ex-lib__title">Bibliothèque</h3>
+          <span class="field-hint">{{ exercises().length }} exercices du club</span>
+        </div>
+        @if (targetLabel(); as t) {
+          <span class="ex-lib__target" title="Section qui reçoit les ajouts — clique sur une autre section pour changer">
+            <app-icon name="plus" [size]="12" /> ajoute à {{ t }}
+          </span>
+        }
+      </div>
+
+      <div class="ex-lib__tabs" role="tablist" aria-label="Filtrer la bibliothèque">
+        <button type="button" role="tab" class="ex-lib__tab" [class.on]="libTab() === 'all'"
+                [attr.aria-selected]="libTab() === 'all'" (click)="setLibTab('all')">
+          Tous <span class="ex-lib__n">{{ exercises().length }}</span>
+        </button>
+        <button type="button" role="tab" class="ex-lib__tab" [class.on]="libTab() === 'favorites'"
+                [attr.aria-selected]="libTab() === 'favorites'" (click)="setLibTab('favorites')">
+          <app-icon name="star" [size]="12" /> Favoris <span class="ex-lib__n">{{ favoriteCount() }}</span>
+        </button>
+        <button type="button" role="tab" class="ex-lib__tab" [class.on]="libTab() === 'frequent'"
+                [attr.aria-selected]="libTab() === 'frequent'" (click)="setLibTab('frequent')">
+          Fréquents <span class="ex-lib__n">{{ frequentCount() }}</span>
+        </button>
+      </div>
+
+      <input id="ex-lib-search" class="form-control" type="search" placeholder="Rechercher un exercice…"
+             [ngModel]="libQuery()" (ngModelChange)="libQuery.set($event)"
+             aria-label="Rechercher un exercice" />
+      @if (libCategoryChoices().length > 1) {
+        <select class="form-control" [ngModel]="libCategory()" (ngModelChange)="libCategory.set($event)"
+                aria-label="Filtrer par catégorie">
+          <option value="">Toutes les catégories</option>
+          @for (c of libCategoryChoices(); track c.key) {
+            <option [value]="c.key">{{ c.title }} ({{ c.count }})</option>
+          }
+        </select>
+      }
+
+      <div class="ex-lib__list">
+        @if (!exercisesLoaded()) {
+          <app-skeleton shape="list" [rows]="4" />
+        } @else if (!libCount()) {
+          <p class="field-hint">
+            @if (libQuery()) { Aucun exercice ne correspond à « {{ libQuery() }} ». }
+            @else if (libTab() === 'favorites') { Aucun favori : clique sur l'étoile d'un exercice pour l'épingler ici. }
+            @else if (libTab() === 'frequent') { Les exercices que tu prescris le plus apparaîtront ici. }
+            @else { Aucun exercice dans la bibliothèque — crée-les depuis Préparation physique. }
+          </p>
+        }
+        @for (group of libGroups(); track group.key) {
+          <section class="ex-lib__group">
+            <h4 class="picker__cat">{{ group.title }} <span class="picker__count">{{ group.exercises.length }}</span></h4>
+            <div cdkDropList [cdkDropListConnectedTo]="blockDropIds()" [cdkDropListSortingDisabled]="true"
+                 [cdkDropListEnterPredicate]="noEnter">
+              @for (ex of group.exercises; track ex.id) {
+                <div class="ex-card" cdkDrag [cdkDragData]="{ kind: 'library', exercise: ex }"
+                     title="Glisse sur une section, ou « + » pour l'ajouter à la section visée">
+                  <span class="ex-card__thumb" aria-hidden="true">
+                    @if (ex.imageUrl) {
+                      <img [src]="ex.imageUrl" alt="" loading="lazy" referrerpolicy="no-referrer" />
+                    } @else {
+                      <app-icon name="dumbbell" [size]="18" />
+                    }
+                  </span>
+                  <span class="ex-card__name">{{ ex.name }}</span>
+                  @if (ex.videoUrl) {
+                    <button type="button" class="ex-card__btn" (click)="toggleVideo(ex.id)"
+                            [class.on]="videoFor() === ex.id" [attr.aria-expanded]="videoFor() === ex.id"
+                            [attr.aria-label]="'Voir la démonstration de ' + ex.name">
+                      <app-icon name="play" [size]="14" />
+                    </button>
+                  }
+                  <button type="button" class="ex-card__btn ex-card__star" [class.on]="ex.favorite"
+                          (click)="toggleExerciseFavorite(ex)"
+                          [attr.aria-label]="ex.favorite ? 'Retirer ' + ex.name + ' des favoris' : 'Ajouter ' + ex.name + ' aux favoris'"
+                          [attr.aria-pressed]="ex.favorite">
+                    <app-icon name="star" [size]="14" />
+                  </button>
+                  <button type="button" class="ex-card__btn ex-card__add" (click)="addFromLibrary(ex)"
+                          [attr.aria-label]="'Ajouter ' + ex.name + (targetLabel() ? ' à ' + targetLabel() : '')">
+                    <app-icon name="plus" [size]="14" />
+                  </button>
+                </div>
+                @if (videoFor() === ex.id) {
+                  <app-video-embed [url]="ex.videoUrl" [title]="ex.name" />
+                }
+              }
+            </div>
+          </section>
+        }
+      </div>
+    </aside>
+  }
+
+  <div class="compose__main">
   @if (empty()) {
     <div class="card empty-state">
       <app-icon name="blocks" [size]="32" />
@@ -102,7 +205,8 @@
 
   <div cdkDropList (cdkDropListDropped)="drop($event)">
   @for (block of blocks(); track block.id; let bi = $index) {
-    <div class="card block-card" cdkDrag>
+    <div class="card block-card" cdkDrag [class.is-target]="wide() && targetBlock() === block"
+         (click)="targetSection(block)">
       <div class="block-head">
         <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner"><app-icon name="grip-vertical" [size]="16" /></span>
         <div class="block-meta">
@@ -148,10 +252,14 @@
         </div>
       }
 
-      <!-- Exercices : résumé compact + édition au panneau -->
+      <!-- Exercices : résumé compact + édition au panneau. La liste reçoit aussi les exercices
+           glissés depuis la bibliothèque, et ceux qu'on déplace d'une section à l'autre. -->
+      <div class="ex-drop" cdkDropList [id]="'blk-' + block.id" [cdkDropListData]="block"
+           [cdkDropListConnectedTo]="blockDropIds()" (cdkDropListDropped)="dropExercise($event, block)">
       @for (item of block.exercises; track item; let i = $index) {
-        <div class="ex-row ex-row--compact">
+        <div class="ex-row ex-row--compact" cdkDrag [cdkDragData]="{ kind: 'item' }">
           <div class="ex-row-head">
+            <span class="drag-handle drag-handle--ex" cdkDragHandle title="Glisser pour déplacer l'exercice"><app-icon name="grip-vertical" [size]="14" /></span>
             <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
             <span class="ex-spacer"></span>
             <button type="button" class="btn btn-ghost btn-sm" (click)="duplicateExercise(block, i)"
@@ -212,8 +320,12 @@
           }
         </div>
       } @empty {
-        <p class="field-hint">Aucun exercice dans ce bloc.</p>
+        <p class="field-hint ex-drop__empty">
+          @if (wide()) { Glisse des exercices ici, ou clique sur « + » dans la bibliothèque. }
+          @else { Aucun exercice dans ce bloc. }
+        </p>
       }
+      </div>
 
       <div class="add-ex">
         <button type="button" class="btn btn-accent btn-sm" (click)="openPicker(block)">
@@ -232,6 +344,8 @@
       </button>
     }
   </div>
+  </div>
+</div>
 } @else {
   <!-- ===== Aperçu athlète (lecture seule, primitives) ===== -->
   @if (empty()) {

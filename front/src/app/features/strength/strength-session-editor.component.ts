@@ -3,6 +3,9 @@ import {
   DragDropModule,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -112,6 +115,21 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+
+  /**
+   * Écran assez large pour garder la bibliothèque d'exercices ouverte à côté de la séance.
+   *
+   * <p>Composer une séance de renfo, c'est enchaîner une dizaine d'ajouts : rouvrir un panneau
+   * à chaque exercice coûtait un clic, une recherche et un regard perdu. Sur grand écran, la
+   * bibliothèque reste à gauche et chaque exercice s'ajoute d'un « + » ou d'un glisser. Sur
+   * téléphone et tablette, la place manque : le panneau latéral reste le geste.</p>
+   */
+  readonly wide = toSignal(
+    inject(BreakpointObserver)
+      .observe('(min-width: 1100px)')
+      .pipe(map((r) => r.matches)),
+    { initialValue: false },
+  );
 
   /**
    * Auto-sauvegarde : construire une séance de force prend de longues minutes, et rien
@@ -341,6 +359,12 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * pire moment.</p>
    */
   private requestPicker(block: StrengthBlock): void {
+    // Bibliothèque déjà ouverte à gauche : la section devient la cible des prochains ajouts,
+    // sans panneau par-dessus.
+    if (this.wide()) {
+      this.pickerBlockId.set(block.id);
+      return;
+    }
     this.pendingPickerBlockId = block.id;
     this.openPendingPicker();
   }
@@ -624,11 +648,151 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   }
   private readonly pickerBlockId = signal<string | null>(null);
 
+  /**
+   * Section qui reçoit les ajouts de la bibliothèque : celle qu'on a désignée en dernier, et à
+   * défaut la dernière de la séance — c'est là qu'on écrit quand on n'a rien choisi.
+   */
+  readonly targetBlock = computed<StrengthBlock | null>(() => {
+    const list = this.blocks();
+    return list.find((b) => b.id === this.pickerBlockId()) ?? list[list.length - 1] ?? null;
+  });
+
+  /** Désigne la section qui recevra les prochains exercices (clic sur sa carte). */
+  targetSection(block: StrengthBlock): void {
+    this.pickerBlockId.set(block.id);
+  }
+
+  /** Libellé de la cible, numéroté : deux sections « Principal » ne se confondent pas. */
+  readonly targetLabel = computed(() => {
+    const block = this.targetBlock();
+    if (!block) return null;
+    const index = this.blocks().indexOf(block) + 1;
+    return `${index}. ${this.blockTypeLabel(block.blockType)}`;
+  });
+
+  // --- Bibliothèque ouverte à gauche (grand écran) ---------------------------
+
+  readonly libTab = signal<'all' | 'favorites' | 'frequent'>('all');
+  readonly libQuery = signal('');
+  readonly libCategory = signal('');
+
+  readonly favoriteCount = computed(
+    () => this.exercises().filter((e) => e.favorite).length,
+  );
+  /** Les exercices déjà prescrits, du plus servi au moins servi — vingt au plus. */
+  private readonly frequentExercises = computed(() =>
+    this.exercises()
+      .filter((e) => e.useCount > 0)
+      .sort((a, b) => b.useCount - a.useCount)
+      .slice(0, 20),
+  );
+  readonly frequentCount = computed(() => this.frequentExercises().length);
+
+  private readonly libSource = computed(() => {
+    switch (this.libTab()) {
+      case 'favorites':
+        return this.exercises().filter((e) => e.favorite);
+      case 'frequent':
+        return this.frequentExercises();
+      default:
+        return this.exercises();
+    }
+  });
+
+  /** Toutes les catégories de l'onglet, avant le filtre : la liste déroulante ne se vide pas. */
+  readonly libCategoryChoices = computed(() =>
+    this.groupExercises(this.libSource(), '').map((g) => ({
+      key: g.key,
+      title: g.title,
+      count: g.exercises.length,
+    })),
+  );
+
+  readonly libGroups = computed(() => {
+    const groups = this.groupExercises(this.libSource(), this.libQuery());
+    const cat = this.libCategory();
+    return cat ? groups.filter((g) => g.key === cat) : groups;
+  });
+
+  readonly libCount = computed(() =>
+    this.libGroups().reduce((n, g) => n + g.exercises.length, 0),
+  );
+
+  setLibTab(tab: 'all' | 'favorites' | 'frequent'): void {
+    this.libTab.set(tab);
+    this.libCategory.set('');
+  }
+
+  /** Ajoute depuis la bibliothèque à la section visée ; une séance vide reçoit d'abord un « Principal ». */
+  addFromLibrary(ex: PpExercise): void {
+    if (!this.blocks().length) {
+      const block = this.blankBlock('PRINCIPAL');
+      this.blocks.set([block]);
+      this.pickerBlockId.set(block.id);
+    }
+    const block = this.targetBlock();
+    if (block) this.addExerciseTo(block, ex);
+  }
+
+  /** Épingle un exercice : il rejoint l'onglet Favoris, ici et sur tous les écrans du club. */
+  toggleExerciseFavorite(ex: PpExercise): void {
+    const favorite = !ex.favorite;
+    const apply = (value: boolean) =>
+      this.exercises.update((list) =>
+        list.map((e) => (e.id === ex.id ? { ...e, favorite: value } : e)),
+      );
+    apply(favorite);
+    this.strength.setExerciseFavorite(ex.id, favorite).subscribe({
+      error: () => {
+        apply(!favorite);
+        this.toast.error('Favori non enregistré, réessaie.');
+      },
+    });
+  }
+
+  /** La bibliothèque donne, elle ne reçoit pas : un exercice glissé hors d'une section n'y retourne pas. */
+  readonly noEnter = () => false;
+
+  /** Identifiants des sections, pour relier la bibliothèque à chacune d'elles. */
+  readonly blockDropIds = computed(() => this.blocks().map((b) => 'blk-' + b.id));
+
+  /**
+   * Dépôt dans une section : un exercice glissé depuis la bibliothèque y est ajouté à l'endroit
+   * du dépôt ; un exercice déjà présent change de place dans sa section ou passe dans une autre.
+   */
+  dropExercise(event: CdkDragDrop<StrengthBlock, StrengthBlock | undefined>, block: StrengthBlock): void {
+    const data = event.item.data as { kind: 'library'; exercise: PpExercise } | { kind: 'item' } | undefined;
+    if (data && 'exercise' in data) {
+      this.pickerBlockId.set(block.id);
+      this.addExerciseTo(block, data.exercise, event.currentIndex);
+      return;
+    }
+    const from = event.previousContainer.data;
+    if (from === block) {
+      const list = [...block.exercises];
+      moveItemInArray(list, event.previousIndex, event.currentIndex);
+      block.exercises = list;
+    } else if (from) {
+      const moved = from.exercises[event.previousIndex];
+      if (!moved) return;
+      from.exercises = from.exercises.filter((_, i) => i !== event.previousIndex);
+      const list = [...block.exercises];
+      list.splice(event.currentIndex, 0, moved);
+      block.exercises = list;
+    }
+    this.touch();
+  }
+
   /** Bibliothèque filtrée par la recherche, rangée par catégorie. */
-  readonly pickerGroups = computed<
-    { key: string; title: string; exercises: PpExercise[] }[]
-  >(() => {
-    const query = normalize(this.pickerQuery());
+  readonly pickerGroups = computed(() =>
+    this.groupExercises(this.exercises(), this.pickerQuery()),
+  );
+
+  private groupExercises(
+    list: PpExercise[],
+    rawQuery: string,
+  ): { key: string; title: string; exercises: PpExercise[] }[] {
+    const query = normalize(rawQuery);
     const names = new Map(
       this.categories().map((c) => [c.id, c.name] as const),
     );
@@ -637,7 +801,7 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       { key: string; title: string; exercises: PpExercise[] }
     >();
 
-    for (const ex of this.exercises()) {
+    for (const ex of list) {
       if (query && !normalize(ex.name).includes(query)) continue;
       // Catégorie du coach si elle est renseignée ; sinon le type de l'exercice, qui l'est
       // toujours — aucun exercice ne doit tomber dans un « divers » où on ne le cherchera pas.
@@ -661,7 +825,7 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       const rb = order.get(b.key) ?? Number.MAX_SAFE_INTEGER;
       return ra === rb ? a.title.localeCompare(b.title, 'fr') : ra - rb;
     });
-  });
+  }
 
   /** Nombre d'exercices proposés, toutes catégories confondues (état vide de la recherche). */
   readonly pickerCount = computed(() =>
@@ -670,6 +834,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
 
   openPicker(block: StrengthBlock): void {
     this.pickerBlockId.set(block.id);
+    if (this.wide()) {
+      // La bibliothèque est déjà là : on vise la section et on rend la main au clavier.
+      document.getElementById('ex-lib-search')?.focus();
+      return;
+    }
     this.pickerQuery.set('');
     this.pickerOpen.set(true);
   }
@@ -750,6 +919,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   addExercise(ex: PpExercise): void {
     const block = this.blocks().find((b) => b.id === this.pickerBlockId());
     if (!block) return;
+    this.addExerciseTo(block, ex);
+  }
+
+  /** Pose l'exercice dans la section, à la fin ou à la place du dépôt. */
+  private addExerciseTo(block: StrengthBlock, ex: PpExercise, at?: number): void {
     const item: StrengthExerciseItem = {
       exerciseId: ex.id,
       exerciseName: ex.name,
@@ -767,7 +941,9 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
         sideMode: 'BILATERAL',
       },
     };
-    block.exercises = [...block.exercises, item];
+    const list = [...block.exercises];
+    list.splice(at ?? list.length, 0, item);
+    block.exercises = list;
     this.toast.success(`${ex.name} ajouté`);
     this.touch();
   }

@@ -65,6 +65,13 @@ public class PpExerciseService {
     }
 
     @Transactional
+    public PpExerciseResponse setFavorite(UUID clubId, UUID id, boolean favorite) {
+        PpExercise e = require(clubId, id);
+        e.setFavorite(favorite);
+        return PpExerciseResponse.from(e);
+    }
+
+    @Transactional
     public void archive(UUID clubId, UUID id) {
         require(clubId, id).setArchived(true);
     }

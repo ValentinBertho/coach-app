@@ -67,6 +67,11 @@ export class StrengthService {
     return this.http.put<PpExercise>(`${this.club()}/pp/exercises/${id}`, body);
   }
 
+  /** Épingle / dé-épingle un exercice (onglet Favoris de la bibliothèque de l'éditeur). */
+  setExerciseFavorite(id: string, favorite: boolean): Observable<PpExercise> {
+    return this.http.patch<PpExercise>(`${this.club()}/pp/exercises/${id}/favorite`, { favorite });
+  }
+
   getExercise(id: string): Observable<PpExercise> {
     return this.http.get<PpExercise>(`${this.club()}/pp/exercises/${id}`);
   }

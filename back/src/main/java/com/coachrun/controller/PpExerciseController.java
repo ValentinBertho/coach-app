@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -68,6 +69,16 @@ public class PpExerciseController {
     public PpExerciseResponse update(@PathVariable UUID clubId, @PathVariable UUID id,
                                      @Valid @RequestBody PpExerciseRequest request) {
         return exerciseService.update(clubId, id, request);
+    }
+
+    /**
+     * Épingle / dé-épingle un exercice. Le favori existait en base sans geste pour le poser :
+     * l'éditeur de séance de force le propose désormais depuis sa bibliothèque.
+     */
+    @PatchMapping("/{id}/favorite")
+    public PpExerciseResponse setFavorite(@PathVariable UUID clubId, @PathVariable UUID id,
+                                          @RequestBody java.util.Map<String, Boolean> body) {
+        return exerciseService.setFavorite(clubId, id, Boolean.TRUE.equals(body.get("favorite")));
     }
 
     @DeleteMapping("/{id}")
