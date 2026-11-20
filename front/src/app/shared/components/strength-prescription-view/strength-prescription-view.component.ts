@@ -17,6 +17,7 @@ import {
   volumePill,
   type VolumePill,
 } from '../../../core/utils/strength-volume';
+import { describeSetMethod } from '../../../core/utils/set-method';
 import {
   EffortBadgeComponent,
   type EffortKind,
@@ -102,6 +103,7 @@ interface BlockRow {
                     <span class="spv__sets metric">{{ s }}</span>
                   }
                 </div>
+                @if (method(ex); as m) { <p class="spv__method">{{ m }}</p> }
                 <div class="spv__pills">
                   @if (ex.kgMin != null) {
                     <app-range-prescription-pill
@@ -188,6 +190,11 @@ interface BlockRow {
       .spv__type {
         font-weight: 700;
         color: var(--ink);
+      }
+      .spv__method {
+        margin: 0 0 var(--sp-1);
+        font-size: var(--text-sm);
+        color: var(--primary);
       }
       .spv__instr {
         margin: 0 0 var(--sp-2);
@@ -304,6 +311,11 @@ export class StrengthPrescriptionViewComponent {
     if (workSec) parts.push(`${workSec} s d'effort`);
     if (restSec) parts.push(`${restSec} s de récup`);
     return parts.join(' · ');
+  }
+
+  /** Méthode de série en une phrase (« Cluster : 3 blocs de 2 reps… »), vide pour une série standard. */
+  method(ex: ExerciseRow): string {
+    return describeSetMethod(ex.item.setType, ex.item.setConfig);
   }
 
   setsLabel(ex: ExerciseRow): string {

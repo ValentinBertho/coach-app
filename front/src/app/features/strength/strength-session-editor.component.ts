@@ -65,6 +65,14 @@ import { Autosave } from '../../core/services/autosave';
 import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
+import {
+  SET_METHODS,
+  SetMethod,
+  SetMethodConfig,
+  describeSetMethod,
+  setMethod,
+  setMethodConfig,
+} from '../../core/utils/set-method';
 
 /**
  * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
@@ -1277,6 +1285,222 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   setSideMode(item: StrengthExerciseItem, mode: SideMode): void {
     item.prescription.sideMode = mode;
     this.touch();
+  }
+
+  // --- Panneau d'édition allégé : borne max facultative = fourchette -----------
+
+  private static num(v: unknown): number | null {
+    if (v === '' || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  volLow(block: StrengthBlock, item: StrengthExerciseItem): number | null {
+    const p = item.prescription;
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE': return p.durationSec ?? null;
+      case 'DISTANCE': return p.distanceM ?? null;
+      default: return p.repsFixed ?? p.repsMin ?? null;
+    }
+  }
+
+  volHigh(block: StrengthBlock, item: StrengthExerciseItem): number | null {
+    const p = item.prescription;
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE': return p.durationSecMax ?? null;
+      case 'DISTANCE': return p.distanceMMax ?? null;
+      default: return p.repsFixed != null ? null : (p.repsMax ?? null);
+    }
+  }
+
+  setVolLow(block: StrengthBlock, item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    const p = item.prescription;
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE': p.durationSec = v; break;
+      case 'DISTANCE': p.distanceM = v; break;
+      default:
+        if (p.repsFixed == null && p.repsMax != null) p.repsMin = v;
+        else { p.repsFixed = v; p.repsMin = null; p.repsMax = null; }
+    }
+    this.touch();
+  }
+
+  setVolHigh(block: StrengthBlock, item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    const p = item.prescription;
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE': p.durationSecMax = v; break;
+      case 'DISTANCE': p.distanceMMax = v; break;
+      default: {
+        const low = p.repsFixed ?? p.repsMin ?? null;
+        if (v == null) { p.repsFixed = low; p.repsMin = null; p.repsMax = null; }
+        else { p.repsMin = low; p.repsFixed = null; p.repsMax = v; }
+      }
+    }
+    this.touch();
+  }
+
+  chargeMode(item: StrengthExerciseItem): 'PCT' | 'KG' | 'NONE' | 'OTHER' {
+    const t = item.prescription.chargeRefType;
+    if (!t) return 'NONE';
+    if (t === 'PCT_RM' || t === 'PCT_RM_RANGE') return 'PCT';
+    if (t === 'KG_FIXE' || t === 'KG_RANGE') return 'KG';
+    return 'OTHER';
+  }
+
+  chargeRefLabel(item: StrengthExerciseItem): string {
+    return this.chargeRefs.find((c) => c.value === item.prescription.chargeRefType)?.label ?? '';
+  }
+
+  setChargeMode(item: StrengthExerciseItem, mode: 'PCT' | 'KG' | 'NONE' | 'OTHER'): void {
+    const p = item.prescription;
+    if (mode === 'OTHER') return;
+    if (mode === 'NONE') {
+      p.chargeRefType = undefined;
+    } else if (mode === 'PCT') {
+      p.chargePctRmMin = p.chargePctRmMin ?? 70;
+      p.chargeRefType = p.chargePctRmMax != null ? 'PCT_RM_RANGE' : 'PCT_RM';
+    } else {
+      p.chargeKgMin = p.chargeKgMin ?? 20;
+      p.chargeRefType = p.chargeKgMax != null ? 'KG_RANGE' : 'KG_FIXE';
+    }
+    this.touch();
+  }
+
+  chargeLow(item: StrengthExerciseItem): number | null {
+    const p = item.prescription;
+    return this.chargeMode(item) === 'PCT' ? (p.chargePctRmMin ?? null) : (p.chargeKgMin ?? null);
+  }
+
+  chargeHigh(item: StrengthExerciseItem): number | null {
+    const p = item.prescription;
+    switch (p.chargeRefType) {
+      case 'PCT_RM_RANGE': return p.chargePctRmMax ?? null;
+      case 'KG_RANGE': return p.chargeKgMax ?? null;
+      default: return null;
+    }
+  }
+
+  setChargeLow(item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    if (this.chargeMode(item) === 'PCT') item.prescription.chargePctRmMin = v;
+    else item.prescription.chargeKgMin = v;
+    this.touch();
+  }
+
+  setChargeHigh(item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    const p = item.prescription;
+    if (this.chargeMode(item) === 'PCT') {
+      p.chargePctRmMax = v;
+      p.chargeRefType = v == null ? 'PCT_RM' : 'PCT_RM_RANGE';
+    } else {
+      p.chargeKgMax = v;
+      p.chargeRefType = v == null ? 'KG_FIXE' : 'KG_RANGE';
+    }
+    this.touch();
+  }
+
+  effortMode(item: StrengthExerciseItem): 'RIR' | 'RPE' | 'NONE' {
+    const t = item.prescription.effortRefType;
+    if (t === 'RIR' || t === 'RIR_RANGE') return 'RIR';
+    if (t === 'RPE' || t === 'RPE_RANGE') return 'RPE';
+    return 'NONE';
+  }
+
+  setEffortMode(item: StrengthExerciseItem, mode: 'RIR' | 'RPE' | 'NONE'): void {
+    const p = item.prescription;
+    if (mode === 'NONE') {
+      p.effortRefType = undefined;
+    } else if (mode === 'RIR') {
+      p.rirMin = p.rirMin ?? 2;
+      p.effortRefType = p.rirMax != null ? 'RIR_RANGE' : 'RIR';
+    } else {
+      p.rpeMin = p.rpeMin ?? 7;
+      p.effortRefType = p.rpeMax != null ? 'RPE_RANGE' : 'RPE';
+    }
+    this.touch();
+  }
+
+  effortLow(item: StrengthExerciseItem): number | null {
+    const p = item.prescription;
+    return this.effortMode(item) === 'RIR' ? (p.rirMin ?? null) : (p.rpeMin ?? null);
+  }
+
+  effortHigh(item: StrengthExerciseItem): number | null {
+    const p = item.prescription;
+    switch (p.effortRefType) {
+      case 'RIR_RANGE': return p.rirMax ?? null;
+      case 'RPE_RANGE': return p.rpeMax ?? null;
+      default: return null;
+    }
+  }
+
+  setEffortLow(item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    if (this.effortMode(item) === 'RIR') item.prescription.rirMin = v;
+    else item.prescription.rpeMin = v;
+    this.touch();
+  }
+
+  setEffortHigh(item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    const p = item.prescription;
+    if (this.effortMode(item) === 'RIR') {
+      p.rirMax = v;
+      p.effortRefType = v == null ? 'RIR' : 'RIR_RANGE';
+    } else {
+      p.rpeMax = v;
+      p.effortRefType = v == null ? 'RPE' : 'RPE_RANGE';
+    }
+    this.touch();
+  }
+
+  setRestHigh(item: StrengthExerciseItem, raw: unknown): void {
+    item.prescription.restSecMax = StrengthSessionEditorComponent.num(raw);
+    this.touch();
+  }
+
+  // --- Méthodes de série (drop set, myo-reps, cluster…) ----------------------
+
+  readonly setMethods = SET_METHODS;
+
+  methodOf(item: StrengthExerciseItem): SetMethod {
+    return setMethod(item.setType);
+  }
+
+  /** Change de méthode : ses réglages par défaut remplacent ceux de la précédente. */
+  setSetMethod(item: StrengthExerciseItem, type: SetType): void {
+    if (item.setType === type) return;
+    item.setType = type;
+    const defaults = setMethod(type).defaults;
+    item.setConfig = Object.keys(defaults).length ? { ...defaults } : null;
+    // Une iso se tient en secondes : on aligne le volume pour ne pas prescrire « 6 répétitions ».
+    if (type === 'ISO_OVERCOMING' || type === 'ISO_YIELDING') {
+      item.prescription.volumeType = 'DUREE';
+      item.prescription.durationSec = defaults.holdSec ?? 30;
+      item.prescription.repsFixed = null;
+      item.prescription.repsMin = null;
+      item.prescription.repsMax = null;
+    }
+    this.touch();
+  }
+
+  methodValue(item: StrengthExerciseItem, key: keyof SetMethodConfig): number | null {
+    return setMethodConfig(item.setType, item.setConfig)[key] ?? null;
+  }
+
+  setMethodValue(item: StrengthExerciseItem, key: keyof SetMethodConfig, raw: unknown): void {
+    item.setConfig = {
+      ...setMethodConfig(item.setType, item.setConfig),
+      [key]: StrengthSessionEditorComponent.num(raw),
+    };
+    this.touch();
+  }
+
+  methodSummary(item: StrengthExerciseItem): string {
+    return describeSetMethod(item.setType, item.setConfig);
   }
 
   /** Le repos est-il laissé en fourchette (« 90 à 120 s ») plutôt que strict (« 90 s ») ? */

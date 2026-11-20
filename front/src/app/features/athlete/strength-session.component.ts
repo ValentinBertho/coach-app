@@ -36,6 +36,7 @@ import {
 } from '../../shared/components/physiology';
 import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
+import { describeSetMethod } from '../../core/utils/set-method';
 
 /**
  * Une série saisie par l'athlète. `done` = validée dans le parcours guidé.
@@ -571,7 +572,11 @@ export class StrengthSessionComponent implements OnInit {
           side: sideLabel(presc),
           // Les consignes du bloc (« enchaîner sans pause ») précèdent le mot propre à l'exercice.
           notes:
-            [block.block.instructions?.trim(), ex.item.coachNotes?.trim()]
+            [
+              block.block.instructions?.trim(),
+              describeSetMethod(ex.item.setType, ex.item.setConfig),
+              ex.item.coachNotes?.trim(),
+            ]
               .filter((n) => !!n)
               .join(' — ') || null,
           rx: {

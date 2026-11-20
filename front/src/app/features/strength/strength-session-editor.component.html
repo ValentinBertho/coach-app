@@ -248,7 +248,7 @@
             </select>
           } @else {
             <button type="button" class="btn btn-ghost btn-sm block-options" (click)="toggleOptions(block)">
-              <app-icon name="cog" [size]="14" /> Format
+              <app-icon name="cog" [size]="14" /> Format : classique (EMOM, AMRAP, circuit…)
             </button>
           }
         </div>
@@ -352,6 +352,9 @@
           </div>
           <!-- Le commentaire du coach se lit sur la carte : écrit puis invisible, il n'aurait
                servi à rien ici, et c'est là qu'on vérifie ce qu'on a prescrit. -->
+          @if (methodSummary(item); as sum) {
+            <p class="ex-method"><app-icon name="blocks" [size]="13" /> {{ sum }}</p>
+          }
           @if (item.coachNotes) {
             <p class="ex-note"><app-icon name="message-square" [size]="13" /> {{ item.coachNotes }}</p>
           }
@@ -439,119 +442,132 @@
     @if (editingBlock(); as block) {
       <h4 class="sp-ex-name">{{ item.exerciseName || label(item.exerciseId) }}</h4>
 
-      <div class="presc-grid">
-        <div class="form-group"><label>Type de série</label>
-          <select class="form-control" [(ngModel)]="item.setType" (ngModelChange)="touch()">
-            @for (st of setTypes; track st.value) { <option [value]="st.value">{{ st.label }}</option> }
-          </select>
-        </div>
-        <div class="form-group"><label>Séries</label><input type="number" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></div>
-
-        <!-- Volume : ce que compte la série. Une planche se tient en secondes, un porté du
-             fermier se parcourt en mètres — « 45 répétitions de gainage » ne voulait rien dire. -->
-        <div class="form-group"><label>Volume compté en</label>
-          <select class="form-control" [ngModel]="volumeTypeOf(block, item)"
-                  (ngModelChange)="setVolumeType(block, item, $event)">
-            @for (v of volumeTypes; track v.value) { <option [value]="v.value">{{ v.label }}</option> }
-          </select>
-        </div>
-        <div class="form-group"><label>Prescription</label>
-          <select class="form-control" [ngModel]="volumeRanged(block, item)"
-                  (ngModelChange)="setVolumeRanged(block, item, $event)">
-            <option [ngValue]="false">Valeur exacte</option>
-            <option [ngValue]="true">Fourchette</option>
-          </select>
+      <!-- L'essentiel d'abord, sur quatre lignes : séries × volume, charge, effort, repos.
+           Une borne max laissée vide = valeur exacte ; remplie = fourchette. Plus de liste
+           « Valeur exacte / Fourchette » à régler avant d'écrire un chiffre. -->
+      <div class="qe">
+        <div class="qe-row">
+          <label class="qe-field qe-field--s"><span>Séries</span>
+            <input type="number" min="1" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></label>
+          <div class="qe-field qe-field--range">
+            <span>{{ volumeTypeOf(block, item) === 'DUREE' ? 'Durée (s)' : volumeTypeOf(block, item) === 'DISTANCE' ? 'Distance (m)' : 'Répétitions' }}</span>
+            <div class="qe-range">
+              <input type="number" min="0" class="form-control" aria-label="Volume (min ou valeur exacte)"
+                     [ngModel]="volLow(block, item)" (ngModelChange)="setVolLow(block, item, $event)" />
+              <span class="qe-dash">–</span>
+              <input type="number" min="0" class="form-control" placeholder="max" aria-label="Volume max (facultatif)"
+                     [ngModel]="volHigh(block, item)" (ngModelChange)="setVolHigh(block, item, $event)" />
+            </div>
+          </div>
+          <label class="qe-field qe-field--s"><span>Tempo</span>
+            <input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></label>
         </div>
 
-        @switch (volumeTypeOf(block, item)) {
-          @case ('DUREE') {
-            @if (volumeRanged(block, item)) {
-              <div class="form-group"><label>Durée min (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>Durée max (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.durationSecMax" (ngModelChange)="touch()" /></div>
-            } @else {
-              <div class="form-group"><label>Durée (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
-            }
+        <div class="qe-row">
+          <div class="qe-field qe-field--range">
+            <span>Charge</span>
+            <div class="qe-range">
+              <select class="form-control qe-unit" [ngModel]="chargeMode(item)" (ngModelChange)="setChargeMode(item, $event)" aria-label="Unité de charge">
+                <option value="PCT">% RM</option>
+                <option value="KG">kg</option>
+                <option value="NONE">—</option>
+                @if (chargeMode(item) === 'OTHER') { <option value="OTHER">{{ chargeRefLabel(item) }}</option> }
+              </select>
+              @if (chargeMode(item) === 'PCT' || chargeMode(item) === 'KG') {
+                <input type="number" min="0" class="form-control" aria-label="Charge (min ou valeur exacte)"
+                       [ngModel]="chargeLow(item)" (ngModelChange)="setChargeLow(item, $event)" />
+                <span class="qe-dash">–</span>
+                <input type="number" min="0" class="form-control" placeholder="max" aria-label="Charge max (facultatif)"
+                       [ngModel]="chargeHigh(item)" (ngModelChange)="setChargeHigh(item, $event)" />
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="qe-row">
+          <div class="qe-field qe-field--range">
+            <span>Effort</span>
+            <div class="qe-range">
+              <select class="form-control qe-unit" [ngModel]="effortMode(item)" (ngModelChange)="setEffortMode(item, $event)" aria-label="Échelle d'effort">
+                <option value="RIR">RIR</option>
+                <option value="RPE">RPE</option>
+                <option value="NONE">—</option>
+              </select>
+              @if (effortMode(item) !== 'NONE') {
+                <input type="number" min="0" max="10" class="form-control" aria-label="Effort (min ou valeur exacte)"
+                       [ngModel]="effortLow(item)" (ngModelChange)="setEffortLow(item, $event)" />
+                <span class="qe-dash">–</span>
+                <input type="number" min="0" max="10" class="form-control" placeholder="max" aria-label="Effort max (facultatif)"
+                       [ngModel]="effortHigh(item)" (ngModelChange)="setEffortHigh(item, $event)" />
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="qe-row">
+          <div class="qe-field qe-field--range">
+            <span>Repos (s)</span>
+            <div class="qe-range">
+              <input type="number" min="0" class="form-control" aria-label="Repos (min ou valeur exacte)"
+                     [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" />
+              <span class="qe-dash">–</span>
+              <input type="number" min="0" class="form-control" placeholder="max" aria-label="Repos max (facultatif)"
+                     [ngModel]="item.prescription.restSecMax" (ngModelChange)="setRestHigh(item, $event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Méthode de série : chaque méthode montre ses propres réglages, et l'athlète les lit
+           en une phrase. Avant, choisir « Cluster » ne changeait rien à l'écran. -->
+      <div class="qe-method">
+        <span class="qe-method__t">Méthode</span>
+        <div class="qe-chips" role="group" aria-label="Méthode de série">
+          @for (m of setMethods; track m.value) {
+            <button type="button" class="qe-chip" [class.on]="(item.setType || 'STANDARD') === m.value"
+                    [attr.aria-pressed]="(item.setType || 'STANDARD') === m.value"
+                    (click)="setSetMethod(item, m.value)">{{ m.label }}</button>
           }
-          @case ('DISTANCE') {
-            @if (volumeRanged(block, item)) {
-              <div class="form-group"><label>Distance min (m)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.distanceM" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>Distance max (m)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.distanceMMax" (ngModelChange)="touch()" /></div>
-            } @else {
-              <div class="form-group"><label>Distance (m)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.distanceM" (ngModelChange)="touch()" /></div>
-            }
+        </div>
+        @if (methodOf(item); as m) {
+          @if (m.hint) { <p class="field-hint qe-method__hint">{{ m.hint }}</p> }
+          @if (m.fields.length) {
+            <div class="qe-row">
+              @for (f of m.fields; track f.key) {
+                <label class="qe-field qe-field--s"><span>{{ f.label }}</span>
+                  <input type="number" class="form-control" [min]="f.min" [max]="f.max"
+                         [ngModel]="methodValue(item, f.key)" (ngModelChange)="setMethodValue(item, f.key, $event)" /></label>
+              }
+            </div>
           }
-          @default {
-            @if (volumeRanged(block, item)) {
-              <div class="form-group"><label>Reps min</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.repsMin" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>Reps max</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.repsMax" (ngModelChange)="touch()" /></div>
-            } @else {
-              <div class="form-group"><label>Répétitions</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.repsFixed" (ngModelChange)="touch()" /></div>
-            }
-          }
-        }
-
-        <!-- Latéralité : « 3 × 8 » sur une fente ne dit pas la même chose selon qu'on compte
-             8 en tout, 8 par jambe, ou 8 en alternant. -->
-        <div class="form-group"><label>Côtés</label>
-          <select class="form-control" [ngModel]="item.prescription.sideMode ?? 'BILATERAL'"
-                  (ngModelChange)="setSideMode(item, $event)">
-            @for (sm of sideModes; track sm.value) { <option [value]="sm.value">{{ sm.label }}</option> }
-          </select>
-        </div>
-
-        <div class="form-group"><label>Réf. charge</label>
-          <select class="form-control" [(ngModel)]="item.prescription.chargeRefType" (ngModelChange)="touch()">
-            @for (c of chargeRefs; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
-          </select>
-        </div>
-        @if (item.prescription.chargeRefType === 'PCT_RM_RANGE') {
-          <div class="form-group"><label>% RM min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
-          <div class="form-group"><label>% RM max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMax" (ngModelChange)="touch()" /></div>
-        } @else if (item.prescription.chargeRefType === 'PCT_RM') {
-          <div class="form-group"><label>% RM</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
-        } @else if (item.prescription.chargeRefType === 'KG_RANGE') {
-          <div class="form-group"><label>kg min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
-          <div class="form-group"><label>kg max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMax" (ngModelChange)="touch()" /></div>
-        } @else if (item.prescription.chargeRefType === 'KG_FIXE') {
-          <div class="form-group"><label>kg</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
-        }
-
-        <div class="form-group"><label>Réf. effort</label>
-          <select class="form-control" [(ngModel)]="item.prescription.effortRefType" (ngModelChange)="touch()">
-            @for (e of effortRefs; track e.value) { <option [value]="e.value">{{ e.label }}</option> }
-          </select>
-        </div>
-        @if (item.prescription.effortRefType === 'RIR_RANGE') {
-          <div class="form-group"><label>RIR min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
-          <div class="form-group"><label>RIR max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMax" (ngModelChange)="touch()" /></div>
-        } @else if (item.prescription.effortRefType === 'RIR') {
-          <div class="form-group"><label>RIR</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
-        } @else if (item.prescription.effortRefType === 'RPE_RANGE') {
-          <div class="form-group"><label>RPE min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
-          <div class="form-group"><label>RPE max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMax" (ngModelChange)="touch()" /></div>
-        } @else if (item.prescription.effortRefType === 'RPE') {
-          <div class="form-group"><label>RPE</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
-        }
-
-        <div class="form-group"><label>Tempo</label><input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></div>
-
-        <!-- Repos : strict quand la récupération fait partie de la séance (force max), en
-             fourchette quand le coach laisse le choix. Deux champs min/max obligeaient à
-             prescrire une fourchette même là où seule une valeur exacte a un sens. -->
-        <div class="form-group"><label>Repos</label>
-          <select class="form-control" [ngModel]="restRanged(item)"
-                  (ngModelChange)="setRestRanged(item, $event)">
-            <option [ngValue]="false">Strict</option>
-            <option [ngValue]="true">Fourchette</option>
-          </select>
-        </div>
-        @if (restRanged(item)) {
-          <div class="form-group"><label>Repos min (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
-          <div class="form-group"><label>Repos max (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.restSecMax" (ngModelChange)="touch()" /></div>
-        } @else {
-          <div class="form-group"><label>Repos (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
+          @if (methodSummary(item); as sum) { <p class="qe-method__sum"><app-icon name="info" [size]="13" /> {{ sum }}</p> }
         }
       </div>
+
+      <!-- Le reste, rarement touché, replié : unité de volume, latéralité, références de charge
+           particulières. -->
+      <details class="qe-more">
+        <summary>Plus d'options</summary>
+        <div class="presc-grid">
+          <div class="form-group"><label>Volume compté en</label>
+            <select class="form-control" [ngModel]="volumeTypeOf(block, item)"
+                    (ngModelChange)="setVolumeType(block, item, $event)">
+              @for (v of volumeTypes; track v.value) { <option [value]="v.value">{{ v.label }}</option> }
+            </select>
+          </div>
+          <div class="form-group"><label>Côtés</label>
+            <select class="form-control" [ngModel]="item.prescription.sideMode ?? 'BILATERAL'"
+                    (ngModelChange)="setSideMode(item, $event)">
+              @for (sm of sideModes; track sm.value) { <option [value]="sm.value">{{ sm.label }}</option> }
+            </select>
+          </div>
+          <div class="form-group"><label>Réf. charge détaillée</label>
+            <select class="form-control" [(ngModel)]="item.prescription.chargeRefType" (ngModelChange)="touch()">
+              @for (c of chargeRefs; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
+            </select>
+          </div>
+        </div>
+      </details>
 
       <!-- Commentaire : consigne d'exécution propre à cette séance (« amplitude complète »,
            « genou dans l'axe »). L'athlète le lit sur l'exercice, au moment de le faire. -->
