@@ -18,7 +18,7 @@ export type SetType =
   | 'STANDARD' | 'DROP_SET' | 'SUPER_SET' | 'MYO_REPS' | 'CLUSTER' | 'ISO_OVERCOMING' | 'ISO_YIELDING';
 export type BlockType = 'ECHAUFFEMENT' | 'ACTIVATION' | 'PRINCIPAL' | 'ACCESSOIRE' | 'CALME';
 export type BlockFormat =
-  | 'CLASSIQUE' | 'EMOM' | 'AMRAP' | 'FOR_TIME' | 'CIRCUIT' | 'ISOMETRIE' | 'PLIOMETRIE';
+  | 'CLASSIQUE' | 'EMOM' | 'AMRAP' | 'FOR_TIME' | 'CIRCUIT' | 'ISOMETRIE' | 'PLIOMETRIE' | 'SUPERSET';
 
 /**
  * Ce que compte une série : des répétitions, une durée, ou une distance. Une planche ne se
@@ -134,6 +134,8 @@ export interface StrengthBlock {
   workSec?: number | null;
   restSec?: number | null;
   exercises: StrengthExerciseItem[];
+  /** Consignes du coach pour le bloc (« 3 tours, 2 min de récup »). */
+  instructions?: string | null;
 }
 
 export interface StrengthStructure {

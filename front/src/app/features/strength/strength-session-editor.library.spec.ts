@@ -135,4 +135,55 @@ describe('strength-session-editor — bibliothèque ouverte', () => {
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body).toEqual({ favorite: true });
   });
+
+  it('pose un superset : 3 tours, 2 min de récup, numéroté', () => {
+    component.addSection('ECHAUFFEMENT');
+    component.addSuperset();
+    component.addSuperset();
+
+    const supersets = component.blocks().filter((b) => b.format === 'SUPERSET');
+    expect(supersets.length).toBe(2);
+    expect(supersets[0].rounds).toBe(3);
+    expect(supersets[0].restSec).toBe(120);
+    expect(component.supersetNumber(supersets[1])).toBe(2);
+    expect(component.targetBlock()).withContext('le superset reçoit les ajouts').toBe(supersets[1]);
+  });
+
+  it('un exercice posé dans un superset se fait une fois par tour, sans pause', () => {
+    component.addSuperset();
+    component.addFromLibrary(exercise());
+
+    const p = component.blocks()[0].exercises[0].prescription;
+    expect(p.sets).toBe(1);
+    expect(p.restSecMin).toBeNull();
+    expect(p.restSecMax).toBeNull();
+  });
+
+  it('garde les consignes du bloc, et les efface quand on vide le champ', () => {
+    component.addSuperset();
+    const b = component.blocks()[0];
+
+    component.setInstructions(b, 'Enchaîner sans pause');
+    expect(component.blocks()[0].instructions).toBe('Enchaîner sans pause');
+    component.setInstructions(b, '   ');
+    expect(component.blocks()[0].instructions).toBeNull();
+  });
+
+  it('part d’un modèle : recopie ses blocs sans partager les objets', () => {
+    const source = block('m1', {
+      format: 'SUPERSET', rounds: 3, restSec: 90, instructions: 'Sans pause',
+      exercises: [{ exerciseId: 'e1', exerciseName: 'Planche', setType: 'STANDARD', prescription: { sets: 1 } }],
+    });
+    component.startFromModel({
+      id: 's1', name: 'Renfo niveau 1', notes: null, favorite: true, archived: false, useCount: 0,
+      categoryId: null, structure: { blocks: [source] },
+    });
+
+    const copy = component.blocks()[0];
+    expect(copy.id).not.toBe('m1');
+    expect(copy.instructions).toBe('Sans pause');
+    expect(copy.exercises[0].exerciseName).toBe('Planche');
+    copy.exercises[0].prescription.sets = 4;
+    expect(source.exercises[0].prescription.sets).withContext('le modèle n’est pas touché').toBe(1);
+  });
 });

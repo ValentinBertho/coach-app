@@ -36,6 +36,7 @@ import {
   StrengthBlock,
   StrengthExerciseItem,
   StrengthPrescription,
+  StrengthSession,
   VolumeType,
 } from '../../core/models/strength.model';
 import { SessionCategory } from '../../core/models/session-category.model';
@@ -177,6 +178,7 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     { value: 'CIRCUIT', label: 'Circuit' },
     { value: 'ISOMETRIE', label: 'Isométrie' },
     { value: 'PLIOMETRIE', label: 'Pliométrie' },
+    { value: 'SUPERSET', label: 'Superset' },
   ];
   readonly setTypes: { value: SetType; label: string }[] = [
     { value: 'STANDARD', label: 'Standard' },
@@ -325,6 +327,7 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       this.exercisesLoaded.set(true);
       this.openPendingPicker();
     });
+    this.loadStarterModels();
     this.categoryService.list('STRENGTH').subscribe({
       next: (c) => this.categories.set(c),
       // Sans catégories, le choix d'exercices se range par type — il reste utilisable.
@@ -553,9 +556,93 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     block.durationSec = ['EMOM', 'AMRAP', 'FOR_TIME'].includes(block.format)
       ? 600
       : null;
-    block.rounds = block.format === 'CIRCUIT' ? 3 : null;
+    block.rounds = block.format === 'CIRCUIT' || block.format === 'SUPERSET' ? 3 : null;
     block.workSec = block.format === 'CIRCUIT' ? 40 : null;
-    block.restSec = block.format === 'CIRCUIT' ? 20 : null;
+    block.restSec =
+      block.format === 'CIRCUIT' ? 20 : block.format === 'SUPERSET' ? 120 : null;
+    this.touch();
+  }
+
+  /**
+   * Pose un superset : des exercices enchaînés sans pause, répétés en tours, la récup se prenant
+   * entre les tours. Trois tours et deux minutes de récup, la forme la plus courante en renfo
+   * coureur ; les consignes restent à écrire, avec un exemple sous les yeux.
+   */
+  addSuperset(): void {
+    const block: StrengthBlock = {
+      ...this.blankBlock('PRINCIPAL'),
+      format: 'SUPERSET',
+      rounds: 3,
+      restSec: 120,
+    };
+    this.blocks.update((list) => [...list, block]);
+    this.touch();
+    this.requestPicker(block);
+  }
+
+  /** Numéro du superset parmi les supersets de la séance (« Superset 2 »). */
+  supersetNumber(block: StrengthBlock): number {
+    return this.blocks().filter((b) => b.format === 'SUPERSET').indexOf(block) + 1;
+  }
+
+  /** Consignes du bloc : texte libre du coach, lu tel quel par l'athlète. */
+  setInstructions(block: StrengthBlock, value: string): void {
+    block.instructions = value?.trim() ? value : null;
+    this.touch();
+  }
+
+  // --- Partir d'un modèle ------------------------------------------------------
+
+  /**
+   * Séances de la bibliothèque proposées comme point de départ d'une séance vide : les favorites
+   * d'abord (un coach y épingle ses niveaux 1, 2, 3), puis les plus servies.
+   */
+  readonly starterModels = signal<StrengthSession[]>([]);
+
+  private loadStarterModels(): void {
+    this.strength.listAllSessions().subscribe({
+      next: (list) => {
+        const own = this.sessionId();
+        this.starterModels.set(
+          list
+            .filter((s) => s.id !== own && !s.archived)
+            .sort((a, b) =>
+              a.favorite !== b.favorite
+                ? a.favorite ? -1 : 1
+                : b.useCount - a.useCount || a.name.localeCompare(b.name, 'fr'),
+            )
+            .slice(0, 6),
+        );
+      },
+      // Sans modèles, l'état vide propose toujours les sections : rien de bloquant.
+      error: () => this.starterModels.set([]),
+    });
+  }
+
+  /**
+   * Recopie la structure du modèle dans la séance (vide) : on part de là, on ajuste ensuite.
+   * La liste de la bibliothèque ne porte pas les structures : on relit le modèle complet.
+   */
+  pickModel(model: StrengthSession): void {
+    this.strength.getSession(model.id).subscribe({
+      next: (full) => this.startFromModel(full),
+      error: () => this.toast.error('Modèle illisible, réessaie.'),
+    });
+  }
+
+  startFromModel(model: StrengthSession): void {
+    const blocks = (model.structure?.blocks ?? []).map((b) => ({
+      ...b,
+      id: 'b-' + Math.random().toString(36).slice(2, 9),
+      exercises: b.exercises.map((ex) => this.copyItem(ex)),
+    }));
+    if (!blocks.length) {
+      this.toast.info(`« ${model.name} » est vide : compose la séance à partir des sections.`);
+      return;
+    }
+    this.blocks.set(blocks);
+    this.pickerBlockId.set(blocks[blocks.length - 1]?.id ?? null);
+    this.toast.success(`Séance partie de « ${model.name} »`);
     this.touch();
   }
 
@@ -623,6 +710,10 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   }
   showCircuit(block: StrengthBlock): boolean {
     return block.format === 'CIRCUIT';
+  }
+
+  showSuperset(block: StrengthBlock): boolean {
+    return block.format === 'SUPERSET';
   }
 
   // --- Choix d'un exercice (panneau rangé par catégorie) ---------------------
@@ -937,6 +1028,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
               durationSec: 30,
               repsFixed: null,
             }
+          : {}),
+        // Un superset s'enchaîne : une série par tour, sans pause entre les exercices. Les tours
+        // et la récup entre les tours sont portés par le bloc.
+        ...(block.format === 'SUPERSET'
+          ? { sets: 1, restSecMin: null, restSecMax: null }
           : {}),
         sideMode: 'BILATERAL',
       },

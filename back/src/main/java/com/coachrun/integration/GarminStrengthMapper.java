@@ -168,7 +168,7 @@ public final class GarminStrengthMapper {
 
     private static boolean isCircuit(StrengthBlock b) {
         BlockFormat f = b.format();
-        return f == BlockFormat.CIRCUIT || f == BlockFormat.EMOM
+        return f == BlockFormat.CIRCUIT || f == BlockFormat.SUPERSET || f == BlockFormat.EMOM
                 || f == BlockFormat.AMRAP || f == BlockFormat.FOR_TIME;
     }
 

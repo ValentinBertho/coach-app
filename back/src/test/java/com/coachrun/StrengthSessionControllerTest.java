@@ -157,6 +157,41 @@ class StrengthSessionControllerTest {
     }
 
     @Test
+    void persistsSupersetWithInstructions() throws Exception {
+        String exerciseId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Hollow hold\",\"category\":\"GAINAGE\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        String sessionId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Renfo coureur niveau 1\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        String structure = """
+            {"structure":{"blocks":[
+              {"id":"s1","blockType":"PRINCIPAL","format":"SUPERSET","rounds":3,"restSec":120,
+               "instructions":"Enchaîner sans pause, 2 min de récup entre les tours",
+               "exercises":[{"exerciseId":"%s","exerciseName":"Hollow hold","setType":"STANDARD",
+                 "prescription":{"sets":1,"volumeType":"DUREE","durationSec":30}}]}]}}
+            """.formatted(exerciseId);
+        mvc.perform(put("/clubs/{c}/pp/sessions/{s}/structure", clubId, sessionId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content(structure))
+                .andExpect(status().isOk());
+
+        JsonNode block = objectMapper.readTree(mvc.perform(get("/clubs/{c}/pp/sessions/{s}", clubId, sessionId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
+                .get("structure").get("blocks").get(0);
+        assertThat(block.get("format").asText()).isEqualTo("SUPERSET");
+        assertThat(block.get("rounds").asInt()).isEqualTo(3);
+        assertThat(block.get("restSec").asInt()).isEqualTo(120);
+        assertThat(block.get("instructions").asText()).isEqualTo("Enchaîner sans pause, 2 min de récup entre les tours");
+    }
+
+    @Test
     void previewsChargesFromUnsavedStructure() throws Exception {
         String exerciseId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)

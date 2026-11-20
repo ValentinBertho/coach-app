@@ -112,6 +112,24 @@ class GarminStrengthMapperTest {
     }
 
     @Test
+    void unSupersetEnchaineLesExercicesEtRecupereEntreLesTours() {
+        StrengthStructure structure = new StrengthStructure(List.of(new StrengthBlock("s1", BlockType.PRINCIPAL,
+                BlockFormat.SUPERSET, null, 3, null, 120,
+                List.of(item("Fente avant", reps(1, null, 10, null, null, null)),
+                        item("Pompes", reps(1, null, 12, null, null, null))),
+                "Enchaîner sans pause")));
+
+        Map<String, Object> w = GarminStrengthMapper.toGarmin(new GarminStrengthMapper.Source("Superset", structure, null));
+
+        Map<String, Object> repeat = steps(w).get(0);
+        assertThat(repeat.get("repeatValue")).isEqualTo(3.0);
+        List<Map<String, Object>> round = inner(repeat);
+        assertThat(round).hasSize(3);
+        assertThat(round.get(2).get("intensity")).isEqualTo("REST");
+        assertThat(round.get(2).get("durationValue")).isEqualTo(120.0);
+    }
+
+    @Test
     void unExerciceNonReconnuGardeSonNomEtSesConsignes() {
         StrengthPrescription p = new StrengthPrescription(null, null, null, null, null, null, 7.0, 8.0,
                 null, null, 1, VolumeType.REPS, null, 8, 10, null, null, null, null, null,

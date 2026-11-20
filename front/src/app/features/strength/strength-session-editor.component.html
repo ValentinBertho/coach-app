@@ -192,13 +192,35 @@
     <div class="card empty-state">
       <app-icon name="blocks" [size]="32" />
       <h2>Par quoi commences-tu ?</h2>
-      <p class="field-hint">Choisis une section : ses exercices naîtront avec des valeurs adaptées.</p>
+      <!-- Partir d'un modèle : un coach y retrouve ses niveaux (1, 2, 3…) épinglés en favoris,
+           et n'a plus qu'à ajuster. -->
+      @if (starterModels().length) {
+        <p class="field-hint">Pars d'un modèle de ta bibliothèque, puis ajuste-le :</p>
+        <div class="starter-models">
+          @for (m of starterModels(); track m.id) {
+            <button type="button" class="starter-model" (click)="pickModel(m)">
+              <span class="starter-model__name">
+                @if (m.favorite) { <app-icon name="star" [size]="12" /> }
+                {{ m.name }}
+              </span>
+              <span class="starter-model__meta">{{ m.favorite ? 'Favori' : 'Modèle du club' }}</span>
+              <app-icon class="starter-model__go" name="arrow-right" [size]="14" />
+            </button>
+          }
+        </div>
+        <p class="field-hint">Ou compose-la toi-même : choisis une section, ses exercices naîtront avec des valeurs adaptées.</p>
+      } @else {
+        <p class="field-hint">Choisis une section : ses exercices naîtront avec des valeurs adaptées.</p>
+      }
       <div class="section-picks">
         @for (sec of sections; track sec.type) {
           <button type="button" class="btn btn-ghost btn-sm" (click)="addSection(sec.type)">
             <app-icon name="plus" [size]="14" /> {{ sec.label }}
           </button>
         }
+        <button type="button" class="btn btn-ghost btn-sm" (click)="addSuperset()">
+          <app-icon name="plus" [size]="14" /> Superset
+        </button>
       </div>
     </div>
   }
@@ -206,10 +228,14 @@
   <div cdkDropList (cdkDropListDropped)="drop($event)">
   @for (block of blocks(); track block.id; let bi = $index) {
     <div class="card block-card" cdkDrag [class.is-target]="wide() && targetBlock() === block"
+         [class.block-card--superset]="showSuperset(block)"
          (click)="targetSection(block)">
       <div class="block-head">
         <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner"><app-icon name="grip-vertical" [size]="16" /></span>
         <div class="block-meta">
+          @if (showSuperset(block)) {
+            <span class="superset-tag"><span class="superset-tag__n">{{ supersetNumber(block) }}</span> Superset</span>
+          }
           <select class="form-control" [(ngModel)]="block.blockType" (ngModelChange)="touch()">
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
           </select>
@@ -244,6 +270,17 @@
                    [ngModel]="blockMinutes(block)" (ngModelChange)="setBlockMinutes(block, $event)" /></div>
         </div>
       }
+      @if (showSuperset(block)) {
+        <div class="format-params">
+          <div class="form-group"><label>Tours</label><input type="number" min="1" class="form-control" [(ngModel)]="block.rounds" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>Récup entre tours (s)</label><input type="number" min="0" step="15" class="form-control" [(ngModel)]="block.restSec" (ngModelChange)="touch()" /></div>
+        </div>
+      }
+      <!-- Consignes du bloc, lues telles quelles par l'athlète. -->
+      <input class="form-control block-instr" [ngModel]="block.instructions ?? ''"
+             (ngModelChange)="setInstructions(block, $event)" maxlength="500"
+             [placeholder]="showSuperset(block) ? 'Consignes (ex : enchaîner sans pause, 2 min de récup entre les tours)' : 'Consignes du bloc (facultatif)'"
+             aria-label="Consignes du bloc" />
       @if (showCircuit(block)) {
         <div class="format-params">
           <div class="form-group"><label>Tours</label><input type="number" class="form-control" [(ngModel)]="block.rounds" (ngModelChange)="touch()" /></div>
@@ -343,6 +380,9 @@
         <app-icon name="plus" [size]="14" /> {{ sec.label }}
       </button>
     }
+    <button type="button" class="btn btn-ghost btn-sm" (click)="addSuperset()">
+      <app-icon name="plus" [size]="14" /> Nouveau superset
+    </button>
   </div>
   </div>
 </div>
@@ -358,7 +398,9 @@
         <span class="badge badge-info">{{ formatLabel(block.format) }}</span>
         @if (showDuration(block) && blockMinutes(block)) { <span class="pv-dur metric">{{ blockMinutes(block) }} min</span> }
         @if (showCircuit(block)) { <span class="pv-dur metric">{{ block.rounds }} tours · {{ block.workSec }}/{{ block.restSec }} s</span> }
+        @if (showSuperset(block)) { <span class="pv-dur metric">{{ block.rounds }} tours · {{ block.restSec }} s de récup</span> }
       </div>
+      @if (block.instructions) { <p class="pv-instr">{{ block.instructions }}</p> }
       @for (item of block.exercises; track item; let i = $index) {
         <div class="pv-ex">
           <div class="pv-ex-head">

@@ -39,6 +39,7 @@ const FORMAT_LABELS: Record<BlockFormat, string> = {
   CIRCUIT: 'Circuit',
   ISOMETRIE: 'Isométrie',
   PLIOMETRIE: 'Pliométrie',
+  SUPERSET: 'Superset',
 };
 
 /** Ligne d'exercice aplatie : item prescrit + charge calculée pour l'athlète. */
@@ -54,6 +55,7 @@ interface BlockRow {
   title: string;
   format: string;
   volume: string;
+  instructions: string;
   exercises: ExerciseRow[];
 }
 
@@ -88,6 +90,9 @@ interface BlockRow {
                 <span class="spv__vol metric">{{ b.volume }}</span>
               }
             </header>
+            @if (b.instructions) {
+              <p class="spv__instr">{{ b.instructions }}</p>
+            }
 
             @for (ex of b.exercises; track $index) {
               <div class="spv__ex">
@@ -184,6 +189,12 @@ interface BlockRow {
         font-weight: 700;
         color: var(--ink);
       }
+      .spv__instr {
+        margin: 0 0 var(--sp-2);
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+        white-space: pre-line;
+      }
       .spv__vol {
         color: var(--ink-3);
         font-size: var(--text-sm);
@@ -277,6 +288,7 @@ export class StrengthPrescriptionViewComponent {
       title: BLOCK_LABELS[b.blockType] ?? b.blockType,
       format: FORMAT_LABELS[b.format] ?? '',
       volume: this.blockVolume(b.rounds, b.durationSec, b.workSec, b.restSec),
+      instructions: b.instructions?.trim() ?? '',
     };
   }
 
