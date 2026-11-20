@@ -8,5 +8,7 @@ public enum BlockFormat {
     FOR_TIME,
     CIRCUIT,
     ISOMETRIE,
-    PLIOMETRIE
+    PLIOMETRIE,
+    /** Exercices enchaînés sans pause, répétés en tours ; la récup se prend entre les tours. */
+    SUPERSET
 }

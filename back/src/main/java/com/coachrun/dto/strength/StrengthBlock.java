@@ -17,15 +17,24 @@ public record StrengthBlock(
         Integer rounds,
         Integer workSec,
         Integer restSec,
-        List<StrengthExerciseItem> exercises
+        List<StrengthExerciseItem> exercises,
+        /** Consignes du coach pour le bloc (« 3 tours, 2 min de récup entre les tours »). */
+        String instructions
 ) {
 
     public StrengthBlock {
         exercises = exercises == null ? List.of() : exercises;
     }
 
+    /** Bloc sans consignes (code et tests antérieurs aux consignes de bloc). */
+    public StrengthBlock(String id, BlockType blockType, BlockFormat format, Integer durationSec,
+                         Integer rounds, Integer workSec, Integer restSec,
+                         List<StrengthExerciseItem> exercises) {
+        this(id, blockType, format, durationSec, rounds, workSec, restSec, exercises, null);
+    }
+
     /** Même bloc, liste d'exercices remplacée (recalcul de charges, snapshot de planification). */
     public StrengthBlock withExercises(List<StrengthExerciseItem> replacement) {
-        return new StrengthBlock(id, blockType, format, durationSec, rounds, workSec, restSec, replacement);
+        return new StrengthBlock(id, blockType, format, durationSec, rounds, workSec, restSec, replacement, instructions);
     }
 }

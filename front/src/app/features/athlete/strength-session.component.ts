@@ -36,6 +36,7 @@ import {
 } from '../../shared/components/physiology';
 import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
+import { describeSetMethod } from '../../core/utils/set-method';
 
 /**
  * Une série saisie par l'athlète. `done` = validée dans le parcours guidé.
@@ -540,7 +541,11 @@ export class StrengthSessionComponent implements OnInit {
         const presc = ex.item.prescription;
         // Au moins une série : un exercice prescrit « 0 série » n'a pas de sens et laisserait
         // un exercice sans aucun écran de saisie au milieu du parcours.
-        const count = Math.max(1, presc.sets ?? 3);
+        // Un superset se répète en tours : chaque tour est une série de chacun de ses exercices.
+        const count =
+          block.block.format === 'SUPERSET' && block.block.rounds
+            ? Math.max(1, block.block.rounds)
+            : Math.max(1, presc.sets ?? 3);
         const volumeType = effectiveVolumeType(presc, block.block.format);
         // Chaque série démarre sur le bas de la fourchette prescrite, dans la bonne unité :
         // proposer « 30 répétitions » sur un gainage de 30 s serait une consigne fausse.
@@ -565,7 +570,15 @@ export class StrengthSessionComponent implements OnInit {
           sets,
           volumeType,
           side: sideLabel(presc),
-          notes: ex.item.coachNotes ?? null,
+          // Les consignes du bloc (« enchaîner sans pause ») précèdent le mot propre à l'exercice.
+          notes:
+            [
+              block.block.instructions?.trim(),
+              describeSetMethod(ex.item.setType, ex.item.setConfig),
+              ex.item.coachNotes?.trim(),
+            ]
+              .filter((n) => !!n)
+              .join(' — ') || null,
           rx: {
             chargeKgMin: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
             chargeKgMax: ex.charge.kgMax ?? presc.chargeKgMax ?? null,

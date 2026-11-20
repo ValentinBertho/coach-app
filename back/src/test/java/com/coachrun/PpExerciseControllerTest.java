@@ -17,6 +17,7 @@ import org.springframework.web.context.WebApplicationContext;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -85,6 +86,32 @@ class PpExerciseControllerTest {
                         get("/clubs/{c}/pp/exercises?q=TestUnit", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(all.get("content")).hasSize(2);
+    }
+
+    @Test
+    void togglesFavoriteFromTheEditorLibrary() throws Exception {
+        JsonNode created = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Favori TestUnit\",\"category\":\"GAINAGE\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertThat(created.get("favorite").asBoolean()).isFalse();
+        String id = created.get("id").asText();
+
+        JsonNode on = objectMapper.readTree(mvc.perform(patch("/clubs/{c}/pp/exercises/{id}/favorite", clubId, id)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"favorite\":true}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(on.get("favorite").asBoolean()).isTrue();
+
+        JsonNode reread = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/pp/exercises/{id}", clubId, id).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(reread.get("favorite").asBoolean()).isTrue();
+
+        mvc.perform(patch("/clubs/{c}/pp/exercises/{id}/favorite", clubId, id)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"favorite\":false}"))
+                .andExpect(status().isOk());
     }
 
     @Test

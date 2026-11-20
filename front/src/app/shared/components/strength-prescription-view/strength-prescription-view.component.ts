@@ -17,6 +17,7 @@ import {
   volumePill,
   type VolumePill,
 } from '../../../core/utils/strength-volume';
+import { describeSetMethod } from '../../../core/utils/set-method';
 import {
   EffortBadgeComponent,
   type EffortKind,
@@ -39,6 +40,7 @@ const FORMAT_LABELS: Record<BlockFormat, string> = {
   CIRCUIT: 'Circuit',
   ISOMETRIE: 'Isométrie',
   PLIOMETRIE: 'Pliométrie',
+  SUPERSET: 'Superset',
 };
 
 /** Ligne d'exercice aplatie : item prescrit + charge calculée pour l'athlète. */
@@ -54,6 +56,7 @@ interface BlockRow {
   title: string;
   format: string;
   volume: string;
+  instructions: string;
   exercises: ExerciseRow[];
 }
 
@@ -88,6 +91,9 @@ interface BlockRow {
                 <span class="spv__vol metric">{{ b.volume }}</span>
               }
             </header>
+            @if (b.instructions) {
+              <p class="spv__instr">{{ b.instructions }}</p>
+            }
 
             @for (ex of b.exercises; track $index) {
               <div class="spv__ex">
@@ -97,6 +103,7 @@ interface BlockRow {
                     <span class="spv__sets metric">{{ s }}</span>
                   }
                 </div>
+                @if (method(ex); as m) { <p class="spv__method">{{ m }}</p> }
                 <div class="spv__pills">
                   @if (ex.kgMin != null) {
                     <app-range-prescription-pill
@@ -183,6 +190,17 @@ interface BlockRow {
       .spv__type {
         font-weight: 700;
         color: var(--ink);
+      }
+      .spv__method {
+        margin: 0 0 var(--sp-1);
+        font-size: var(--text-sm);
+        color: var(--primary);
+      }
+      .spv__instr {
+        margin: 0 0 var(--sp-2);
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+        white-space: pre-line;
       }
       .spv__vol {
         color: var(--ink-3);
@@ -277,6 +295,7 @@ export class StrengthPrescriptionViewComponent {
       title: BLOCK_LABELS[b.blockType] ?? b.blockType,
       format: FORMAT_LABELS[b.format] ?? '',
       volume: this.blockVolume(b.rounds, b.durationSec, b.workSec, b.restSec),
+      instructions: b.instructions?.trim() ?? '',
     };
   }
 
@@ -292,6 +311,11 @@ export class StrengthPrescriptionViewComponent {
     if (workSec) parts.push(`${workSec} s d'effort`);
     if (restSec) parts.push(`${restSec} s de récup`);
     return parts.join(' · ');
+  }
+
+  /** Méthode de série en une phrase (« Cluster : 3 blocs de 2 reps… »), vide pour une série standard. */
+  method(ex: ExerciseRow): string {
+    return describeSetMethod(ex.item.setType, ex.item.setConfig);
   }
 
   setsLabel(ex: ExerciseRow): string {

@@ -434,6 +434,31 @@
     }
 
     <div class="cal-main">
+      <!-- Ce qu'on regarde, en onglets visibles (ils étaient rangés dans le menu Affichage), et
+           les prochains objectifs en compte à rebours. -->
+      <div class="cal-strip">
+        <div class="view-tabs" role="tablist" aria-label="Affichage du calendrier">
+          <button type="button" role="tab" class="view-tab" [class.on]="view() === 'planned'"
+                  [attr.aria-selected]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
+          <button type="button" role="tab" class="view-tab" [class.on]="view() === 'realized'"
+                  [attr.aria-selected]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
+          <button type="button" role="tab" class="view-tab" [class.on]="view() === 'both'"
+                  [attr.aria-selected]="view() === 'both'" (click)="setView('both')">Prévu et réalisé</button>
+        </div>
+        @if (upcomingObjectives().length) {
+          <div class="obj-chips" aria-label="Prochains objectifs">
+            @for (o of upcomingObjectives(); track o.id) {
+              <button type="button" class="obj-chip" [class.obj-chip--a]="o.priority === 'A'"
+                      (click)="openObjectives()" [title]="o.name + ' — ' + (o.raceDate | date: 'd MMMM y')">
+                <app-icon name="target" [size]="13" />
+                <span class="obj-chip__d metric">{{ countdown(o.daysUntil) }}</span>
+                <span class="obj-chip__n">{{ o.name }}</span>
+                <span class="obj-chip__date">{{ o.raceDate | date: 'd MMM y' }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
       <div class="weekday-row">
         @for (d of ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; track d) { <span>{{ d }}</span> }
         <span class="wd-total">Total</span>
@@ -632,6 +657,9 @@
                 @if (week.loadUa > 0) {
                   <span class="wt-val metric" title="Charge prévue de la semaine (sRPE)">{{ week.loadUa }}<small>UA</small></span>
                 }
+                @if (week.plannedRpe != null) {
+                  <span class="wt-val metric" title="RPE moyen prescrit sur la semaine"><small>RPE</small> {{ week.plannedRpe | number: '1.1-1' }}</span>
+                }
                 <span class="wt-lb">{{ week.sessions }} séance{{ week.sessions > 1 ? 's' : '' }}</span>
               </div>
             }
@@ -640,6 +668,9 @@
                 @if (showPlanned()) { <span class="wt-cap wt-cap--real">Réalisé</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.realDurationS) }}</span>
                 <span class="wt-val metric">{{ week.realKm | number: '1.1-1' }}<small>km</small></span>
+                @if (week.realRpe != null) {
+                  <span class="wt-val metric" title="RPE moyen ressenti par l'athlète"><small>RPE</small> {{ week.realRpe | number: '1.1-1' }}</span>
+                }
                 <span class="wt-lb">{{ week.realSessions }} séance{{ week.realSessions > 1 ? 's' : '' }}</span>
               </div>
             }
