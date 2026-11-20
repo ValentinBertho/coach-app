@@ -199,6 +199,16 @@ interface WeekRow {
   realKm: number;
   realDurationS: number;
   realSessions: number;
+  /** RPE moyen prescrit (séances qui en portent un), nul sinon. */
+  plannedRpe: number | null;
+  /** RPE moyen ressenti par l'athlète sur les séances qu'il a notées, nul sinon. */
+  realRpe: number | null;
+}
+
+/** Moyenne à une décimale, ou nul s'il n'y a rien à moyenner. */
+function avg1(values: (number | null | undefined)[]): number | null {
+  const v = values.filter((x): x is number => x != null);
+  return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
 }
 
 const REASON_META: Record<
@@ -1149,7 +1159,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
         0,
       );
       const realSessions = days.reduce((s, d) => s + d.activities.length, 0);
+      const workouts = days.flatMap((d) => d.workouts);
       rows.push({
+        plannedRpe: avg1(workouts.map((w) => w.targetRpe)),
+        realRpe: avg1(workouts.map((w) => w.rpe)),
         days,
         cycles: this.bandsFor(days),
         km,
@@ -2064,6 +2077,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id]);
   }
+  /**
+   * Prochains objectifs de l'athlète, du plus proche au plus lointain : le compte à rebours
+   * au-dessus de la grille rappelle vers quoi on programme, sans quitter le calendrier.
+   */
+  readonly upcomingObjectives = computed(() =>
+    this.objectives()
+      .filter((o) => o.status === 'UPCOMING' && o.daysUntil >= 0)
+      .sort((a, b) => a.daysUntil - b.daysUntil)
+      .slice(0, 4),
+  );
+
+  countdown(days: number): string {
+    return days === 0 ? 'Jour J' : `J-${days}`;
+  }
+
   openObjectives(): void {
     this.router.navigate(['/app/athletes', this.selectedAthleteId, 'races']);
   }
