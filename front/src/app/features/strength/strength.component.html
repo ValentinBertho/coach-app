@@ -39,77 +39,11 @@
     <button type="button" class="btn btn-ghost btn-sm" (click)="createStrengthCategory()">+ Catégorie</button>
   </div>
 
+
   @if (showExerciseForm()) {
     <div class="card exercise-form">
-      <div class="form-row">
-        <div class="form-group"><label>Nom</label><input class="form-control" [(ngModel)]="newExercise.name" /></div>
-        <div class="form-group"><label>Type</label>
-          <select class="form-control" [(ngModel)]="newExercise.category">
-            @for (c of categories; track c) { <option [value]="c">{{ label(c) }}</option> }
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Catégorie (perso.)</label>
-          <select class="form-control" [(ngModel)]="newExercise.categoryId">
-            <option value="">Sans catégorie</option>
-            @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Groupe musculaire</label>
-          <select class="form-control" [(ngModel)]="newExercise.muscle">
-            <option value="">—</option>
-            @for (m of muscles; track m) { <option [value]="m">{{ label(m) }}</option> }
-          </select>
-        </div>
-        <div class="form-group"><label>Niveau</label>
-          <select class="form-control" [(ngModel)]="newExercise.level">
-            @for (l of levels; track l) { <option [value]="l">{{ label(l) }}</option> }
-          </select>
-        </div>
-      </div>
-
-      <!-- Matériel : multi-sélection (un exercice se fait souvent avec plusieurs options). -->
-      <div class="form-group">
-        <label>Matériel</label>
-        <div class="chip-picker">
-          @for (eq of equipments; track eq) {
-            <label class="chip-opt" [class.selected]="newExercise.equipment.includes(eq)">
-              <input type="checkbox" [checked]="newExercise.equipment.includes(eq)" (change)="toggleEquipment(eq)" />
-              {{ label(eq) }}
-            </label>
-          }
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group"><label>Progression (exercice plus dur)</label>
-          <select class="form-control" [(ngModel)]="newExercise.progressionId">
-            <option value="">—</option>
-            @for (e of exercises(); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
-          </select>
-        </div>
-        <div class="form-group"><label>Régression (exercice plus facile)</label>
-          <select class="form-control" [(ngModel)]="newExercise.regressionId">
-            <option value="">—</option>
-            @for (e of exercises(); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group"><label>Lien vidéo démo</label><input class="form-control" [(ngModel)]="newExercise.videoUrl" placeholder="https://youtu.be/…" /></div>
-        <div class="form-group"><label>Image</label><input class="form-control" [(ngModel)]="newExercise.imageUrl" placeholder="https://…" /></div>
-      </div>
-      <div class="form-group"><label>Consignes</label><textarea class="form-control" [(ngModel)]="newExercise.instructions"></textarea></div>
-      <div class="form-group">
-        <label>Contre-indications</label>
-        <textarea class="form-control" [(ngModel)]="newExercise.contraindications"
-                  placeholder="Ex. lombalgie aiguë, tendinopathie rotulienne en phase douloureuse…"></textarea>
-      </div>
-      <button type="button" class="btn btn-accent" (click)="createExercise()">Enregistrer</button>
+      <ng-container *ngTemplateOutlet="exerciseFields; context: { $implicit: newExercise, self: null }" />
+      <button type="button" class="btn btn-accent" (click)="createExercise()" [disabled]="!newExercise.name.trim()">Enregistrer</button>
     </div>
   }
 
@@ -118,43 +52,36 @@
   } @else {
     <div class="ex-grid">
       @for (e of filteredExercises(); track e.id) {
-        <div class="card ex-card">
-          <div class="ex-head">
-            <strong>{{ e.name }}</strong>
-            <span class="badge badge-info">{{ label(e.category) }}</span>
+        <!-- La carte s'ouvre comme une séance de course : fiche complète, puis modifier. -->
+        <div class="card ex-card lib-card" (click)="openExercise(e)">
+          <div class="lib-card__head">
+            @if (e.categoryId) { <span class="badge badge-neutral" [title]="catName(e.categoryId)">{{ catName(e.categoryId) }}</span> }
+            <div class="lib-card__actions" (click)="$event.stopPropagation()">
+              <button type="button" class="icon-btn" (click)="renameExercise(e)" title="Renommer"><app-icon name="type" [size]="15" /></button>
+              <button type="button" class="icon-btn" (click)="openExercise(e, true)" title="Modifier"><app-icon name="pencil" [size]="15" /></button>
+              <button type="button" class="icon-btn" (click)="duplicateExercise(e)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
+              <button type="button" class="icon-btn danger" (click)="deleteExercise(e)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
+            </div>
           </div>
-          @if (e.categoryId) { <span class="badge badge-neutral cat-badge">{{ catName(e.categoryId) }}</span> }
-          @if (e.muscleGroups.length) {
-            <div class="ex-tags">
-              @for (m of e.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
-            </div>
-          }
-          @if (e.level) { <span class="badge badge-neutral">{{ label(e.level) }}</span> }
+          <strong class="lib-card__name">
+            <button type="button" class="star-btn" [class.on]="e.favorite" (click)="$event.stopPropagation(); toggleExerciseFavorite(e)"
+                    [title]="e.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'"><app-icon name="star" [size]="14" /></button>
+            {{ e.name }}
+          </strong>
+          <div class="ex-tags">
+            <span class="badge badge-info">{{ label(e.category) }}</span>
+            @for (m of e.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
+            @if (e.level) { <span class="badge badge-neutral">{{ label(e.level) }}</span> }
+          </div>
           @if (e.equipment.length) {
-            <div class="ex-tags">
-              @for (eq of e.equipment; track eq) { <span class="badge badge-neutral">{{ label(eq) }}</span> }
-            </div>
+            <p class="field-hint lib-card__sub">{{ equipmentLine(e) }}</p>
           }
           @if (e.contraindications) {
             <p class="ex-contra"><app-icon name="alert-triangle" [size]="13" /> {{ e.contraindications }}</p>
           }
-          @if (e.progressionId || e.regressionId) {
-            <p class="field-hint ex-prog">
-              @if (e.regressionId) { ↓ {{ exerciseName(e.regressionId) }} }
-              @if (e.regressionId && e.progressionId) { · }
-              @if (e.progressionId) { ↑ {{ exerciseName(e.progressionId) }} }
-            </p>
-          }
           <!-- La démonstration se regarde ici : le lien sortait de l'application, donc on ne
                vérifiait jamais qu'il pointait sur le bon mouvement. -->
-          <app-video-embed [url]="e.videoUrl" [title]="e.name" [compact]="true" />
-          <label class="ex-assign">
-            <span>Catégorie</span>
-            <select class="form-control" [ngModel]="e.categoryId ?? ''" (ngModelChange)="assignExerciseCategory(e, $event)">
-              <option value="">Sans catégorie</option>
-              @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-            </select>
-          </label>
+          <div (click)="$event.stopPropagation()"><app-video-embed [url]="e.videoUrl" [title]="e.name" [compact]="true" /></div>
         </div>
       } @empty {
         <p class="empty-hint">Aucun exercice. Crée ton premier exercice.</p>
@@ -205,9 +132,9 @@
        exact où l'on vient de finir une séance et où l'on se demande ce qu'on en fait. -->
   <p class="field-hint plan-hint">
     <app-icon name="calendar-days" [size]="14" />
-    Pour planifier : ouvre le <strong>calendrier</strong> d'un athlète et glisse une séance depuis
+    <span>Pour planifier : ouvre le <strong>calendrier</strong> d'un athlète et glisse une séance depuis
     la bibliothèque latérale sur le jour voulu. Pour un programme sur plusieurs semaines, passe par
-    l'onglet <strong>Cycles</strong> : crée le cycle, puis « Assigner » (athlète + date de début).
+    l'onglet <strong>Cycles</strong> : crée le cycle, puis « Assigner » (athlète + date de début).</span>
   </p>
   @if (loadingSes()) {
     <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
@@ -217,36 +144,28 @@
         <!-- La carte n'est plus elle-même un lien : le menu de catégorie est un contrôle de
              formulaire, et un <select> dans un <a> se comporte différemment d'un navigateur à
              l'autre. Le lien couvre le titre et l'appel à l'action, le reste vit à côté. -->
-        <div class="card ex-card session-card">
-          <a class="session-card__link" [routerLink]="['/app/strength/sessions', s.id, 'structure']">
-            <div class="ex-head">
-              <strong>{{ s.name }}</strong>
-              @if (s.favorite) { <span class="badge badge-warning"><app-icon name="star" [size]="12" /></span> }
-              @if (s.categoryId) { <span class="badge badge-neutral cat-badge">{{ catName(s.categoryId) }}</span> }
+        <!-- Même carte que la bibliothèque de course : catégorie et actions en haut, nom dessous. -->
+        <div class="card ex-card lib-card" (click)="openSession(s)">
+          <div class="lib-card__head">
+            @if (s.categoryId) { <span class="badge badge-neutral" [title]="catName(s.categoryId)">{{ catName(s.categoryId) }}</span> }
+            <div class="lib-card__actions" (click)="$event.stopPropagation()">
+              <button type="button" class="icon-btn" (click)="renameSession(s)" title="Renommer"><app-icon name="type" [size]="15" /></button>
+              <a class="icon-btn" [routerLink]="['/app/strength/sessions', s.id, 'structure']" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
+              <button type="button" class="icon-btn" (click)="duplicateSession(s)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
+              <button type="button" class="icon-btn danger" (click)="deleteSession(s)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
             </div>
-            <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
-            <span class="edit-hint">Modifier la structure →</span>
-          </a>
-          <div class="session-card__tools">
-            <!-- Reclasser sans ouvrir la séance : ranger une bibliothèque se fait en rafale, pas
-                 séance par séance dans son éditeur. -->
-            <label class="ex-assign">
-              <span>Catégorie</span>
-              <select class="form-control" [ngModel]="s.categoryId ?? ''" [ngModelOptions]="{ standalone: true }"
-                      (ngModelChange)="assignSessionCategory(s, $event)">
-                <option value="">Sans catégorie</option>
-                @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-              </select>
-            </label>
-            <span class="ex-head-actions">
-              <button type="button" class="icon-btn" (click)="renameSession(s)" title="Renommer">
-                <app-icon name="type" [size]="15" />
-              </button>
-              <button type="button" class="icon-btn" (click)="duplicateSession(s)" [disabled]="duplicating()" title="Dupliquer">
-                <app-icon name="copy" [size]="15" />
-              </button>
-            </span>
           </div>
+          <strong class="lib-card__name">
+            @if (s.favorite) { <app-icon name="star" [size]="13" class="lib-card__star" /> }
+            {{ s.name }}
+          </strong>
+          <span class="field-hint lib-card__sub">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</span>
+          <!-- Reclasser sans ouvrir la séance : ranger une bibliothèque se fait en rafale. -->
+          <select class="form-control lib-card__cat" [ngModel]="s.categoryId ?? ''" (click)="$event.stopPropagation()"
+                  (ngModelChange)="assignSessionCategory(s, $event)" title="Catégorie">
+            <option value="">Sans catégorie</option>
+            @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          </select>
         </div>
       } @empty {
         @if (sessions().length) {
@@ -507,6 +426,48 @@
 }
 
 <!-- Assignation d'un cycle : athlète, date de début et confirmation dans le même geste. -->
+<!-- Fiche d'un exercice : consulter, puis modifier sans quitter la bibliothèque. -->
+<app-side-panel [(open)]="exPanelOpen" [title]="exEditing() ? 'Modifier l’exercice' : (exPanel()?.name || '')" [width]="520">
+  @if (exPanel(); as e) {
+    @if (exEditing()) {
+      <div class="ex-sheet">
+        <ng-container *ngTemplateOutlet="exerciseFields; context: { $implicit: exDraft, self: e.id }" />
+        <div class="ex-sheet__foot">
+          <button type="button" class="btn btn-ghost" (click)="exEditing.set(false)">Annuler</button>
+          <button type="button" class="btn btn-primary" (click)="saveExercise()" [disabled]="exSaving() || !exDraft.name.trim()">Enregistrer</button>
+        </div>
+      </div>
+    } @else {
+      <div class="ex-sheet">
+        <div class="ex-sheet__actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="editExercise()"><app-icon name="pencil" [size]="15" /> Modifier</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="duplicateExercise(e)" [disabled]="duplicating()"><app-icon name="copy" [size]="15" /> Dupliquer</button>
+          <button type="button" class="btn btn-ghost btn-sm danger-text" (click)="deleteExercise(e)"><app-icon name="trash-2" [size]="15" /> Supprimer</button>
+          <button type="button" class="icon-btn" [class.fav]="e.favorite" (click)="toggleExerciseFavorite(e)"
+                  [title]="e.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'"><app-icon name="star" [size]="15" /></button>
+        </div>
+        <app-video-embed [url]="e.videoUrl" [title]="e.name" />
+        @if (e.imageUrl) { <img class="ex-sheet__img" [src]="e.imageUrl" [alt]="e.name" /> }
+        <dl class="ex-sheet__facts">
+          <dt>Type</dt><dd>{{ label(e.category) }}</dd>
+          <dt>Catégorie</dt><dd>{{ e.categoryId ? catName(e.categoryId) : 'Sans catégorie' }}</dd>
+          @if (e.muscleGroups.length) { <dt>Muscles</dt><dd>{{ muscleLine(e) }}</dd> }
+          @if (e.level) { <dt>Niveau</dt><dd>{{ label(e.level) }}</dd> }
+          @if (e.equipment.length) { <dt>Matériel</dt><dd>{{ equipmentLine(e) }}</dd> }
+          @if (e.regressionId) { <dt>Plus facile</dt><dd>{{ exerciseName(e.regressionId) }}</dd> }
+          @if (e.progressionId) { <dt>Plus dur</dt><dd>{{ exerciseName(e.progressionId) }}</dd> }
+          <dt>Utilisé</dt><dd>{{ e.useCount }} fois</dd>
+        </dl>
+        @if (e.instructions) { <h3 class="ex-sheet__h">Consignes</h3><p class="ex-sheet__text">{{ e.instructions }}</p> }
+        @if (e.technicalNotes) { <h3 class="ex-sheet__h">Notes techniques</h3><p class="ex-sheet__text">{{ e.technicalNotes }}</p> }
+        @if (e.contraindications) {
+          <p class="ex-contra"><app-icon name="alert-triangle" [size]="13" /> {{ e.contraindications }}</p>
+        }
+      </div>
+    }
+  }
+</app-side-panel>
+
 <app-side-panel [(open)]="assignPanelOpen" [title]="'Assigner « ' + (assignTarget()?.name || '') + ' »'" [width]="420">
   @if (assignTarget(); as c) {
     <div class="assign-panel">
@@ -531,3 +492,75 @@
     </div>
   }
 </app-side-panel>
+
+  <!-- Une seule fiche pour créer et pour modifier : les deux formulaires ne divergeront pas. -->
+  <ng-template #exerciseFields let-d let-self="self">
+      <div class="form-row">
+        <div class="form-group"><label>Nom</label><input class="form-control" [(ngModel)]="d.name" /></div>
+        <div class="form-group"><label>Type</label>
+          <select class="form-control" [(ngModel)]="d.category">
+            @for (c of categories; track c) { <option [value]="c">{{ label(c) }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Catégorie (perso.)</label>
+          <select class="form-control" [(ngModel)]="d.categoryId">
+            <option value="">Sans catégorie</option>
+            @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Groupe musculaire</label>
+          <select class="form-control" [(ngModel)]="d.muscle">
+            <option value="">—</option>
+            @for (m of muscles; track m) { <option [value]="m">{{ label(m) }}</option> }
+          </select>
+        </div>
+        <div class="form-group"><label>Niveau</label>
+          <select class="form-control" [(ngModel)]="d.level">
+            @for (l of levels; track l) { <option [value]="l">{{ label(l) }}</option> }
+          </select>
+        </div>
+      </div>
+
+      <!-- Matériel : multi-sélection (un exercice se fait souvent avec plusieurs options). -->
+      <div class="form-group">
+        <label>Matériel</label>
+        <div class="chip-picker">
+          @for (eq of equipments; track eq) {
+            <label class="chip-opt" [class.selected]="d.equipment.includes(eq)">
+              <input type="checkbox" [checked]="d.equipment.includes(eq)" (change)="toggleEquipment(d, eq)" />
+              {{ label(eq) }}
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group"><label>Progression (exercice plus dur)</label>
+          <select class="form-control" [(ngModel)]="d.progressionId">
+            <option value="">—</option>
+            @for (e of otherExercises(self); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
+          </select>
+        </div>
+        <div class="form-group"><label>Régression (exercice plus facile)</label>
+          <select class="form-control" [(ngModel)]="d.regressionId">
+            <option value="">—</option>
+            @for (e of otherExercises(self); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group"><label>Lien vidéo démo</label><input class="form-control" [(ngModel)]="d.videoUrl" placeholder="https://youtu.be/…" /></div>
+        <div class="form-group"><label>Image</label><input class="form-control" [(ngModel)]="d.imageUrl" placeholder="https://…" /></div>
+      </div>
+      <div class="form-group"><label>Consignes</label><textarea class="form-control" [(ngModel)]="d.instructions"></textarea></div>
+      <div class="form-group">
+        <label>Contre-indications</label>
+        <textarea class="form-control" [(ngModel)]="d.contraindications"
+                  placeholder="Ex. lombalgie aiguë, tendinopathie rotulienne en phase douloureuse…"></textarea>
+      </div>
+  </ng-template>

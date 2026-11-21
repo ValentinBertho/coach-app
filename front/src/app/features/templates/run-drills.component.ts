@@ -18,6 +18,8 @@ import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
+import { SidePanelComponent } from '../../shared/components/ui';
+import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
 
 /**
  * Éducatifs de course (gammes techniques / amplitude) — bibliothèque coach.
@@ -26,7 +28,7 @@ import { ToastService } from '../../core/services/toast.service';
 @Component({
   selector: 'app-run-drills',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule],
+  imports: [IconComponent, FormsModule, SidePanelComponent, VideoEmbedComponent],
   template: `
     <section class="page-header">
       <div>
@@ -153,49 +155,30 @@ import { ToastService } from '../../core/services/toast.service';
             </h2>
             <div class="drill-grid">
               @for (d of byCategory()[cat]; track d.id) {
+                <!-- La carte s'ouvre comme une séance de course : fiche, puis modifier. -->
                 <article
                   class="card drill"
                   [class.drill--amplitude]="d.category === 'AMPLITUDE'"
+                  (click)="open(d)"
                 >
                   <div class="drill-hd">
-                    <strong>{{ d.name }}</strong>
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-sm danger"
-                      (click)="remove(d)"
-                      aria-label="Supprimer"
-                    >
-                      <app-icon name="x" [size]="15" />
-                    </button>
+                    @if (d.categoryId) {
+                      <span class="cat-badge">{{ catName(d.categoryId) }}</span>
+                    }
+                    <div class="drill-actions" (click)="$event.stopPropagation()">
+                      <button type="button" class="icon-btn" (click)="rename(d)" title="Renommer"><app-icon name="type" [size]="15" /></button>
+                      <button type="button" class="icon-btn" (click)="open(d, true)" title="Modifier"><app-icon name="pencil" [size]="15" /></button>
+                      <button type="button" class="icon-btn" (click)="duplicate(d)" [disabled]="busy()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
+                      <button type="button" class="icon-btn danger" (click)="remove(d)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
+                    </div>
                   </div>
-                  @if (d.categoryId) {
-                    <span class="cat-badge">{{ catName(d.categoryId) }}</span>
-                  }
+                  <strong class="drill-name">{{ d.name }}</strong>
                   @if (d.description) {
                     <p class="drill-desc">{{ d.description }}</p>
                   }
-                  @if (d.videoUrl) {
-                    <a
-                      class="drill-video"
-                      [href]="d.videoUrl"
-                      target="_blank"
-                      rel="noopener"
-                      >▶ Voir la démo</a
-                    >
-                  }
-                  <label class="drill-assign">
-                    <span>Catégorie</span>
-                    <select
-                      class="form-control"
-                      [ngModel]="d.categoryId ?? ''"
-                      (ngModelChange)="assignCategory(d, $event)"
-                    >
-                      <option value="">Sans catégorie</option>
-                      @for (c of cats(); track c.id) {
-                        <option [value]="c.id">{{ c.name }}</option>
-                      }
-                    </select>
-                  </label>
+                  <div (click)="$event.stopPropagation()">
+                    <app-video-embed [url]="d.videoUrl" [title]="d.name" [compact]="true" />
+                  </div>
                 </article>
               }
             </div>
@@ -203,6 +186,57 @@ import { ToastService } from '../../core/services/toast.service';
         }
       }
     }
+
+    <app-side-panel [(open)]="panelOpen" [title]="editing() ? 'Modifier l’éducatif' : (current()?.name || '')" [width]="480">
+      @if (current(); as d) {
+        @if (editing()) {
+          <div class="sheet">
+            <div class="form-group"><label>Nom</label><input class="form-control" [(ngModel)]="edit.name" /></div>
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Type</label>
+                <select class="form-control" [(ngModel)]="edit.category">
+                  <option value="TECHNIQUE">Technique</option>
+                  <option value="AMPLITUDE">Amplitude</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Catégorie</label>
+                <select class="form-control" [(ngModel)]="edit.categoryId">
+                  <option value="">Sans catégorie</option>
+                  @for (c of cats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                </select>
+              </div>
+            </div>
+            <div class="form-group"><label>Lien vidéo</label><input class="form-control" [(ngModel)]="edit.videoUrl" placeholder="https://…" /></div>
+            <div class="form-group"><label>Consigne</label><textarea class="form-control" rows="4" [(ngModel)]="edit.description" placeholder="Points clés d'exécution…"></textarea></div>
+            <div class="sheet-foot">
+              <button type="button" class="btn btn-ghost" (click)="editing.set(false)">Annuler</button>
+              <button type="button" class="btn btn-primary" (click)="save()" [disabled]="busy() || !edit.name.trim()">Enregistrer</button>
+            </div>
+          </div>
+        } @else {
+          <div class="sheet">
+            <div class="sheet-actions">
+              <button type="button" class="btn btn-primary btn-sm" (click)="startEdit()"><app-icon name="pencil" [size]="15" /> Modifier</button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="duplicate(d)" [disabled]="busy()"><app-icon name="copy" [size]="15" /> Dupliquer</button>
+              <button type="button" class="btn btn-ghost btn-sm danger-text" (click)="remove(d)"><app-icon name="trash-2" [size]="15" /> Supprimer</button>
+            </div>
+            <app-video-embed [url]="d.videoUrl" [title]="d.name" />
+            <dl class="facts">
+              <dt>Type</dt><dd>{{ labels[d.category] }}</dd>
+              <dt>Catégorie</dt><dd>{{ d.categoryId ? catName(d.categoryId) : 'Sans catégorie' }}</dd>
+            </dl>
+            @if (d.description) {
+              <h3 class="sheet-h">Consigne</h3>
+              <p class="sheet-text">{{ d.description }}</p>
+            } @else {
+              <p class="field-hint">Pas encore de consigne : « Modifier » pour en ajouter une.</p>
+            }
+          </div>
+        }
+      }
+    </app-side-panel>
   `,
   styles: [
     `
@@ -321,9 +355,45 @@ import { ToastService } from '../../core/services/toast.service';
         justify-content: space-between;
         gap: var(--sp-2);
       }
-      .drill-hd strong {
-        color: var(--ink);
+      .drill {
+        cursor: pointer;
+        transition: box-shadow var(--duration) var(--ease);
       }
+      .drill:hover {
+        box-shadow: var(--shadow-md);
+      }
+      .drill-name {
+        color: var(--ink);
+        font-size: var(--text-md);
+      }
+      .drill-hd .cat-badge {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cat-badge.muted {
+        opacity: 0.6;
+      }
+      .drill-actions {
+        margin-left: auto;
+        display: inline-flex;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .icon-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--hairline); background: var(--paper); border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; color: var(--ink-2); text-decoration: none; transition: background var(--duration) var(--ease), color var(--duration) var(--ease); }
+      .icon-btn:hover { background: var(--paper-sunk); color: var(--ink-1); }
+      .icon-btn.danger { color: var(--danger); }
+      .icon-btn.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+      .sheet { display: flex; flex-direction: column; gap: var(--sp-3); }
+      .sheet-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+      .sheet-foot { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+      .facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px var(--sp-3); margin: 0; font-size: var(--text-sm); }
+      .facts dt { color: var(--ink-3); }
+      .facts dd { margin: 0; }
+      .sheet-h { font-size: var(--text-sm); margin: var(--sp-2) 0 0; }
+      .sheet-text { margin: 0; white-space: pre-line; line-height: 1.5; }
+      .danger-text { color: var(--danger); }
       .drill-desc {
         margin: 0;
         color: var(--ink-2);
@@ -467,6 +537,103 @@ export class RunDrillsComponent implements OnInit {
     });
   }
 
+  // --- Fiche d'un éducatif : consulter, modifier, renommer, dupliquer ------------------
+  // Un éducatif créé ne se corrigeait plus : seule sa catégorie se changeait.
+  readonly panelOpen = signal(false);
+  readonly current = signal<RunDrill | null>(null);
+  readonly editing = signal(false);
+  readonly busy = signal(false);
+  edit = { name: '', category: 'TECHNIQUE' as RunDrillCategory, categoryId: '', description: '', videoUrl: '' };
+
+  open(d: RunDrill, edit = false): void {
+    this.current.set(d);
+    this.editing.set(false);
+    if (edit) this.startEdit();
+    this.panelOpen.set(true);
+  }
+
+  startEdit(): void {
+    const d = this.current();
+    if (!d) return;
+    this.edit = {
+      name: d.name, category: d.category, categoryId: d.categoryId ?? '',
+      description: d.description ?? '', videoUrl: d.videoUrl ?? '',
+    };
+    this.editing.set(true);
+  }
+
+  save(): void {
+    const d = this.current();
+    if (!d || !this.edit.name.trim() || this.busy()) return;
+    this.busy.set(true);
+    this.service
+      .update(d.id, {
+        name: this.edit.name.trim(),
+        category: this.edit.category,
+        categoryId: this.edit.categoryId || null,
+        description: this.edit.description.trim() || null,
+        videoUrl: this.edit.videoUrl.trim() || null,
+      })
+      .subscribe({
+        next: (updated) => {
+          this.busy.set(false);
+          this.replace(updated);
+          this.current.set(updated);
+          this.editing.set(false);
+          this.toast.success('Éducatif enregistré');
+        },
+        error: () => {
+          this.busy.set(false);
+          this.toast.error('Enregistrement impossible.');
+        },
+      });
+  }
+
+  async rename(d: RunDrill): Promise<void> {
+    const answer = await this.confirm.prompt({
+      title: 'Renommer l’éducatif',
+      message: 'Le nom range l’éducatif dans ta bibliothèque.',
+      promptLabel: 'Nom de l’éducatif',
+      initialValue: d.name,
+      confirmLabel: 'Renommer',
+    });
+    const name = answer?.trim();
+    if (!name || name === d.name) return;
+    this.service
+      .update(d.id, { name, category: d.category, categoryId: d.categoryId, description: d.description, videoUrl: d.videoUrl })
+      .subscribe({
+        next: (updated) => {
+          this.replace(updated);
+          if (this.current()?.id === d.id) this.current.set(updated);
+          this.toast.success('Éducatif renommé');
+        },
+        error: () => this.toast.error('Renommage impossible.'),
+      });
+  }
+
+  duplicate(d: RunDrill): void {
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.service
+      .create({ name: `${d.name} (copie)`, category: d.category, categoryId: d.categoryId, description: d.description, videoUrl: d.videoUrl })
+      .subscribe({
+        next: (copy) => {
+          this.busy.set(false);
+          this.drills.update((list) => [...list, copy]);
+          this.toast.success(`« ${copy.name} » créé`);
+          this.open(copy, true);
+        },
+        error: () => {
+          this.busy.set(false);
+          this.toast.error('Duplication impossible.');
+        },
+      });
+  }
+
+  private replace(updated: RunDrill): void {
+    this.drills.update((list) => list.map((x) => (x.id === updated.id ? updated : x)));
+  }
+
   async remove(d: RunDrill): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Supprimer l’éducatif',
@@ -477,6 +644,7 @@ export class RunDrillsComponent implements OnInit {
     if (!ok) return;
     this.service.delete(d.id).subscribe(() => {
       this.toast.info('Supprimé.');
+      if (this.current()?.id === d.id) this.panelOpen.set(false);
       this.load();
     });
   }
