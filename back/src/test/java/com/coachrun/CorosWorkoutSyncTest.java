@@ -22,12 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatcher;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,12 +51,7 @@ import static org.mockito.Mockito.when;
  * les change, et, faute de suppression chez COROS, réécrites « Annulée par ton coach » quand
  * elles sont retirées ou déplacées.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-@TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:coros-sync;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class CorosWorkoutSyncTest {
+class CorosWorkoutSyncTest extends ExternalClientsMockedTest {
 
     private static final String CREATE = "createScheduledWorkout";
     private static final String UPDATE = "updateScheduledWorkout";
@@ -77,7 +67,6 @@ class CorosWorkoutSyncTest {
     @Autowired private CorosWorkoutSyncService syncService;
     @Autowired private ClockService clock;
     @Autowired private ObjectMapper objectMapper;
-    @MockBean private CorosMcpClient corosClient;
 
     private Athlete athlete;
     private LocalDate today;

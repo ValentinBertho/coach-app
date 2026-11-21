@@ -11,13 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Instant;
@@ -50,19 +46,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * consentement de l'athlète, et le scope accordé par Strava — et chacun est testé seul, parce que
  * c'est chacun seul qui protège un compte qui ne nous appartient pas.</p>
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-// @MockBean force un contexte dédié : base mémoire propre, comme StravaControllerTest.
-@org.springframework.test.context.TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:strava-rename;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class StravaRenameOnStravaTest {
+class StravaRenameOnStravaTest extends ExternalClientsMockedTest {
 
     @Autowired private WebApplicationContext context;
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private com.coachrun.security.OAuthStateCodec stateCodec;
-    @MockBean private StravaClient stravaClient;
 
     private MockMvc mvc;
     private String coachBearer;

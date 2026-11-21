@@ -17,10 +17,6 @@ import com.coachrun.service.GarminService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,12 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Sorties poussées par Garmin : une seule sortie par effort, quel que soit l'ordre d'arrivée du
  * résumé, des détails — et de Strava, que la même montre alimente.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-@org.springframework.test.context.TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:garmin-activities;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class GarminActivityImportTest {
+class GarminActivityImportTest extends ExternalClientsMockedTest {
 
     /** 2020-01-15 10:00 UTC : loin des sorties de démonstration. */
     private static final long START = 1579082400L;
@@ -52,7 +43,6 @@ class GarminActivityImportTest {
     @Autowired private ActivityExclusionRepository exclusionRepository;
     @Autowired private DeviceConnectionRepository connectionRepository;
     @Autowired private GarminActivityService service;
-    @MockBean private GarminClient garminClient;
 
     private Athlete athlete;
 

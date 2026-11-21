@@ -12,13 +12,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -41,13 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Connexion Garmin Connect d'un athlète (OAuth 2.0 PKCE) : consentement, échange du code,
  * permissions, déconnexion depuis Darilab ou depuis Garmin.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-// @MockBean force un contexte dédié : base mémoire propre, comme StravaControllerTest.
-@org.springframework.test.context.TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:garmin-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class GarminConnectionTest {
+class GarminConnectionTest extends ExternalClientsMockedTest {
 
     private static final String GARMIN_USER = "d3315b1072421d0dd7c8f6b8e1de4df8";
 
@@ -57,7 +47,6 @@ class GarminConnectionTest {
     @Autowired private OAuthStateCodec stateCodec;
     @Autowired private GarminService garminService;
     @Autowired private DeviceConnectionRepository connectionRepository;
-    @MockBean private GarminClient garminClient;
 
     private MockMvc mvc;
     private String athleteBearer;

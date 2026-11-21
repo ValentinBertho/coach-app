@@ -99,6 +99,31 @@ public class AthletePhysioService {
                 .toList();
     }
 
+    /**
+     * Enregistre plusieurs performances d'un coup (historique de records du jeu de démo) : même
+     * résultat qu'un {@link #addPerformance} par ligne — records détectés et notifiés dans l'ordre —
+     * mais le VDOT et les zones ne sont recalculés qu'une fois, à la fin.
+     */
+    @Transactional
+    public void addPerformances(UUID clubId, UUID athleteId, List<PerformanceRequest> requests) {
+        Athlete a = requireAthlete(clubId, athleteId);
+        for (PerformanceRequest req : requests) {
+            boolean record = beatsPreviousBest(athleteId, req);
+            AthletePerformance perf = new AthletePerformance();
+            perf.setAthlete(a);
+            perf.setDistance(req.distance());
+            perf.setTimeSeconds(req.timeSeconds());
+            perf.setDateSet(req.dateSet());
+            performanceRepository.save(perf);
+            if (record) {
+                notificationService.notifyPersonalRecord(a, req.distance().code(), formatTime(req.timeSeconds()));
+            }
+        }
+        recomputeVdot(a);
+        zoneValueSyncService.resync(clubId, athleteId);
+        log.info("{} performance(s) ajoutée(s) pour l'athlète {} (recalcul VDOT + zones)", requests.size(), athleteId);
+    }
+
     @Transactional
     public PerformanceResponse addPerformance(UUID clubId, UUID athleteId, PerformanceRequest req) {
         Athlete a = requireAthlete(clubId, athleteId);

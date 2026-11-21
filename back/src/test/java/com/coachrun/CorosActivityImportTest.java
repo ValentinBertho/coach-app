@@ -26,12 +26,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 
 import static com.coachrun.FitFileBuilder.TYPE_U32;
@@ -52,12 +47,7 @@ import static org.mockito.Mockito.when;
  * Import des sorties COROS : chaque nouvelle sortie est téléchargée une fois et une seule, une
  * sortie déjà arrivée par Strava n'est pas téléchargée, et le quota COROS est respecté.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-@TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:coros-import;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class CorosActivityImportTest {
+class CorosActivityImportTest extends ExternalClientsMockedTest {
 
     private static final String LIST = "querySportRecords";
     private static final String URLS = "queryActivityFitFileDownloadUrls";
@@ -82,7 +72,6 @@ class CorosActivityImportTest {
     @Autowired private CorosActivityService importService;
     @Autowired private ClockService clock;
     @Autowired private ObjectMapper objectMapper;
-    @MockBean private CorosMcpClient corosClient;
 
     private Athlete athlete;
     private LocalDate day;

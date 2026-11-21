@@ -20,11 +20,7 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Instant;
@@ -53,13 +49,7 @@ import static org.mockito.Mockito.when;
  * montre et ce qui y est. Chaque cas est un geste du coach — assigner, modifier, déplacer,
  * supprimer — et ce que la montre doit en voir.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-// @MockBean force un contexte dédié : base mémoire propre, comme StravaControllerTest.
-@org.springframework.test.context.TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:garmin-sync;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class GarminWorkoutSyncTest {
+class GarminWorkoutSyncTest extends ExternalClientsMockedTest {
 
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private AthleteRepository athleteRepository;
@@ -72,7 +62,6 @@ class GarminWorkoutSyncTest {
     @Autowired private EntityManager em;
     @Autowired private com.coachrun.repository.ScheduledStrengthSessionRepository strengthRepository;
     @Autowired private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
-    @MockBean private GarminClient garminClient;
 
     private Athlete athlete;
     private LocalDate today;

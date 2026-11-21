@@ -19,13 +19,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -47,12 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Connexion COROS d'un athlète (COROS MCP, OAuth 2.0 PKCE avec client enregistré
  * dynamiquement) : consentement, échange du code, rafraîchissement, déconnexion.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-@org.springframework.test.context.TestPropertySource(properties =
-        "spring.datasource.url=jdbc:h2:mem:coros-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
-class CorosConnectionTest {
+class CorosConnectionTest extends ExternalClientsMockedTest {
 
     private static final String REDIRECT = "https://www.darilab.app/app/coros/callback";
     private static final Endpoints EU = new Endpoints("https://mcpeu.coros.com",
@@ -66,7 +57,6 @@ class CorosConnectionTest {
     @Autowired private CorosService corosService;
     @Autowired private DeviceConnectionRepository connectionRepository;
     @Autowired private OAuthClientRegistrationRepository registrationRepository;
-    @MockBean private CorosMcpClient corosClient;
 
     private MockMvc mvc;
     private String athleteBearer;
