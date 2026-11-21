@@ -924,18 +924,21 @@ public class DemoSeedService {
                     null, null, null, null));
             // Historique de records réaliste (800 m → marathon), étalé sur l'année, dérivé du niveau
             // par équivalence de Riegel. Saisir/retirer un record recalcule le VDOT et les allures.
-            seedRecord(club, a, RunDistance.D800, riegel(fiveK, 5000, 800), 200 + i);
-            seedRecord(club, a, RunDistance.D1500, riegel(fiveK, 5000, 1500), 160 + i);
-            seedRecord(club, a, RunDistance.D3000, riegel(fiveK, 5000, 3000), 120 + i);
-            seedRecord(club, a, RunDistance.D5KM, fiveK + 25, 90 + i);          // ancien 5 km, moins bon
-            seedRecord(club, a, RunDistance.D10KM, riegel(fiveK, 5000, 10000), 60 + i);
-            seedRecord(club, a, RunDistance.D5KM, fiveK, 30 + i);               // record 5 km récent
+            // Un seul recalcul VDOT + zones pour tout l'historique (et non un par record).
+            List<PerformanceRequest> records = new java.util.ArrayList<>();
+            records.add(record(RunDistance.D800, riegel(fiveK, 5000, 800), 200 + i));
+            records.add(record(RunDistance.D1500, riegel(fiveK, 5000, 1500), 160 + i));
+            records.add(record(RunDistance.D3000, riegel(fiveK, 5000, 3000), 120 + i));
+            records.add(record(RunDistance.D5KM, fiveK + 25, 90 + i));          // ancien 5 km, moins bon
+            records.add(record(RunDistance.D10KM, riegel(fiveK, 5000, 10000), 60 + i));
+            records.add(record(RunDistance.D5KM, fiveK, 30 + i));               // record 5 km récent
             if (i % 3 == 0) {
-                seedRecord(club, a, RunDistance.SEMI, riegel(fiveK, 5000, 21097), 45 + i);
+                records.add(record(RunDistance.SEMI, riegel(fiveK, 5000, 21097), 45 + i));
             }
             if (i % 5 == 0) {
-                seedRecord(club, a, RunDistance.MARATHON, riegel(fiveK, 5000, 42195), 150 + i);
+                records.add(record(RunDistance.MARATHON, riegel(fiveK, 5000, 42195), 150 + i));
             }
+            physioService.addPerformances(club.getId(), a.getId(), records);
         }
         // Test lactate complet pour l'athlète démo.
         lactateTestService.create(club.getId(), demoAthlete.getId(), new LactateTestRequest(
@@ -945,10 +948,8 @@ public class DemoSeedService {
                 lactateStep(3.9, 160, 3.0), lactateStep(4.2, 170, 5.5), lactateStep(4.5, 178, 8.0))));
     }
 
-    /** Enregistre un record (le VDOT et les allures dérivées sont recalculés par le service). */
-    private void seedRecord(Club club, Athlete a, RunDistance distance, int seconds, int daysAgo) {
-        physioService.addPerformance(club.getId(), a.getId(),
-                new PerformanceRequest(distance, seconds, clock.today().minusDays(daysAgo)));
+    private PerformanceRequest record(RunDistance distance, int seconds, int daysAgo) {
+        return new PerformanceRequest(distance, seconds, clock.today().minusDays(daysAgo));
     }
 
     private BigDecimal round2(double value) {

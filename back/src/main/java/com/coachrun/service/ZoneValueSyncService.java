@@ -57,6 +57,15 @@ public class ZoneValueSyncService {
         List<TrainingZone> zones = zoneSetService.zonesForAthlete(clubId, athleteId);
         var athlete = athleteRepository.getReferenceById(athleteId);
 
+        // Les valeurs de l'athlète en une requête, plutôt qu'une par zone et par métrique : chaque
+        // requête force Hibernate à vérifier tout ce qui attend d'être écrit, et dans une longue
+        // transaction (création du jeu de démo, recopie lors d'un changement de coach) ce contrôle
+        // répété coûtait l'essentiel du temps.
+        java.util.Map<String, AthleteZoneValue> existing = new java.util.HashMap<>();
+        for (AthleteZoneValue v : valueRepository.findByAthleteId(athleteId)) {
+            existing.put(v.getZone().getId() + ":" + v.getMetricType().getId(), v);
+        }
+
         int written = 0;
         for (TrainingZone zone : zones) {
             for (ZoneMetric zm : zone.getMetrics()) {
@@ -64,7 +73,8 @@ public class ZoneValueSyncService {
                 if (range == null) {
                     continue;
                 }
-                if (upsertAuto(athlete, zone, zm.getMetricType(), athleteId, range)) {
+                AthleteZoneValue current = existing.get(zone.getId() + ":" + zm.getMetricType().getId());
+                if (upsertAuto(athlete, zone, zm.getMetricType(), current, range)) {
                     written++;
                 }
             }
@@ -215,10 +225,7 @@ public class ZoneValueSyncService {
 
     /** Écrit une valeur AUTO ; ne touche jamais une valeur MANUAL ou verrouillée. */
     private boolean upsertAuto(com.coachrun.entity.Athlete athlete, TrainingZone zone,
-                               MetricType metric, UUID athleteId, double[] range) {
-        AthleteZoneValue value = valueRepository
-                .findByAthleteIdAndZoneIdAndMetricTypeId(athleteId, zone.getId(), metric.getId())
-                .orElse(null);
+                               MetricType metric, AthleteZoneValue value, double[] range) {
         if (value != null && (value.getSource() == ZoneValueSource.MANUAL || value.isLocked())) {
             return false;
         }

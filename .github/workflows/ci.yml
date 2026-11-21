@@ -3,9 +3,12 @@
 # ============================================================================
 name: CI
 
+# Une branche de travail est testée par sa pull request, main à la fusion. Lancer aussi la CI sur
+# chaque envoi de branche faisait tourner deux fois le même commit, en même temps, sur deux
+# machines : la moitié du temps de CI partait en doublons.
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
   pull_request:
 
 concurrency:
