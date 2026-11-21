@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -34,6 +34,7 @@ import {
   ExerciseLevel,
   MuscleGroup,
   PpExercise,
+  PpExerciseRequest,
   RmFormula,
   StrengthCycle,
   StrengthLoadPoint,
@@ -57,6 +58,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
     TrendChartComponent,
     SidePanelComponent,
     VideoEmbedComponent,
+    NgTemplateOutlet,
   ],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
@@ -79,22 +81,7 @@ export class StrengthComponent implements OnInit {
   readonly filterMuscle = signal('');
   readonly searchQ = signal('');
   readonly showExerciseForm = signal(false);
-  newExercise = {
-    name: '',
-    category: 'FORCE_MAX' as ExerciseCategory,
-    categoryId: '' as string,
-    muscle: '' as MuscleGroup | '',
-    videoUrl: '',
-    imageUrl: '',
-    instructions: '',
-    // Fiche exercice complète (CdC §7.5) : le modèle de données portait déjà ces champs,
-    // seule l'UI les ignorait.
-    level: 'INTERMEDIAIRE' as ExerciseLevel,
-    equipment: [] as EquipmentType[],
-    contraindications: '',
-    progressionId: '',
-    regressionId: '',
-  };
+  newExercise: ExerciseDraft = emptyExerciseDraft();
 
   readonly levels: ExerciseLevel[] = ['DEBUTANT', 'INTERMEDIAIRE', 'AVANCE'];
   readonly equipments: EquipmentType[] = [
@@ -114,11 +101,156 @@ export class StrengthComponent implements OnInit {
     'AUTRE',
   ];
 
-  toggleEquipment(eq: EquipmentType): void {
-    const list = this.newExercise.equipment;
-    this.newExercise.equipment = list.includes(eq)
-      ? list.filter((x) => x !== eq)
-      : [...list, eq];
+  toggleEquipment(d: ExerciseDraft, eq: EquipmentType): void {
+    d.equipment = d.equipment.includes(eq)
+      ? d.equipment.filter((x) => x !== eq)
+      : [...d.equipment, eq];
+  }
+
+  // --- Fiche d'un exercice : consulter, modifier, dupliquer, supprimer -------------------
+  // Une fois créé, un exercice ne se modifiait plus nulle part (seule sa catégorie se changeait) :
+  // une faute dans le nom ou une vidéo mal collée restait pour toujours. La fiche s'ouvre au clic,
+  // comme une séance de course.
+  readonly exPanelOpen = signal(false);
+  readonly exPanel = signal<PpExercise | null>(null);
+  readonly exEditing = signal(false);
+  readonly exSaving = signal(false);
+  exDraft: ExerciseDraft = emptyExerciseDraft();
+
+  openExercise(e: PpExercise, edit = false): void {
+    this.exPanel.set(e);
+    this.exEditing.set(false);
+    if (edit) this.editExercise();
+    this.exPanelOpen.set(true);
+  }
+
+  editExercise(): void {
+    const e = this.exPanel();
+    if (!e) return;
+    this.exDraft = exerciseToDraft(e);
+    this.exEditing.set(true);
+  }
+
+  /** Exercices proposés en progression / régression : tous sauf celui qu'on modifie. */
+  otherExercises(id: string | null | undefined): PpExercise[] {
+    return this.exercises().filter((x) => x.id !== id);
+  }
+
+  saveExercise(): void {
+    const e = this.exPanel();
+    const d = this.exDraft;
+    if (!e || !d.name.trim() || this.exSaving()) return;
+    this.exSaving.set(true);
+    this.strength.updateExercise(e.id, draftToRequest(d, e)).subscribe({
+      next: (updated) => {
+        this.exSaving.set(false);
+        this.exercises.update((list) => list.map((x) => (x.id === e.id ? updated : x)));
+        this.exPanel.set(updated);
+        this.exEditing.set(false);
+        this.toast.success('Exercice enregistré');
+      },
+      error: () => {
+        this.exSaving.set(false);
+        this.toast.error('Enregistrement impossible.');
+      },
+    });
+  }
+
+  async renameExercise(e: PpExercise): Promise<void> {
+    const answer = await this.confirm.prompt({
+      title: 'Renommer l\'exercice',
+      message: 'Les séances déjà composées gardent l\'ancien nom.',
+      promptLabel: 'Nom de l\'exercice',
+      initialValue: e.name,
+      confirmLabel: 'Renommer',
+    });
+    const name = answer?.trim();
+    if (!name || name === e.name) return;
+    this.strength.updateExercise(e.id, { ...draftToRequest(exerciseToDraft(e), e), name }).subscribe({
+      next: (updated) => {
+        this.exercises.update((list) => list.map((x) => (x.id === e.id ? updated : x)));
+        if (this.exPanel()?.id === e.id) this.exPanel.set(updated);
+        this.toast.success('Exercice renommé');
+      },
+      error: () => this.toast.error('Renommage impossible.'),
+    });
+  }
+
+  /** Dupliquer pour faire une variante (« Squat » → « Squat tempo ») sans tout ressaisir. */
+  duplicateExercise(e: PpExercise): void {
+    if (this.duplicating()) return;
+    this.duplicating.set(true);
+    const body = { ...draftToRequest(exerciseToDraft(e), e), name: `${e.name} (copie)` };
+    this.strength.createExercise(body).subscribe({
+      next: (copy) => {
+        this.duplicating.set(false);
+        this.exercises.update((list) => [...list, copy]);
+        this.toast.success(`« ${copy.name} » créé`);
+        this.openExercise(copy, true);
+      },
+      error: () => {
+        this.duplicating.set(false);
+        this.toast.error('Duplication impossible.');
+      },
+    });
+  }
+
+  toggleExerciseFavorite(e: PpExercise): void {
+    const favorite = !e.favorite;
+    const apply = (v: boolean) => {
+      this.exercises.update((list) => list.map((x) => (x.id === e.id ? { ...x, favorite: v } : x)));
+      if (this.exPanel()?.id === e.id) this.exPanel.set({ ...this.exPanel()!, favorite: v });
+    };
+    apply(favorite);
+    this.strength.setExerciseFavorite(e.id, favorite).subscribe({ error: () => apply(!favorite) });
+  }
+
+  async deleteExercise(e: PpExercise): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer l\'exercice',
+      message: `Retirer « ${e.name} » de la bibliothèque ? Les séances qui l'utilisent ne changent pas.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!ok) return;
+    this.strength.deleteExercise(e.id).subscribe({
+      next: () => {
+        this.exercises.update((list) => list.filter((x) => x.id !== e.id));
+        if (this.exPanel()?.id === e.id) this.exPanelOpen.set(false);
+        this.toast.success('Exercice supprimé');
+      },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  equipmentLine(e: PpExercise): string {
+    return e.equipment.map((x) => this.label(x)).join(' · ');
+  }
+
+  muscleLine(e: PpExercise): string {
+    return e.muscleGroups.map((x) => this.label(x)).join(' · ');
+  }
+
+  /** Ouvrir une séance de force, c'est ouvrir sa structure : c'est là qu'on la consulte et la modifie. */
+  openSession(s: StrengthSession): void {
+    this.router.navigate(['/app/strength/sessions', s.id, 'structure']);
+  }
+
+  async deleteSession(s: StrengthSession): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la séance',
+      message: `Retirer « ${s.name} » de la bibliothèque ? Les séances déjà planifiées ne changent pas.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!ok) return;
+    this.strength.deleteSession(s.id).subscribe({
+      next: () => {
+        this.sessions.update((list) => list.filter((x) => x.id !== s.id));
+        this.toast.success('Séance supprimée');
+      },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
   }
 
   /** Catégories unifiées du domaine prépa physique (QA1). */
@@ -462,41 +594,14 @@ export class StrengthComponent implements OnInit {
 
   createExercise(): void {
     if (!this.newExercise.name.trim()) return;
-    this.strength
-      .createExercise({
-        name: this.newExercise.name,
-        category: this.newExercise.category,
-        categoryId: this.newExercise.categoryId || null,
-        level: this.newExercise.level,
-        muscleGroups: this.newExercise.muscle ? [this.newExercise.muscle] : [],
-        equipment: this.newExercise.equipment,
-        videoUrl: this.newExercise.videoUrl || null,
-        imageUrl: this.newExercise.imageUrl || null,
-        instructions: this.newExercise.instructions || null,
-        contraindications: this.newExercise.contraindications || null,
-        progressionId: this.newExercise.progressionId || null,
-        regressionId: this.newExercise.regressionId || null,
-      })
-      .subscribe(() => {
-        this.toast.success('Exercice créé');
-        this.newExercise = {
-          name: '',
-          category: 'FORCE_MAX',
-          categoryId: this.newExercise.categoryId,
-          muscle: '',
-          videoUrl: '',
-          imageUrl: '',
-          instructions: '',
-          level: 'INTERMEDIAIRE',
-          equipment: [],
-          contraindications: '',
-          progressionId: '',
-          regressionId: '',
-        };
-        this.showExerciseForm.set(false);
-        this.loadExercises();
-      });
+    this.strength.createExercise(draftToRequest(this.newExercise)).subscribe(() => {
+      this.toast.success('Exercice créé');
+      this.newExercise = { ...emptyExerciseDraft(), categoryId: this.newExercise.categoryId };
+      this.showExerciseForm.set(false);
+      this.loadExercises();
+    });
   }
+
 
   // --- Séances ---
   loadSessions(): void {
@@ -738,4 +843,65 @@ function normalizeText(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+/** Saisie d'une fiche exercice (création comme modification). */
+export interface ExerciseDraft {
+  name: string;
+  category: ExerciseCategory;
+  categoryId: string;
+  muscle: MuscleGroup | '';
+  videoUrl: string;
+  imageUrl: string;
+  instructions: string;
+  level: ExerciseLevel;
+  equipment: EquipmentType[];
+  contraindications: string;
+  progressionId: string;
+  regressionId: string;
+}
+
+export function emptyExerciseDraft(): ExerciseDraft {
+  return {
+    name: '', category: 'FORCE_MAX', categoryId: '', muscle: '', videoUrl: '', imageUrl: '',
+    instructions: '', level: 'INTERMEDIAIRE', equipment: [], contraindications: '',
+    progressionId: '', regressionId: '',
+  };
+}
+
+export function exerciseToDraft(e: PpExercise): ExerciseDraft {
+  return {
+    name: e.name, category: e.category, categoryId: e.categoryId ?? '',
+    muscle: e.muscleGroups[0] ?? '', videoUrl: e.videoUrl ?? '', imageUrl: e.imageUrl ?? '',
+    instructions: e.instructions ?? '', level: e.level ?? 'INTERMEDIAIRE', equipment: [...e.equipment],
+    contraindications: e.contraindications ?? '', progressionId: e.progressionId ?? '',
+    regressionId: e.regressionId ?? '',
+  };
+}
+
+/**
+ * Requête de création / mise à jour. En modification, les champs que la fiche n'affiche pas
+ * (objectif, notes techniques, groupes musculaires secondaires) sont repris de l'exercice d'origine.
+ */
+export function draftToRequest(d: ExerciseDraft, original?: PpExercise): PpExerciseRequest {
+  const groups = original?.muscleGroups ?? [];
+  const muscleGroups: MuscleGroup[] = !d.muscle
+    ? []
+    : d.muscle === groups[0] ? groups : [d.muscle, ...groups.slice(1).filter((m) => m !== d.muscle)];
+  return {
+    name: d.name.trim(),
+    category: d.category,
+    categoryId: d.categoryId || null,
+    level: d.level,
+    objective: original?.objective ?? null,
+    muscleGroups,
+    equipment: d.equipment,
+    videoUrl: d.videoUrl.trim() || null,
+    imageUrl: d.imageUrl.trim() || null,
+    instructions: d.instructions.trim() || null,
+    technicalNotes: original?.technicalNotes ?? null,
+    contraindications: d.contraindications.trim() || null,
+    progressionId: d.progressionId || null,
+    regressionId: d.regressionId || null,
+  };
 }

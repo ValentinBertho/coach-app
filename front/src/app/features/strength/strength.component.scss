@@ -278,3 +278,35 @@
   margin: var(--sp-2) 0 var(--sp-4); line-height: 1.5;
 }
 .plan-hint app-icon { flex: none; margin-top: 2px; }
+
+/* Cartes de bibliothèque (exercices, séances) : même gabarit que les séances de course. */
+.lib-card { cursor: pointer; transition: box-shadow var(--duration) var(--ease); }
+.lib-card:hover { box-shadow: var(--shadow-md); }
+.lib-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.lib-card__head .badge { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lib-card__head .muted { opacity: 0.6; }
+.lib-card__actions { margin-left: auto; display: inline-flex; gap: 4px; flex-shrink: 0; }
+.lib-card__name { font-size: var(--text-md); display: inline-flex; align-items: center; gap: 6px; }
+.lib-card__star { color: var(--warning, #d9a400); }
+.lib-card__sub { margin: 0; }
+.lib-card__cat { margin-top: auto; width: 100%; min-height: 34px; padding: 4px var(--sp-2); font-size: var(--text-sm); }
+.icon-btn.fav { color: var(--warning, #d9a400); }
+
+.ex-sheet { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ex-sheet__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ex-sheet__img { max-width: 100%; border-radius: var(--radius-md); }
+.ex-sheet__facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px var(--sp-3); margin: 0; font-size: var(--text-sm); }
+.ex-sheet__facts dt { color: var(--ink-3); }
+.ex-sheet__facts dd { margin: 0; }
+.ex-sheet__h { font-size: var(--text-sm); margin: var(--sp-2) 0 0; }
+.ex-sheet__text { margin: 0; white-space: pre-line; line-height: 1.5; }
+.ex-sheet__foot { display: flex; justify-content: flex-end; gap: var(--sp-2); position: sticky; bottom: 0; background: var(--paper); padding-top: var(--sp-2); }
+.danger-text { color: var(--danger); }
+.icon-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--hairline); background: var(--paper); border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; color: var(--ink-2); text-decoration: none; transition: background var(--duration) var(--ease), color var(--duration) var(--ease); }
+.icon-btn:hover { background: var(--paper-sunk); color: var(--ink-1); }
+.icon-btn.danger { color: var(--danger); }
+.icon-btn.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.lib-card__head .badge { flex: 0 1 auto; }
+.star-btn { border: none; background: none; padding: 0; cursor: pointer; color: var(--ink-4, #c4c0b8); display: inline-flex; }
+.star-btn.on, .icon-btn.fav { color: var(--warning, #d9a400); }
+.star-btn.on ::ng-deep svg, .icon-btn.fav ::ng-deep svg { fill: currentColor; }

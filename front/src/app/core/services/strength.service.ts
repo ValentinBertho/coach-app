@@ -72,6 +72,11 @@ export class StrengthService {
     return this.http.patch<PpExercise>(`${this.club()}/pp/exercises/${id}/favorite`, { favorite });
   }
 
+  /** Retire un exercice de la bibliothèque (archivé côté serveur : les séances qui l'utilisent gardent son nom). */
+  deleteExercise(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.club()}/pp/exercises/${id}`);
+  }
+
   getExercise(id: string): Observable<PpExercise> {
     return this.http.get<PpExercise>(`${this.club()}/pp/exercises/${id}`);
   }
@@ -110,6 +115,11 @@ export class StrengthService {
   /** Duplique une séance de force (structure + notes). Renvoie la copie « {nom} (copie) ». */
   duplicateSession(id: string): Observable<StrengthSession> {
     return this.http.post<StrengthSession>(`${this.club()}/pp/sessions/${id}/duplicate`, {});
+  }
+
+  /** Retire une séance de la bibliothèque (archivée côté serveur, le planifié n'est pas touché). */
+  deleteSession(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.club()}/pp/sessions/${id}`);
   }
 
   putStructure(id: string, structure: StrengthStructure): Observable<StrengthSession> {
