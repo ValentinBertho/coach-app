@@ -1,5 +1,5 @@
 import type {
-  BlockFormat, SideMode, StrengthPrescription, VolumeType,
+  BlockFormat, SetTarget, SideMode, StrengthPrescription, VolumeType,
 } from '../models/strength.model';
 
 /**
@@ -38,6 +38,8 @@ export interface VolumePill {
   min: number;
   max: number;
   unit: string;
+  /** Séries différentes l'une de l'autre : « 12 / 10 / 8 », à lire à la place de min–max. */
+  perSet?: string;
 }
 
 /**
@@ -61,6 +63,20 @@ export function volumePill(
   p: StrengthPrescription | null | undefined, blockFormat?: BlockFormat | null,
 ): VolumePill | null {
   if (!p) return null;
+  const targets = setTargetsOf(p);
+  if (targets) {
+    const type = effectiveVolumeType(p, blockFormat);
+    const lows = targets.map((t) => t.value).filter((v): v is number => v != null);
+    if (!lows.length) return null;
+    const highs = targets.map((t) => t.valueMax ?? t.value).filter((v): v is number => v != null);
+    return {
+      label: VOLUME_PILL_LABELS[type],
+      min: Math.min(...lows),
+      max: Math.max(...highs),
+      unit: VOLUME_UNITS[type],
+      perSet: targets.map((t) => targetText(t)).join(' / ') + suffix(type),
+    };
+  }
   switch (effectiveVolumeType(p, blockFormat)) {
     case 'DUREE':
       return range('Durée', p.durationSec, p.durationSecMax, 's');
@@ -102,4 +118,118 @@ function range(
 ): VolumePill | null {
   if (min == null) return null;
   return { label, min, max: max ?? min, unit };
+}
+
+const VOLUME_PILL_LABELS: Record<VolumeType, string> = { REPS: 'Reps', DUREE: 'Durée', DISTANCE: 'Distance' };
+const VOLUME_UNITS: Record<VolumeType, string> = { REPS: '', DUREE: 's', DISTANCE: 'm' };
+
+function suffix(type: VolumeType): string {
+  return VOLUME_UNITS[type] ? ` ${VOLUME_UNITS[type]}` : '';
+}
+
+function targetText(t: SetTarget): string {
+  if (t.value == null) return '—';
+  return t.valueMax != null && t.valueMax !== t.value ? `${t.value}–${t.valueMax}` : `${t.value}`;
+}
+
+/**
+ * Le volume propre à chaque série, quand le coach l'a réglé série par série (pyramide
+ * 12 / 10 / 8). `null` quand toutes les séries sont identiques — le cas de toute prescription
+ * d'avant, qui se lit alors dans les champs scalaires.
+ */
+export function setTargetsOf(p: StrengthPrescription | null | undefined): SetTarget[] | null {
+  return p?.setTargets?.length ? p.setTargets : null;
+}
+
+/**
+ * Les séries d'un exercice telles que l'éditeur les montre, une ligne par série : celles
+ * réglées une à une, sinon `sets` fois le volume commun.
+ */
+export function setRowsOf(
+  p: StrengthPrescription, blockFormat?: BlockFormat | null,
+): SetTarget[] {
+  const targets = setTargetsOf(p);
+  if (targets) return targets.map((t) => ({ value: t.value ?? null, valueMax: t.valueMax ?? null }));
+  const count = Math.max(1, p.sets ?? 1);
+  const { low, high } = scalarVolume(p, effectiveVolumeType(p, blockFormat));
+  return Array.from({ length: count }, () => ({ value: low, valueMax: high }));
+}
+
+/**
+ * Écrit les séries saisies dans la prescription. Des séries toutes identiques redeviennent un
+ * volume commun (`setTargets` absent) : la prescription reste alors lisible par tout ce qui ne
+ * connaît que « 3 × 8 ». Des séries différentes sont gardées une à une, et les champs scalaires
+ * reçoivent leur enveloppe min–max.
+ */
+export function applySetRows(
+  p: StrengthPrescription, blockFormat: BlockFormat | null | undefined, rows: SetTarget[],
+): void {
+  const clean = rows.map((r) => {
+    const value = r.value ?? null;
+    const max = r.valueMax ?? null;
+    return { value, valueMax: max != null && max !== value ? max : null };
+  });
+  if (!clean.length) clean.push({ value: null, valueMax: null });
+  p.sets = clean.length;
+  const type = effectiveVolumeType(p, blockFormat);
+  const uniform = clean.every((r) => r.value === clean[0].value && r.valueMax === clean[0].valueMax);
+  if (uniform) {
+    p.setTargets = null;
+    writeScalarVolume(p, type, clean[0].value, clean[0].valueMax);
+    return;
+  }
+  p.setTargets = clean;
+  const lows = clean.map((r) => r.value).filter((v): v is number => v != null);
+  const highs = clean.map((r) => r.valueMax ?? r.value).filter((v): v is number => v != null);
+  const low = lows.length ? Math.min(...lows) : null;
+  const high = highs.length ? Math.max(...highs) : null;
+  writeScalarVolume(p, type, low, high != null && high !== low ? high : null);
+}
+
+/** Le volume prévu pour la série `index` (0 = la première), prêt à afficher : « 10 », « 30 s ». */
+export function setTargetLabel(
+  p: StrengthPrescription | null | undefined, blockFormat: BlockFormat | null | undefined, index: number,
+): string | null {
+  const t = setTargetsOf(p)?.[index];
+  if (!t || t.value == null) return null;
+  const type = effectiveVolumeType(p, blockFormat);
+  return targetText(t) + (type === 'REPS' ? ' reps' : suffix(type));
+}
+
+function scalarVolume(p: StrengthPrescription, type: VolumeType): { low: number | null; high: number | null } {
+  switch (type) {
+    case 'DUREE':
+      return { low: p.durationSec ?? null, high: p.durationSecMax ?? null };
+    case 'DISTANCE':
+      return { low: p.distanceM ?? null, high: p.distanceMMax ?? null };
+    default:
+      return p.repsFixed != null
+        ? { low: p.repsFixed, high: null }
+        : { low: p.repsMin ?? null, high: p.repsMax ?? null };
+  }
+}
+
+function writeScalarVolume(
+  p: StrengthPrescription, type: VolumeType, low: number | null, high: number | null,
+): void {
+  switch (type) {
+    case 'DUREE':
+      p.durationSec = low;
+      p.durationSecMax = high;
+      break;
+    case 'DISTANCE':
+      p.distanceM = low;
+      p.distanceMMax = high;
+      break;
+    default:
+      if (high == null) {
+        p.repsFixed = low;
+        p.repsMin = null;
+        p.repsMax = null;
+      } else {
+        p.repsFixed = null;
+        p.repsMin = low;
+        p.repsMax = high;
+      }
+  }
 }

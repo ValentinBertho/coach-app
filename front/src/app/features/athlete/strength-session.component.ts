@@ -24,6 +24,8 @@ import {
 import {
   effectiveVolumeType,
   sideLabel,
+  setTargetLabel,
+  setTargetsOf,
   volumePill,
   type VolumePill,
 } from '../../core/utils/strength-volume';
@@ -51,6 +53,8 @@ interface SetEntry {
   distanceMDone: number | null;
   rirDone: number | null;
   done: boolean;
+  /** Volume prévu pour cette série quand le coach les a réglées une à une (« 10 reps »). */
+  target: string | null;
 }
 
 /** Fourchettes prescrites d'un exercice, affichées en lecture seule au-dessus de la saisie. */
@@ -381,8 +385,9 @@ export class StrengthSessionComponent implements OnInit {
     const next = exercise.sets[this.setIndex() + 1];
     if (next) {
       // Une série ressemble à la précédente : on la pré-remplit plutôt que de repartir de zéro.
+      // Sauf le volume quand le coach a prévu chaque série (12 / 10 / 8) : la suivante garde le sien.
       if (!next.done) {
-        copyVolume(current, next);
+        copyVolume(current, next, next.target == null);
       }
       this.setIndex.set(this.setIndex() + 1);
     } else {
@@ -549,19 +554,26 @@ export class StrengthSessionComponent implements OnInit {
         const volumeType = effectiveVolumeType(presc, block.block.format);
         // Chaque série démarre sur le bas de la fourchette prescrite, dans la bonne unité :
         // proposer « 30 répétitions » sur un gainage de 30 s serait une consigne fausse.
-        const sets: SetEntry[] = Array.from({ length: count }, () => ({
-          chargeKg: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
-          repsDone:
-            volumeType === 'REPS'
-              ? (presc.repsFixed ?? presc.repsMin ?? null)
-              : null,
-          durationSecDone:
-            volumeType === 'DUREE' ? (presc.durationSec ?? null) : null,
-          distanceMDone:
-            volumeType === 'DISTANCE' ? (presc.distanceM ?? null) : null,
-          rirDone: presc.rirMin ?? null,
-          done: false,
-        }));
+        // Séries réglées une à une (pyramide 12 / 10 / 8) : chaque série démarre sur sa propre
+        // valeur, pas sur le bas de l'enveloppe.
+        const targets = setTargetsOf(presc);
+        const sets: SetEntry[] = Array.from({ length: count }, (_, i) => {
+          const own = targets ? (targets[i] ?? null) : null;
+          return {
+            chargeKg: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
+            repsDone:
+              volumeType === 'REPS'
+                ? own ? own.value : (presc.repsFixed ?? presc.repsMin ?? null)
+                : null,
+            durationSecDone:
+              volumeType === 'DUREE' ? (own ? own.value : (presc.durationSec ?? null)) : null,
+            distanceMDone:
+              volumeType === 'DISTANCE' ? (own ? own.value : (presc.distanceM ?? null)) : null,
+            rirDone: presc.rirMin ?? null,
+            done: false,
+            target: setTargetLabel(presc, block.block.format, i),
+          };
+        });
         const isRir =
           presc.effortRefType === 'RIR' || presc.effortRefType === 'RIR_RANGE';
         list.push({
@@ -642,10 +654,12 @@ export class StrengthSessionComponent implements OnInit {
  * Recopie charge, volume et RIR d'une série sur une autre — les trois unités de volume comprises,
  * dont une seule est renseignée. Recopier les seules répétitions perdait la série d'un gainage.
  */
-function copyVolume(from: SetEntry, to: SetEntry): void {
+function copyVolume(from: SetEntry, to: SetEntry, withVolume = true): void {
   to.chargeKg = from.chargeKg;
-  to.repsDone = from.repsDone;
-  to.durationSecDone = from.durationSecDone;
-  to.distanceMDone = from.distanceMDone;
+  if (withVolume) {
+    to.repsDone = from.repsDone;
+    to.durationSecDone = from.durationSecDone;
+    to.distanceMDone = from.distanceMDone;
+  }
   to.rirDone = from.rirDone;
 }

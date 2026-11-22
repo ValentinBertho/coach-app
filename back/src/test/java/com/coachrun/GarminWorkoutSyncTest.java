@@ -260,7 +260,7 @@ class GarminWorkoutSyncTest extends ExternalClientsMockedTest {
     private com.coachrun.entity.ScheduledStrengthSession strength(String title, LocalDate date) throws Exception {
         var p = new com.coachrun.dto.strength.StrengthPrescription(null, 60.0, 60.0, null, null, null, null, null,
                 null, null, 3, com.coachrun.entity.enums.VolumeType.REPS, 8, null, null, null, null, null, null,
-                null, null, null, 90, 90, null);
+                null, null, null, 90, 90, null, null);
         var structure = new com.coachrun.dto.strength.StrengthStructure(List.of(new com.coachrun.dto.strength.StrengthBlock(
                 "b1", com.coachrun.entity.enums.BlockType.PRINCIPAL, com.coachrun.entity.enums.BlockFormat.CLASSIQUE,
                 null, null, null, null,

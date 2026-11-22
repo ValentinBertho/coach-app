@@ -116,7 +116,7 @@
 }
 
 /* « Par côté », « Alterné G / D » : la précision qui change la série. */
-.ss__side {
+.ss__side, .ss__perset {
   font-size: var(--text-xs); font-weight: 700; color: var(--night-text);
   border: 1px solid var(--night-hairline, rgba(255, 255, 255, 0.18));
   border-radius: var(--radius-full); padding: 2px var(--sp-2); white-space: nowrap;
@@ -127,6 +127,9 @@
   margin: var(--sp-3) 0 0;
   font-size: var(--text-xl); font-weight: 800; color: var(--primary-light);
 }
+
+/* L'objectif de cette série quand elles diffèrent : « · 10 reps », plus discret que le numéro. */
+.ss__set-target { font-size: var(--text-md, 1rem); font-weight: 700; color: var(--night-text); }
 
 .ss__field { display: flex; flex-direction: column; gap: var(--sp-1); }
 .ss__field-label {

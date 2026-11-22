@@ -47,6 +47,31 @@ describe('strength-session-editor — édition rapide d’un exercice', () => {
     expect(item.prescription).toEqual(jasmine.objectContaining({ repsFixed: 5, repsMin: null, repsMax: null }));
   });
 
+  it('séries une à une : pyramide 12 / 10 / 8, ajout et retrait de série', () => {
+    c.setRowValue(block, item, 0, 'value', 12);
+    c.setRowValue(block, item, 1, 'value', 10);
+    c.setRowValue(block, item, 2, 'value', 8);
+    expect(c.setRows(block, item).map((r) => r.value)).toEqual([12, 10, 8, 6]);
+    c.removeSetRow(block, item, 3);
+    c.addSetRow(block, item);
+    expect(c.setRows(block, item).map((r) => r.value)).toEqual([12, 10, 8, 8]);
+    expect(item.prescription.sets).toBe(4);
+    expect(c.inlineVolume(block, item)).toBeNull();
+    c.setInlineSets(item, 2);
+    expect(c.setRows(block, item).map((r) => r.value)).toEqual([12, 10]);
+  });
+
+  it('Travail en durée ou distance : l’unité change pour toutes les séries, leur nombre reste', () => {
+    c.setRowValue(block, item, 0, 'value', 12);
+    c.setVolumeType(block, item, 'DUREE');
+    expect(item.prescription.setTargets).toBeNull();
+    expect(c.setRows(block, item)).toEqual(Array(4).fill({ value: 30, valueMax: null }));
+    expect(c.workUnit(block, item)).toBe('s');
+    c.setVolumeType(block, item, 'DISTANCE');
+    expect(c.workUnit(block, item)).toBe('m');
+    expect(item.prescription.repsFixed).toBeNull();
+  });
+
   it('charge : passe de fourchette à valeur exacte, et de % RM à kg', () => {
     c.setChargeHigh(item, null);
     expect(item.prescription.chargeRefType).toBe('PCT_RM');
