@@ -84,6 +84,15 @@ export interface E1rmResult {
   zones: WorkZone[];
 }
 
+/**
+ * Le travail d'une série, dans l'unité de la prescription (`volumeType`) : valeur exacte, ou
+ * fourchette quand `valueMax` est renseigné.
+ */
+export interface SetTarget {
+  value: number | null;
+  valueMax?: number | null;
+}
+
 export interface StrengthPrescription {
   chargeRefType?: ChargeRefType;
   chargeKgMin?: number | null;
@@ -114,6 +123,12 @@ export interface StrengthPrescription {
   restSecMin?: number | null;
   restSecMax?: number | null;
   maxPainAllowed?: number | null;
+  /**
+   * Volume série par série (pyramide 12 / 10 / 8). Absent quand toutes les séries sont
+   * identiques ; présent, il fait foi et les champs scalaires ci-dessus n'en gardent que
+   * l'enveloppe min–max.
+   */
+  setTargets?: SetTarget[] | null;
 }
 
 export interface StrengthExerciseItem {

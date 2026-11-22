@@ -333,7 +333,8 @@
             @if (!inlineVolume(block, item)) {
               @if (item.prescription.sets) { <span class="ex-sum-sets metric">{{ item.prescription.sets }} séries</span> }
               @if (volumeInfo(block, item.prescription); as r) {
-                <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+                @if (r.perSet) { <span class="vol-per-set metric">{{ r.label }} {{ r.perSet }}</span> }
+                @else { <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" /> }
               }
             }
             @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
@@ -412,7 +413,8 @@
           </div>
           <div class="pv-pills">
             @if (volumeInfo(block, item.prescription); as r) {
-              <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+              @if (r.perSet) { <span class="vol-per-set metric">{{ r.label }} {{ r.perSet }}</span> }
+              @else { <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" /> }
             }
             @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
             @if (chargePill(item.prescription); as c) {
@@ -446,19 +448,46 @@
            Une borne max laissée vide = valeur exacte ; remplie = fourchette. Plus de liste
            « Valeur exacte / Fourchette » à régler avant d'écrire un chiffre. -->
       <div class="qe">
-        <div class="qe-row">
-          <label class="qe-field qe-field--s"><span>Séries</span>
-            <input type="number" min="1" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></label>
-          <div class="qe-field qe-field--range">
-            <span>{{ volumeTypeOf(block, item) === 'DUREE' ? 'Durée (s)' : volumeTypeOf(block, item) === 'DISTANCE' ? 'Distance (m)' : 'Répétitions' }}</span>
-            <div class="qe-range">
-              <input type="number" min="0" class="form-control" aria-label="Volume (min ou valeur exacte)"
-                     [ngModel]="volLow(block, item)" (ngModelChange)="setVolLow(block, item, $event)" />
-              <span class="qe-dash">–</span>
-              <input type="number" min="0" class="form-control" placeholder="max" aria-label="Volume max (facultatif)"
-                     [ngModel]="volHigh(block, item)" (ngModelChange)="setVolHigh(block, item, $event)" />
-            </div>
+        <!-- Une ligne par série, comme sur le papier : la pyramide 12 / 10 / 8 s'écrit telle
+             quelle, et le menu « Travail » dit si le chiffre compte des répétitions, des
+             secondes ou des mètres (planche, porté du fermier). Séries toutes identiques =
+             « 3 × 8 » comme avant. Une borne max remplie = fourchette pour cette série. -->
+        <div class="qe-sets" role="group" aria-label="Séries">
+          <div class="qe-sets__head">
+            <span class="qe-sets__n"></span>
+            <label class="qe-sets__work">Travail
+              <select class="form-control qe-sets__unit" aria-label="Le travail se compte en"
+                      [ngModel]="volumeTypeOf(block, item)" (ngModelChange)="setVolumeType(block, item, $event)">
+                <option value="REPS">Rep</option>
+                <option value="DUREE">Durée</option>
+                <option value="DISTANCE">Distance</option>
+              </select>
+            </label>
           </div>
+          @for (row of setRows(block, item); track $index; let si = $index; let count = $count) {
+            <div class="qe-set">
+              <span class="qe-sets__n metric">{{ si + 1 }}.</span>
+              <div class="qe-range">
+                <input type="number" min="0" class="form-control" [attr.aria-label]="'Série ' + (si + 1) + ' : travail'"
+                       [ngModel]="row.value" (ngModelChange)="setRowValue(block, item, si, 'value', $event)" />
+                <span class="qe-dash">–</span>
+                <input type="number" min="0" class="form-control" placeholder="max"
+                       [attr.aria-label]="'Série ' + (si + 1) + ' : travail max (facultatif)'"
+                       [ngModel]="row.valueMax" (ngModelChange)="setRowValue(block, item, si, 'valueMax', $event)" />
+              </div>
+              <span class="qe-set__unit">{{ workUnit(block, item) }}</span>
+              <button type="button" class="btn btn-ghost btn-sm qe-set__del" [disabled]="count <= 1"
+                      (click)="removeSetRow(block, item, si)" [attr.aria-label]="'Retirer la série ' + (si + 1)">
+                <app-icon name="x" [size]="14" />
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn-ghost btn-sm qe-sets__add" (click)="addSetRow(block, item)">
+            <app-icon name="plus" [size]="14" /> Ajouter une série
+          </button>
+        </div>
+
+        <div class="qe-row">
           <label class="qe-field qe-field--s"><span>Tempo</span>
             <input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></label>
         </div>
@@ -544,17 +573,11 @@
         }
       </div>
 
-      <!-- Le reste, rarement touché, replié : unité de volume, latéralité, références de charge
+      <!-- Le reste, rarement touché, replié : latéralité, références de charge
            particulières. -->
       <details class="qe-more">
         <summary>Plus d'options</summary>
         <div class="presc-grid">
-          <div class="form-group"><label>Volume compté en</label>
-            <select class="form-control" [ngModel]="volumeTypeOf(block, item)"
-                    (ngModelChange)="setVolumeType(block, item, $event)">
-              @for (v of volumeTypes; track v.value) { <option [value]="v.value">{{ v.label }}</option> }
-            </select>
-          </div>
           <div class="form-group"><label>Côtés</label>
             <select class="form-control" [ngModel]="item.prescription.sideMode ?? 'BILATERAL'"
                     (ngModelChange)="setSideMode(item, $event)">
@@ -581,7 +604,8 @@
       <!-- Aperçu live de la prescription dans le panneau -->
       <div class="sp-preview">
         @if (volumeInfo(block, item.prescription); as r) {
-          <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+          @if (r.perSet) { <span class="vol-per-set metric">{{ r.label }} {{ r.perSet }}</span> }
+          @else { <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" /> }
         }
         @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
         @if (chargePill(item.prescription); as c) {

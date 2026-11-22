@@ -95,7 +95,7 @@ class GarminStrengthMapperTest {
     void unCircuitRepeteSesToursEtUnExerciceAuTempsPartEnTemps() {
         StrengthPrescription plank = new StrengthPrescription(null, null, null, null, null, null, null, null,
                 null, null, 1, VolumeType.DUREE, null, null, null, 45, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         StrengthStructure structure = new StrengthStructure(List.of(block(BlockType.ACCESSOIRE, BlockFormat.CIRCUIT,
                 3, 60, item("Gainage ventral", plank), item("Pompes", reps(1, null, 12, null, null, null)))));
 
@@ -133,7 +133,7 @@ class GarminStrengthMapperTest {
     void unExerciceNonReconnuGardeSonNomEtSesConsignes() {
         StrengthPrescription p = new StrengthPrescription(null, null, null, null, null, null, 7.0, 8.0,
                 null, null, 1, VolumeType.REPS, null, 8, 10, null, null, null, null, null,
-                SideMode.PAR_COTE, "3010", null, null, null);
+                SideMode.PAR_COTE, "3010", null, null, null, null);
         StrengthStructure structure = new StrengthStructure(List.of(block(BlockType.ECHAUFFEMENT, BlockFormat.CLASSIQUE,
                 null, null, item("Copenhagen adducteurs", p))));
 
@@ -145,6 +145,26 @@ class GarminStrengthMapperTest {
         assertThat(step.get("durationValue")).as("borne haute de la fourchette").isEqualTo(10.0);
         assertThat((String) step.get("description"))
                 .contains("Copenhagen adducteurs").contains("8-10 rép. par côté").contains("RPE 7-8").contains("tempo 3010");
+    }
+
+    @Test
+    void unePyramideDonneUnPasParSerieAvecLeReposEntreDeux() {
+        StrengthPrescription p = new StrengthPrescription(null, null, null, null, null, null, null, null,
+                null, null, 3, VolumeType.REPS, null, 8, 12, null, null, null, null, null,
+                null, null, 90, 90, null, List.of(new StrengthPrescription.SetTarget(12, null),
+                new StrengthPrescription.SetTarget(10, null), new StrengthPrescription.SetTarget(8, null)));
+        StrengthStructure structure = new StrengthStructure(List.of(block(BlockType.PRINCIPAL, BlockFormat.CLASSIQUE,
+                null, null, item("Squat arrière", p))));
+
+        List<Map<String, Object>> steps = steps(GarminStrengthMapper.toGarmin(
+                new GarminStrengthMapper.Source("S", structure, null)));
+
+        assertThat(steps).hasSize(5);
+        assertThat(steps.get(0).get("durationValue")).isEqualTo(12.0);
+        assertThat(steps.get(1).get("intensity")).isEqualTo("REST");
+        assertThat(steps.get(2).get("durationValue")).isEqualTo(10.0);
+        assertThat(steps.get(4).get("durationValue")).isEqualTo(8.0);
+        assertThat((String) steps.get(0).get("description")).contains("12/10/8 rép.");
     }
 
     @Test
@@ -160,7 +180,7 @@ class GarminStrengthMapperTest {
                                              Double kgMin, Double kgMax) {
         return new StrengthPrescription(null, kgMin, kgMax, null, null, null, null, null, null, null,
                 sets, VolumeType.REPS, repsFixed, repsMin, null, null, null, null, null, null,
-                null, null, rest, rest, null);
+                null, null, rest, rest, null, null);
     }
 
     private static StrengthExerciseItem item(String name, StrengthPrescription p) {

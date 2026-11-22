@@ -124,12 +124,16 @@ interface BlockRow {
                     />
                   }
                   @if (volume(ex); as v) {
-                    <app-range-prescription-pill
-                      [label]="v.label"
-                      [min]="v.min"
-                      [max]="v.max"
-                      [unit]="v.unit"
-                    />
+                    @if (v.perSet) {
+                      <span class="spv__perset metric">{{ v.label }} {{ v.perSet }}</span>
+                    } @else {
+                      <app-range-prescription-pill
+                        [label]="v.label"
+                        [min]="v.min"
+                        [max]="v.max"
+                        [unit]="v.unit"
+                      />
+                    }
                   }
                   @if (side(ex); as s) {
                     <span class="spv__side">{{ s }}</span>
@@ -220,6 +224,16 @@ interface BlockRow {
         align-items: baseline;
         gap: var(--sp-2);
         justify-content: space-between;
+      }
+      .spv__perset {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        color: var(--ink-2);
+        white-space: nowrap;
+        background: var(--primary-wash);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-full);
+        padding: 1px var(--sp-2);
       }
       .spv__sets {
         color: var(--ink-3);

@@ -150,6 +150,18 @@ public final class GarminStrengthMapper {
             int sets = p != null && p.sets() != null && p.sets() > 0 ? p.sets() : 1;
             Integer restSec = p == null ? null
                     : p.restSecMax() != null ? p.restSecMax() : p.restSecMin();
+            if (p != null && p.hasSetTargets() && p.setTargets().size() > 1) {
+                // Pyramide 12 / 10 / 8 : une répétition Garmin ne porte qu'un volume, chaque
+                // série devient donc son propre pas, suivi du repos sauf après la dernière.
+                List<StrengthPrescription.SetTarget> targets = p.setTargets();
+                for (int i = 0; i < targets.size(); i++) {
+                    out.add(exerciseStep(it, intensity, null, targets.get(i)));
+                    if (i < targets.size() - 1 && restSec != null && restSec > 0) {
+                        out.add(rest(restSec));
+                    }
+                }
+                continue;
+            }
             Map<String, Object> exercise = exerciseStep(it, intensity, null);
             if (sets == 1) {
                 out.add(exercise);
@@ -180,6 +192,12 @@ public final class GarminStrengthMapper {
     }
 
     private static Map<String, Object> exerciseStep(Item it, String intensity, Integer blockWorkSec) {
+        return exerciseStep(it, intensity, blockWorkSec, null);
+    }
+
+    /** {@code set} : le volume propre à une série, qui remplace celui de l'exercice. */
+    private static Map<String, Object> exerciseStep(Item it, String intensity, Integer blockWorkSec,
+                                                    StrengthPrescription.SetTarget set) {
         StrengthExerciseItem item = it.item();
         StrengthPrescription p = item.prescription();
         Map<String, Object> s = new LinkedHashMap<>();
@@ -191,6 +209,13 @@ public final class GarminStrengthMapper {
         Integer reps = p == null ? null : firstNonNull(p.repsFixed(), p.repsMax(), p.repsMin());
         Integer seconds = p == null ? null : firstNonNull(p.durationSec(), p.durationSecMax());
         Integer meters = p == null ? null : firstNonNull(p.distanceM(), p.distanceMMax());
+        if (set != null) {
+            Integer v = volume == VolumeType.REPS ? firstNonNull(set.valueMax(), set.value())
+                    : firstNonNull(set.value(), set.valueMax());
+            reps = v;
+            seconds = v;
+            meters = v;
+        }
         if (volume == VolumeType.DUREE && seconds != null && seconds > 0) {
             put(s, "TIME", seconds);
         } else if (volume == VolumeType.DISTANCE && meters != null && meters > 0) {
@@ -256,7 +281,8 @@ public final class GarminStrengthMapper {
         List<String> parts = new ArrayList<>();
         parts.add(item.exerciseName() == null || item.exerciseName().isBlank() ? "Exercice" : item.exerciseName().trim());
         if (p != null) {
-            String reps = range(p.repsMin(), p.repsMax(), p.repsFixed());
+            String reps = p.hasSetTargets() ? perSet(p.setTargets())
+                    : range(p.repsMin(), p.repsMax(), p.repsFixed());
             if (reps != null && p.effectiveVolumeType() == VolumeType.REPS) {
                 parts.add(reps + " rép." + (p.sideMode() == SideMode.PAR_COTE ? " par côté" : ""));
             } else if (p.sideMode() == SideMode.PAR_COTE) {
@@ -281,6 +307,16 @@ public final class GarminStrengthMapper {
             parts.add(item.coachNotes().trim());
         }
         return String.join(" · ", parts);
+    }
+
+    /** « 12/10/8 », ou « 8-10/6-8 » quand des séries sont en fourchette. */
+    private static String perSet(List<StrengthPrescription.SetTarget> targets) {
+        List<String> parts = new ArrayList<>();
+        for (StrengthPrescription.SetTarget t : targets) {
+            String v = range(t.value(), t.valueMax(), null);
+            parts.add(v == null ? "?" : v);
+        }
+        return String.join("/", parts);
     }
 
     private static String range(Integer min, Integer max, Integer fixed) {

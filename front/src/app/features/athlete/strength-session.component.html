@@ -185,7 +185,8 @@
                                            [max]="ex.rx.chargeKgMax ?? ex.rx.chargeKgMin" unit="kg" />
             }
             @if (ex.rx.volume; as v) {
-              <app-range-prescription-pill [label]="v.label" [min]="v.min" [max]="v.max" [unit]="v.unit" />
+              @if (v.perSet) { <span class="ss__perset metric">{{ v.label }} {{ v.perSet }}</span> }
+              @else { <app-range-prescription-pill [label]="v.label" [min]="v.min" [max]="v.max" [unit]="v.unit" /> }
             }
             @if (ex.side) { <span class="ss__side">{{ ex.side }}</span> }
             @if (ex.rx.effortKind && ex.rx.effortMin != null && ex.rx.effortMax != null) {
@@ -194,7 +195,7 @@
           </div>
 
           <!-- « Série 2/4 » : la question qu'on se pose entre deux séries, en gros. -->
-          <p class="ss__set-of metric">Série {{ setIndex() + 1 }}/{{ ex.sets.length }}</p>
+          <p class="ss__set-of metric">Série {{ setIndex() + 1 }}/{{ ex.sets.length }}@if (currentSet()?.target; as t) {<span class="ss__set-target"> · {{ t }}</span>}</p>
 
           @if (currentSet(); as set) {
             <!-- Charge : ± 2,5 kg, le plus petit disque. Aucun clavier ne s'ouvre. -->

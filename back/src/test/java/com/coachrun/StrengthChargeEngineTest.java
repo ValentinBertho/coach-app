@@ -22,7 +22,7 @@ class StrengthChargeEngineTest {
         return new StrengthPrescription(ref, null, null, pctMin, pctMax,
                 EffortRefType.RIR_RANGE, null, null, 1, 3,
                 4, null, 5, null, null, null, null, null, null, null, null,
-                "3-1-X-1", 120, 180, null);
+                "3-1-X-1", 120, 180, null, null);
     }
 
     @Test
@@ -40,7 +40,7 @@ class StrengthChargeEngineTest {
     void resolvesFixedAndRangeKg() {
         StrengthPrescription fixed = new StrengthPrescription(ChargeRefType.KG_FIXE, 60.0, null,
                 null, null, EffortRefType.RPE, 8.0, null, null, null,
-                3, null, 8, null, null, null, null, null, null, null, null, null, 90, 120, null);
+                3, null, 8, null, null, null, null, null, null, null, null, null, 90, 120, null, null);
         ChargeTarget t = engine.resolve(fixed, null);
         assertThat(t.computable()).isTrue();
         assertThat(t.kgMin()).isEqualTo(60.0);
@@ -53,7 +53,7 @@ class StrengthChargeEngineTest {
         // 1RM 100 kg, RM cible 5 reps → 100 × %1RM(5) ≈ 91.9 → arrondi 2,5 → 92.5.
         StrengthPrescription rmc = new StrengthPrescription(ChargeRefType.RM_CIBLE, null, null,
                 null, null, EffortRefType.RIR, null, null, 2, null,
-                4, null, 5, null, null, null, null, null, null, null, null, null, 120, 180, null);
+                4, null, 5, null, null, null, null, null, null, null, null, null, 120, 180, null, null);
         ChargeTarget t = engine.resolve(rmc, 100.0);
         assertThat(t.computable()).isTrue();
         assertThat(t.kgMin()).isEqualTo(92.5);

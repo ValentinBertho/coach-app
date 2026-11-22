@@ -1,6 +1,7 @@
 import type { StrengthPrescription } from '../models/strength.model';
 import {
-  effectiveVolumeType, isRestRange, restPill, sideLabel, volumePill,
+  applySetRows, effectiveVolumeType, isRestRange, restPill, setRowsOf, setTargetLabel, sideLabel,
+  volumePill,
 } from './strength-volume';
 
 /**
@@ -80,6 +81,50 @@ describe('strength-volume — volume prescrit d’un exercice', () => {
     /** Deux bornes identiques, c'est un repos strict écrit en deux fois. */
     it('ne prend pas deux bornes égales pour une fourchette', () => {
       expect(isRestRange({ restSecMin: 90, restSecMax: 90 })).toBeFalse();
+    });
+  });
+
+  describe('séries une à une (pyramide)', () => {
+    it('montre une prescription d’avant comme N séries identiques', () => {
+      expect(setRowsOf({ sets: 3, repsFixed: 8 })).toEqual([
+        { value: 8, valueMax: null }, { value: 8, valueMax: null }, { value: 8, valueMax: null },
+      ]);
+      expect(setRowsOf({ sets: 2, volumeType: 'DUREE', durationSec: 30, durationSecMax: 45 }))
+        .toEqual([{ value: 30, valueMax: 45 }, { value: 30, valueMax: 45 }]);
+    });
+
+    it('des séries identiques restent « 3 × 8 », sans détail série par série', () => {
+      const p: StrengthPrescription = { sets: 2, repsFixed: 5 };
+      applySetRows(p, null, [{ value: 8 }, { value: 8 }, { value: 8 }]);
+      expect(p.sets).toBe(3);
+      expect(p.repsFixed).toBe(8);
+      expect(p.setTargets).toBeNull();
+    });
+
+    it('garde chaque série quand elles diffèrent, avec l’enveloppe min–max en scalaire', () => {
+      const p: StrengthPrescription = { sets: 3, repsFixed: 8 };
+      applySetRows(p, null, [{ value: 12 }, { value: 10 }, { value: 8 }]);
+      expect(p.setTargets).toEqual([
+        { value: 12, valueMax: null }, { value: 10, valueMax: null }, { value: 8, valueMax: null },
+      ]);
+      expect(p.repsFixed).toBeNull();
+      expect([p.repsMin, p.repsMax]).toEqual([8, 12]);
+      expect(volumePill(p)?.perSet).toBe('12 / 10 / 8');
+      expect(setTargetLabel(p, null, 1)).toBe('10 reps');
+    });
+
+    it('écrit dans l’unité choisie : durée en secondes, distance en mètres', () => {
+      const p: StrengthPrescription = { sets: 2, volumeType: 'DISTANCE', distanceM: 20 };
+      applySetRows(p, null, [{ value: 20 }, { value: 40 }]);
+      expect([p.distanceM, p.distanceMMax]).toEqual([20, 40]);
+      expect(volumePill(p)?.perSet).toBe('20 / 40 m');
+      expect(setTargetLabel(p, null, 1)).toBe('40 m');
+      expect(p.repsFixed).toBeUndefined();
+    });
+
+    it('sans détail série par série, rien ne change à l’affichage', () => {
+      expect(volumePill({ sets: 3, repsFixed: 8 })?.perSet).toBeUndefined();
+      expect(setTargetLabel({ sets: 3, repsFixed: 8 }, null, 0)).toBeNull();
     });
   });
 });

@@ -35,6 +35,7 @@ import {
   SideMode,
   StrengthBlock,
   StrengthExerciseItem,
+  SetTarget,
   StrengthPrescription,
   StrengthSession,
   VolumeType,
@@ -44,7 +45,10 @@ import { SessionCategoryService } from '../../core/services/session-category.ser
 import {
   SIDE_MODE_LABELS,
   VOLUME_TYPE_LABELS,
+  applySetRows,
   effectiveVolumeType,
+  setRowsOf,
+  setTargetsOf,
   restPill,
   sideLabel,
   volumePill,
@@ -73,6 +77,9 @@ import {
   setMethod,
   setMethodConfig,
 } from '../../core/utils/set-method';
+
+/** Plafond de séries d'un exercice dans l'éditeur — au-delà, c'est une faute de frappe. */
+const MAX_SET_ROWS = 20;
 
 /**
  * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
@@ -683,6 +690,8 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     item: StrengthExerciseItem,
   ): 'REPS' | 'DUREE' | null {
     const p = item.prescription;
+    // Séries réglées une à une : deux champs ne sauraient les dire, la carte montre le résumé.
+    if (setTargetsOf(p)) return null;
     const type = this.volumeTypeOf(block, item);
     if (type === 'REPS' && p.repsFixed != null) return 'REPS';
     if (type === 'DUREE' && p.durationSecMax == null) return 'DUREE';
@@ -694,6 +703,58 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       value == null || !Number.isFinite(value)
         ? null
         : Math.max(1, Math.round(value));
+    // Séries réglées une à une : on garde chacune, la dernière sert de modèle aux nouvelles.
+    const targets = setTargetsOf(item.prescription);
+    if (targets && item.prescription.sets != null) {
+      const n = Math.min(item.prescription.sets, MAX_SET_ROWS);
+      const rows = Array.from({ length: n }, (_, i) => ({ ...(targets[i] ?? targets[targets.length - 1]) }));
+      item.prescription.setTargets = rows;
+    }
+    this.touch();
+  }
+
+  // --- Séries une à une : « Travail » en reps, durée ou distance --------------
+
+  /** Une ligne par série, comme dans le tableau Travail du panneau. */
+  setRows(block: StrengthBlock, item: StrengthExerciseItem): SetTarget[] {
+    return setRowsOf(item.prescription, block.format);
+  }
+
+  /** Unité affichée à droite de chaque valeur de travail. */
+  workUnit(block: StrengthBlock, item: StrengthExerciseItem): string {
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE': return 's';
+      case 'DISTANCE': return 'm';
+      default: return 'reps';
+    }
+  }
+
+  setRowValue(
+    block: StrengthBlock, item: StrengthExerciseItem, index: number,
+    key: 'value' | 'valueMax', raw: unknown,
+  ): void {
+    const rows = this.setRows(block, item);
+    if (!rows[index]) return;
+    const v = StrengthSessionEditorComponent.num(raw);
+    rows[index] = { ...rows[index], [key]: v == null ? null : Math.max(0, Math.round(v)) };
+    applySetRows(item.prescription, block.format, rows);
+    this.touch();
+  }
+
+  /** Nouvelle série, copie de la dernière : on ajoute le plus souvent « une de plus pareille ». */
+  addSetRow(block: StrengthBlock, item: StrengthExerciseItem): void {
+    const rows = this.setRows(block, item);
+    if (rows.length >= MAX_SET_ROWS) return;
+    rows.push({ ...rows[rows.length - 1] });
+    applySetRows(item.prescription, block.format, rows);
+    this.touch();
+  }
+
+  removeSetRow(block: StrengthBlock, item: StrengthExerciseItem, index: number): void {
+    const rows = this.setRows(block, item);
+    if (rows.length <= 1) return;
+    rows.splice(index, 1);
+    applySetRows(item.prescription, block.format, rows);
     this.touch();
   }
 
@@ -1215,6 +1276,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     type: VolumeType,
   ): void {
     const p = item.prescription;
+    // Changer d'unité garde le nombre de séries, mais pas leurs valeurs : « 12 / 10 / 8 » reps
+    // ne veut rien dire en secondes. Chaque série repart du volume par défaut de l'unité.
+    const sets = Math.max(1, p.sets ?? 1);
+    p.setTargets = null;
+    p.sets = sets;
     p.volumeType = type;
     if (type !== 'REPS') {
       p.repsFixed = null;

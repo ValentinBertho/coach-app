@@ -5,6 +5,8 @@ import com.coachrun.entity.enums.EffortRefType;
 import com.coachrun.entity.enums.SideMode;
 import com.coachrun.entity.enums.VolumeType;
 
+import java.util.List;
+
 /**
  * Prescription d'un exercice de force (cf. DARI Lab) : un référentiel de charge ET un référentiel
  * d'effort indépendants, plus volume, tempo, repos et douleur max tolérée (réathlétisation).
@@ -17,6 +19,12 @@ import com.coachrun.entity.enums.VolumeType;
  * <p>Champs historiques conservés : une prescription enregistrée avant l'ajout de
  * {@code volumeType} n'a pas ce champ en base ({@code null}) et se lit alors en répétitions —
  * ou en durée pour un bloc d'isométrie, seul endroit où {@code durationSec} servait.</p>
+ *
+ * <p><b>Volume série par série</b> ({@code setTargets}) : une pyramide 12 / 10 / 8 ne tient pas
+ * dans un seul nombre. Quand les séries diffèrent, chacune porte sa valeur (dans l'unité de
+ * {@code volumeType}) et les champs scalaires gardent l'enveloppe min–max — ce que lisent les
+ * calculs qui n'ont besoin que d'un ordre de grandeur. Absent ({@code null}) : toutes les séries
+ * sont identiques, comme pour toute prescription d'avant.</p>
  */
 public record StrengthPrescription(
         ChargeRefType chargeRefType,
@@ -37,8 +45,22 @@ public record StrengthPrescription(
 
         String tempo,
         Integer restSecMin, Integer restSecMax,
-        Integer maxPainAllowed
+        Integer maxPainAllowed,
+
+        List<SetTarget> setTargets
 ) {
+
+    /**
+     * Le travail d'une série, dans l'unité de la prescription : valeur exacte, ou fourchette
+     * quand {@code valueMax} est renseigné.
+     */
+    public record SetTarget(Integer value, Integer valueMax) {
+    }
+
+    /** Les séries ont-elles chacune leur propre volume ? */
+    public boolean hasSetTargets() {
+        return setTargets != null && !setTargets.isEmpty();
+    }
 
     /**
      * Même prescription, charges remplacées. Les services qui décalent ou mettent à l'échelle une
@@ -52,7 +74,7 @@ public record StrengthPrescription(
                 effortRefType, rpeMin, rpeMax, rirMin, rirMax,
                 sets, volumeType, repsFixed, repsMin, repsMax,
                 durationSec, durationSecMax, distanceM, distanceMMax, plyoContacts, sideMode,
-                tempo, restSecMin, restSecMax, maxPainAllowed);
+                tempo, restSecMin, restSecMax, maxPainAllowed, setTargets);
     }
 
     /** Unité de volume effective : celle prescrite, ou les répétitions par défaut (historique). */
