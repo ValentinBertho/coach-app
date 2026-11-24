@@ -49,7 +49,7 @@
         <app-icon name="x" [size]="13" /> Tout afficher
       </button>
     </div>
-  } @else if (groups().length > 1) {
+  } @else if (groups().length > 1 || foldByDefault()) {
     <div class="slp-active slp-active--tools">
       <span class="slp-active__txt">{{ totalCount() }} séances</span>
       <button type="button" class="slp-clear" (click)="toggleAll()">
@@ -69,37 +69,53 @@
     </p>
   }
 
-  <!-- Favoris (épinglés) — course uniquement : l'épingle n'existe que là. -->
+  <!-- Favoris et fréquentes : des dossiers comme les autres, en tête. Les favoris restent
+       ouverts par défaut ; c'est le geste « je refais la même ». -->
   @if (favorites().length) {
     <section class="slp-group slp-quick">
-      <div class="slp-quick-hd"><app-icon name="star" [size]="13" /> Favoris</div>
-      <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-        @for (item of favorites(); track item.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="item.data"
-               (click)="select(item)" [title]="itemHint()">
-            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ item.name }}</span>
-            <button type="button" class="li-star on" (click)="$event.stopPropagation(); toggleFavorite(item)"
-                    aria-label="Retirer des favoris"><app-icon name="star" [size]="15" /></button>
-          </div>
-        }
-      </div>
+      <button type="button" class="slp-group__hd" (click)="toggleGroup(FAVORITES_KEY)"
+              [attr.aria-expanded]="!isCollapsed(FAVORITES_KEY)">
+        <app-icon class="slp-chevron" [name]="isCollapsed(FAVORITES_KEY) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+        <app-icon name="star" [size]="14" />
+        <span class="slp-group__name">Favoris</span>
+        <span class="slp-count">{{ favorites().length }}</span>
+      </button>
+      @if (!isCollapsed(FAVORITES_KEY)) {
+        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
+          @for (item of favorites(); track item.id) {
+            <div class="lib-item course" cdkDrag [cdkDragData]="item.data"
+                 (click)="select(item)" [title]="itemHint()">
+              <app-icon class="li-icon" name="footprints" [size]="14" /><span class="li-name">{{ item.name }}</span>
+              <button type="button" class="li-star on" (click)="$event.stopPropagation(); toggleFavorite(item)"
+                      aria-label="Retirer des favoris"><app-icon name="star" [size]="14" /></button>
+            </div>
+          }
+        </div>
+      }
     </section>
   }
 
-  <!-- Fréquentes (les plus utilisées) -->
   @if (frequent().length) {
     <section class="slp-group slp-quick">
-      <div class="slp-quick-hd"><app-icon name="trending-up" [size]="13" /> Fréquentes</div>
-      <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-        @for (item of frequent(); track item.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="item.data"
-               (click)="select(item)" [title]="itemHint()">
-            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ item.name }}</span>
-            <button type="button" class="li-star" (click)="$event.stopPropagation(); toggleFavorite(item)"
-                    aria-label="Ajouter aux favoris"><app-icon name="star" [size]="15" /></button>
-          </div>
-        }
-      </div>
+      <button type="button" class="slp-group__hd" (click)="toggleGroup(FREQUENT_KEY)"
+              [attr.aria-expanded]="!isCollapsed(FREQUENT_KEY)">
+        <app-icon class="slp-chevron" [name]="isCollapsed(FREQUENT_KEY) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+        <app-icon name="trending-up" [size]="14" />
+        <span class="slp-group__name">Fréquentes</span>
+        <span class="slp-count">{{ frequent().length }}</span>
+      </button>
+      @if (!isCollapsed(FREQUENT_KEY)) {
+        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
+          @for (item of frequent(); track item.id) {
+            <div class="lib-item course" cdkDrag [cdkDragData]="item.data"
+                 (click)="select(item)" [title]="itemHint()">
+              <app-icon class="li-icon" name="footprints" [size]="14" /><span class="li-name">{{ item.name }}</span>
+              <button type="button" class="li-star" (click)="$event.stopPropagation(); toggleFavorite(item)"
+                      aria-label="Ajouter aux favoris"><app-icon name="star" [size]="14" /></button>
+            </div>
+          }
+        </div>
+      }
     </section>
   }
 
@@ -119,14 +135,14 @@
           @for (item of g.items; track item.id) {
             <div class="lib-item" [class.course]="g.kind === 'course'" [class.drill]="g.kind === 'drill'"
                  cdkDrag [cdkDragData]="item.data" (click)="select(item)" [title]="itemHint()">
-              <app-icon class="li-icon" [name]="g.icon" [size]="16" /><span class="li-name">{{ item.name }}</span>
+              <app-icon class="li-icon" [name]="g.icon" [size]="14" /><span class="li-name">{{ item.name }}</span>
               @if (g.kind === 'course') {
                 <button type="button" class="li-star" [class.on]="item.favorite"
                         (click)="$event.stopPropagation(); toggleFavorite(item)"
                         [attr.aria-label]="item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'">
-                  <app-icon name="star" [size]="15" />
+                  <app-icon name="star" [size]="14" />
                 </button>
-                @if (!pickMode()) { <app-icon class="li-eye" name="eye" [size]="15" /> }
+                @if (!pickMode()) { <app-icon class="li-eye" name="eye" [size]="14" /> }
               }
             </div>
           }
