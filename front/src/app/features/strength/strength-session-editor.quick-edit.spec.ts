@@ -72,6 +72,14 @@ describe('strength-session-editor — édition rapide d’un exercice', () => {
     expect(item.prescription.repsFixed).toBeNull();
   });
 
+  it('récup : une seule valeur, qui remplace une ancienne fourchette', () => {
+    item.prescription.restSecMin = 60;
+    item.prescription.restSecMax = 90;
+    c.setRest(item, 120);
+    expect(item.prescription).toEqual(jasmine.objectContaining({ restSecMin: 120, restSecMax: null }));
+    expect(c.restInfo(item.prescription)).toEqual({ label: 'Récup', min: 120, max: 120, unit: 's' });
+  });
+
   it('charge : passe de fourchette à valeur exacte, et de % RM à kg', () => {
     c.setChargeHigh(item, null);
     expect(item.prescription.chargeRefType).toBe('PCT_RM');
