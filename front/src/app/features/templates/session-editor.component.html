@@ -145,13 +145,32 @@
 @if (loading()) {
   <div class="card">Chargement de la séance…</div>
 } @else {
+<!-- Grand écran : la bibliothèque reste ouverte à gauche, comme dans l'éditeur de renforcement.
+     On y glisse une séance (ses blocs sont recopiés à l'endroit du dépôt) ou un éducatif (posé
+     sur un bloc) ; un clic ajoute directement. -->
+<div class="compose" [class.compose--wide]="wide()" cdkDropListGroup>
+@if (wide()) {
+  <aside class="lib-col card" aria-label="Bibliothèque">
+    <h3 class="lib-col__title">Bibliothèque</h3>
+    <p class="field-hint">Glisse une séance ou un éducatif sur la séance, ou clique pour l'ajouter.</p>
+    <app-session-library-panel
+      [pickMode]="true"
+      pickHint="Ajouter à cette séance"
+      [courseTemplates]="libraryTemplates()"
+      [drills]="drills()"
+      [categories]="categories()"
+      (courseSelect)="importTemplate($event)"
+      (drillSelect)="addDrillFromLibrary($event)" />
+  </aside>
+}
+<div class="compose__main">
 @for (sec of visibleSections(); track sec.key) {
   <section class="section">
     <header class="section-head">
       @if (!isSimple()) { <h2>{{ sec.label }}</h2> }
     </header>
 
-    <div class="block-list" cdkDropList (cdkDropListDropped)="dropBlock(sec.key, $event)">
+    <div class="block-list" cdkDropList [cdkDropListData]="sec.key" (cdkDropListDropped)="dropBlock(sec.key, $event)">
     @for (b of blocks(sec.key); track b.id) {
       <article class="block" [class.block--group]="(b.reps ?? 0) > 1" cdkDrag>
         <!-- Ligne effort : reps · volume · zone · outils -->
@@ -593,4 +612,6 @@
     </p>
   </div>
 </section>
+</div>
+</div>
 }

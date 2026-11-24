@@ -878,6 +878,67 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.libGroups().reduce((n, g) => n + g.exercises.length, 0),
   );
 
+  /**
+   * Dossiers de la bibliothèque, façon Nolio : une grande bibliothèque s'ouvre repliée (on voit
+   * les familles d'un coup d'œil), une petite reste dépliée. Le choix du coach est mémorisé par
+   * dossier ; une recherche, un filtre ou un onglet Favoris / Fréquents déplie tout.
+   */
+  static readonly FOLD_THRESHOLD = 10;
+  private static readonly FOLDS_KEY = 'coach-exlib-folds';
+  private readonly libFolds = signal<Record<string, boolean>>(StrengthSessionEditorComponent.readFolds());
+  readonly libFoldByDefault = computed(
+    () =>
+      this.exercises().length > StrengthSessionEditorComponent.FOLD_THRESHOLD &&
+      this.libCategoryChoices().length > 1,
+  );
+  private readonly libFoldable = computed(
+    () => this.libTab() === 'all' && !this.libQuery().trim() && !this.libCategory(),
+  );
+  readonly libCanFold = computed(() => this.libFoldable() && this.libGroups().length > 1);
+
+  isLibGroupFolded(key: string): boolean {
+    if (!this.libFoldable()) return false;
+    return this.libFolds()[key] ?? this.libFoldByDefault();
+  }
+
+  toggleLibGroup(key: string): void {
+    this.libFolds.update((f) => ({ ...f, [key]: !this.isLibGroupFolded(key) }));
+    this.persistLibFolds();
+  }
+
+  readonly libAllFolded = computed(() => {
+    this.libFolds();
+    return this.libGroups().every((g) => this.isLibGroupFolded(g.key));
+  });
+
+  toggleAllLibGroups(): void {
+    const fold = !this.libAllFolded();
+    const next: Record<string, boolean> = { ...this.libFolds() };
+    for (const g of this.libGroups()) next[g.key] = fold;
+    this.libFolds.set(next);
+    this.persistLibFolds();
+  }
+
+  private persistLibFolds(): void {
+    try {
+      localStorage.setItem(StrengthSessionEditorComponent.FOLDS_KEY, JSON.stringify(this.libFolds()));
+    } catch {
+      /* stockage indisponible (navigation privée) : le repli vaut pour la visite. */
+    }
+  }
+
+  private static readFolds(): Record<string, boolean> {
+    try {
+      const raw = localStorage.getItem(StrengthSessionEditorComponent.FOLDS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, boolean>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
   setLibTab(tab: 'all' | 'favorites' | 'frequent'): void {
     this.libTab.set(tab);
     this.libCategory.set('');

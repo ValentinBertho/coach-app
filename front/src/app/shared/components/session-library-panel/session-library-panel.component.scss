@@ -49,34 +49,42 @@
 }
 .slp-clear:hover { color: var(--primary); }
 
-/* Accordéon de catégorie */
-.slp-group { border-top: 1px solid var(--hairline); }
-.slp-group:first-of-type { border-top: none; }
+/* Dossiers façon Nolio : une pile de boîtes grises fermées, qu'on ouvre une à une. On voit
+   toutes les catégories d'un coup d'œil au lieu de faire défiler toutes les séances. */
+.slp-group { margin-bottom: var(--sp-1); }
 .slp-group__hd {
   display: flex; align-items: center; gap: var(--sp-2);
-  width: 100%; padding: var(--sp-2) var(--sp-1);
-  background: transparent; border: none; cursor: pointer;
+  width: 100%; padding: var(--sp-2);
+  background: var(--paper-sunk); border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm); cursor: pointer;
   color: var(--ink-2); font-weight: 700; font-size: var(--text-sm);
   text-align: left;
 }
-.slp-group__hd:hover { color: var(--ink); }
+.slp-group__hd:hover { color: var(--ink); border-color: var(--ink-4); }
+.slp-group__hd[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .slp-group__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slp-chevron { color: var(--ink-3); }
 .slp-count {
   font-family: var(--font-data); font-size: var(--text-2xs); font-weight: 800;
-  background: var(--paper-sunk); color: var(--ink-3);
+  background: var(--paper); color: var(--ink-3);
   padding: 0 var(--sp-2); border-radius: var(--radius-full);
 }
 
-/* Liste d'items draggables */
-.lib-list { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 0 var(--sp-2); min-height: 8px; }
+/* Séances : des pastilles compactes et colorées par famille (course, prépa, éducatifs), qu'on
+   attrape pour les glisser sur un jour. */
+.lib-list {
+  display: flex; flex-direction: column; gap: 3px; min-height: 8px;
+  padding: var(--sp-1); border: 1px solid var(--hairline); border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
 .lib-item {
-  display: flex; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
+  display: flex; align-items: center; gap: var(--sp-1);
+  padding: 3px var(--sp-2);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--block-classique) 14%, var(--paper));
-  border: 1px solid color-mix(in srgb, var(--block-classique) 40%, transparent);
-  font-size: var(--text-sm); font-weight: 600; cursor: grab;
+  background: color-mix(in srgb, var(--block-classique) 30%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--block-classique) 55%, transparent);
+  border-left-width: 3px;
+  font-size: var(--text-xs); font-weight: 700; color: var(--ink); cursor: grab;
 }
 .lib-item:active { cursor: grabbing; }
 .li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
@@ -87,16 +95,13 @@
 .li-star.on { opacity: 1; color: var(--dari-amber, #eab308); }
 .li-star.on app-icon { fill: currentColor; }
 
-/* Sections d'accès rapide (favoris / fréquentes) */
-.slp-quick { margin-bottom: var(--sp-3); }
-.slp-quick-hd { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; padding: var(--sp-1) var(--sp-2); }
 .lib-item.course {
-  background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
-  border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);
+  background: color-mix(in srgb, var(--dari-teal) 28%, var(--paper));
+  border-color: color-mix(in srgb, var(--dari-teal) 55%, transparent);
 }
 .lib-item.drill {
-  background: color-mix(in srgb, var(--dari-violet) 12%, var(--paper));
-  border-color: color-mix(in srgb, var(--dari-violet) 38%, transparent);
+  background: color-mix(in srgb, var(--dari-violet) 24%, var(--paper));
+  border-color: color-mix(in srgb, var(--dari-violet) 52%, transparent);
 }
 
 /* Aperçu / placeholder du drag (cohérent avec le calendrier) */

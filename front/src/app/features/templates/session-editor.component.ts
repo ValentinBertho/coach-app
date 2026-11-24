@@ -1,10 +1,13 @@
 import { DecimalPipe } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   CdkDragDrop,
   DragDropModule,
   moveItemInArray,
+  transferArrayItem,
 } from '@angular/cdk/drag-drop';
-import { switchMap, tap } from 'rxjs';
+import { map, switchMap, tap } from 'rxjs';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -60,6 +63,9 @@ import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/a
 import { Autosave } from '../../core/services/autosave';
 import { formatMinSec, parseMinSec } from '../../core/utils/duration';
 import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
+import { WorkoutTemplateService } from '../../core/services/workout-template.service';
+import { WorkoutTemplate } from '../../core/models/workout-template.model';
+import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
 
 /** Statut de complétude du profil pour la prescription course. */
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
@@ -197,6 +203,7 @@ function applyUnit(
     IconComponent,
     ZonePickerComponent,
     AutosaveBadgeComponent,
+    SessionLibraryPanelComponent,
   ],
   templateUrl: './session-editor.component.html',
   styleUrl: './session-editor.component.scss',
@@ -226,6 +233,24 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   readonly autosave = new Autosave(() => this.persist(), inject(DestroyRef));
 
   readonly drills = signal<RunDrill[]>([]);
+
+  // --- Bibliothèque à gauche (grand écran), comme dans l'éditeur de renforcement ---------------
+
+  private readonly templateService = inject(WorkoutTemplateService);
+
+  /** Colonne bibliothèque affichée à partir de 1100 px : en dessous, elle mangerait les blocs. */
+  readonly wide = toSignal(
+    inject(BreakpointObserver)
+      .observe('(min-width: 1100px)')
+      .pipe(map((r) => r.matches)),
+    { initialValue: false },
+  );
+
+  /** Séances course du club, hors celle qu'on édite : on ne s'importe pas soi-même. */
+  private readonly allTemplates = signal<WorkoutTemplate[]>([]);
+  readonly libraryTemplates = computed(() =>
+    this.allTemplates().filter((t) => t.id !== this.templateId()),
+  );
 
   /** Profil physio de l'athlète du calculateur (null tant qu'aucun athlète n'est choisi). */
   readonly profile = signal<PhysioProfile | null>(null);
@@ -621,6 +646,10 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
 
   ngOnInit(): void {
     this.drillService.list().subscribe((d) => this.drills.set(d));
+    this.templateService.listAll().subscribe({
+      next: (t) => this.allTemplates.set(t),
+      error: () => this.allTemplates.set([]),
+    });
     this.metricService.list().subscribe((m) => this.metrics.set(m));
     this.categoryService.list().subscribe({
       next: (c) => this.categories.set(c),
@@ -1458,16 +1487,101 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /** Réordonne les blocs d'une section par glisser-déposer (cohérent avec l'éditeur de force). */
+  /**
+   * Dépôt dans une section : réordonner, déplacer un bloc d'une section à l'autre, ou recevoir
+   * ce qu'on glisse depuis la bibliothèque — une séance (ses blocs sont recopiés à cet endroit)
+   * ou un éducatif (rattaché au bloc sur lequel on le pose).
+   */
   dropBlock(
     key: keyof SessionStructure,
-    event: CdkDragDrop<CourseBlock[]>,
+    // Une section (sa clé) ou une liste de la bibliothèque (sans donnée) : d'où le type ouvert.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    event: CdkDragDrop<any>,
   ): void {
-    if (event.previousIndex === event.currentIndex) return;
     const s = this.structure();
-    const arr = [...s[key]];
-    moveItemInArray(arr, event.previousIndex, event.currentIndex);
-    this.structure.set({ ...s, [key]: arr });
-    this.touch();
+    const from = event.previousContainer.data as unknown;
+    if (event.previousContainer === event.container) {
+      if (event.previousIndex === event.currentIndex) return;
+      const arr = [...s[key]];
+      moveItemInArray(arr, event.previousIndex, event.currentIndex);
+      this.structure.set({ ...s, [key]: arr });
+      this.touch();
+      return;
+    }
+    if (from === 'warmup' || from === 'main' || from === 'cooldown') {
+      const src = [...s[from]];
+      const dst = [...s[key]];
+      transferArrayItem(src, dst, event.previousIndex, event.currentIndex);
+      this.structure.set({ ...s, [from]: src, [key]: dst });
+      this.touch();
+      return;
+    }
+    const data = event.item.data as WorkoutTemplate | RunDrill | null;
+    if (!data) return;
+    if (this.drills().some((d) => d.id === data.id)) {
+      const blocks = s[key];
+      const target = blocks[Math.min(event.currentIndex, blocks.length - 1)];
+      this.attachDrill(data as RunDrill, target);
+    } else {
+      this.importTemplate(data as WorkoutTemplate, key, event.currentIndex);
+    }
+  }
+
+  /** « + » ou clic sur un éducatif : rattaché au dernier bloc du corps de séance. */
+  addDrillFromLibrary(drill: RunDrill): void {
+    const main = this.structure().main;
+    this.attachDrill(drill, main[main.length - 1]);
+  }
+
+  private attachDrill(drill: RunDrill, target: CourseBlock | undefined): void {
+    if (!target) {
+      this.toast.info('Ajoute d’abord un bloc, puis glisse l’éducatif dessus.');
+      return;
+    }
+    if (!this.hasDrill(target, drill.id)) this.toggleDrill(target, drill.id);
+    this.toast.success(`${drill.name} ajouté au bloc.`);
+  }
+
+  /**
+   * Recopie les blocs d'une séance de la bibliothèque : échauffement, corps et retour au calme
+   * vont chacun dans leur section. Déposée dans une section précise, la séance n'y verse que sa
+   * partie correspondante (ou son corps, si elle n'en a pas), à l'endroit du dépôt — c'est le
+   * geste « j'insère ce fractionné ici ».
+   */
+  importTemplate(
+    t: WorkoutTemplate,
+    at?: keyof SessionStructure,
+    index?: number,
+  ): void {
+    this.course.getStructure(t.id).subscribe({
+      next: (res) => {
+        const clone = (blocks: CourseBlock[] | undefined) =>
+          (blocks ?? []).map((b) => ({ ...structuredClone(b), id: newId() }));
+        const s = this.structure();
+        let next: SessionStructure;
+        if (at) {
+          const part = res.structure[at]?.length ? res.structure[at] : res.structure.main;
+          const src = clone(part);
+          const arr = [...s[at]];
+          arr.splice(index ?? arr.length, 0, ...src);
+          next = { ...s, [at]: arr };
+        } else {
+          next = {
+            warmup: [...s.warmup, ...clone(res.structure.warmup)],
+            main: [...s.main, ...clone(res.structure.main)],
+            cooldown: [...s.cooldown, ...clone(res.structure.cooldown)],
+          };
+          if (res.structure.warmup.length || res.structure.cooldown.length) {
+            this.enableStructured();
+          }
+        }
+        this.structure.set(next);
+        this.recalcAll();
+        this.touch();
+        this.toast.success(`Blocs de « ${t.name} » ajoutés.`);
+      },
+      error: () => this.toast.error('Impossible de lire cette séance.'),
+    });
   }
 
   onAthleteChange(id: string): void {

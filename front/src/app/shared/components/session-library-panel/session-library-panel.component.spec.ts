@@ -123,7 +123,7 @@ describe('SessionLibraryPanelComponent — filtres', () => {
     // Le repli des accordéons est mémorisé dans `localStorage` — donc partagé par les tests du
     // même navigateur. Sans ce ménage, un test qui replie une catégorie en cache le contenu au
     // suivant, et l'échec désigne le mauvais coupable.
-    try { localStorage.removeItem('coach-lib-collapsed'); } catch { /* indisponible : rien à nettoyer */ }
+    try { localStorage.removeItem('coach-lib-collapsed'); localStorage.removeItem('coach-lib-folds'); } catch { /* indisponible : rien à nettoyer */ }
 
     await TestBed.configureTestingModule({
       imports: [SessionLibraryPanelComponent],
@@ -257,5 +257,23 @@ describe('SessionLibraryPanelComponent — filtres', () => {
 
     expect(component.filtersActive()).toBe(false);
     expect(names().length).toBe(5);
+  });
+
+  /**
+   * Façon Nolio : une grosse bibliothèque s'affiche en dossiers fermés, sauf les favoris ; une
+   * petite reste dépliée. Ce que le coach ouvre ou ferme lui-même est respecté.
+   */
+  it('replie les dossiers par défaut quand la bibliothèque est grande', () => {
+    expect(component.foldByDefault()).withContext('5 séances : tout reste déplié').toBeFalse();
+
+    const many = Array.from({ length: 12 }, (_, i) => template(`m${i}`, `Séance ${i}`, i % 2 ? 'c-seuil' : null));
+    fixture.componentRef.setInput('courseTemplates', many);
+    fixture.detectChanges();
+
+    expect(component.foldByDefault()).toBeTrue();
+    expect(names()).toEqual([]);
+    component.toggleGroup('course:c-seuil');
+    fixture.detectChanges();
+    expect(names().length).toBe(6);
   });
 });

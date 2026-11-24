@@ -327,6 +327,24 @@
 .ex-lib__n { font-family: var(--font-data); font-size: var(--text-xs); opacity: 0.7; }
 .ex-lib__list { overflow-y: auto; min-height: 0; flex: 1; margin: 0 calc(-1 * var(--sp-1)); padding: 0 var(--sp-1); }
 .ex-lib__group { display: flex; flex-direction: column; }
+/* Dossiers repliables, façon Nolio (même rendu que la colonne du calendrier). */
+.ex-lib__tools { display: flex; justify-content: flex-end; }
+.ex-lib__fold-all {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  background: none; border: 0; cursor: pointer; padding: var(--sp-1) 0;
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-3);
+}
+.ex-lib__fold-all:hover { color: var(--ink); }
+.ex-lib__group-hd {
+  display: flex; align-items: center; gap: var(--sp-2);
+  width: 100%; padding: var(--sp-2); margin-bottom: var(--sp-1);
+  background: var(--paper-sunk); border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm); cursor: pointer;
+  color: var(--ink-2); font-weight: 700; font-size: var(--text-sm); text-align: left;
+}
+.ex-lib__group-hd:hover { color: var(--ink); border-color: var(--ink-4); }
+.ex-lib__group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-lib__chev { color: var(--ink-3); }
 
 .ex-card {
   display: flex; align-items: center; gap: var(--sp-2);

@@ -126,9 +126,12 @@ export class SessionLibraryPanelComponent {
   /** Émis au clic sur l'étoile (épingler / dé-épingler un favori). */
   readonly favoriteToggle = output<WorkoutTemplate>();
 
+  /** Infobulle du clic en `pickMode`, quand l'hôte ne planifie pas (éditeur de séance). */
+  readonly pickHint = input<string | null>(null);
+
   /** Infobulle des items : le clic ne fait pas la même chose selon le mode. */
   readonly itemHint = computed(() =>
-    this.pickMode() ? 'Planifier cette séance' : 'Consulter la séance',
+    this.pickMode() ? (this.pickHint() ?? 'Planifier cette séance') : 'Consulter la séance',
   );
 
   // --- Filtres ---------------------------------------------------------------
@@ -392,59 +395,92 @@ export class SessionLibraryPanelComponent {
       this.favoriteToggle.emit(item.data as WorkoutTemplate);
   }
 
-  // --- Repli des accordéons (mémorisé entre sessions) -----------------------
-  private static readonly KEY = 'coach-lib-collapsed';
-  readonly collapsed = signal<Set<string>>(this.readCollapsed());
+  // --- Repli des dossiers (mémorisé entre sessions) ------------------------
 
-  private readCollapsed(): Set<string> {
+  /**
+   * Dossiers repliés par défaut dès que la bibliothèque est grande, comme chez Nolio : on voit
+   * d'un coup d'œil toutes les catégories (Footing, Seuil, Renfo…) et on n'ouvre que celle qu'on
+   * cherche. Une petite bibliothèque reste dépliée — replier cinq séances, c'est cacher pour rien.
+   * Les favoris restent ouverts : c'est l'accès « je refais la même ».
+   */
+  static readonly FOLD_THRESHOLD = 10;
+  static readonly FAVORITES_KEY = 'quick:fav';
+  static readonly FREQUENT_KEY = 'quick:freq';
+  readonly FAVORITES_KEY = SessionLibraryPanelComponent.FAVORITES_KEY;
+  readonly FREQUENT_KEY = SessionLibraryPanelComponent.FREQUENT_KEY;
+
+  private static readonly KEY = 'coach-lib-folds';
+  /** Ce que le coach a lui-même ouvert (false) ou replié (true) ; le reste suit le défaut. */
+  readonly folds = signal<Record<string, boolean>>(this.readFolds());
+
+  private readFolds(): Record<string, boolean> {
     try {
       const raw = localStorage.getItem(SessionLibraryPanelComponent.KEY);
-      if (raw) return new Set<string>(JSON.parse(raw));
+      if (raw) return JSON.parse(raw) as Record<string, boolean>;
+      // Ancienne préférence (liste des dossiers repliés) : on la reprend telle quelle.
+      const legacy = localStorage.getItem('coach-lib-collapsed');
+      if (legacy) {
+        return Object.fromEntries((JSON.parse(legacy) as string[]).map((k) => [k, true]));
+      }
     } catch {
-      /* stockage indisponible : tout déplié par défaut */
+      /* stockage indisponible : on suit le défaut */
     }
-    return new Set();
+    return {};
+  }
+
+  /** Tous les dossiers affichés, accès rapides compris. */
+  private readonly folderKeys = computed(() => [
+    ...(this.favorites().length ? [SessionLibraryPanelComponent.FAVORITES_KEY] : []),
+    ...(this.frequent().length ? [SessionLibraryPanelComponent.FREQUENT_KEY] : []),
+    ...this.groups().map((g) => g.key),
+  ]);
+
+  /** La bibliothèque est assez grande pour qu'on la parcoure par dossiers fermés. */
+  readonly foldByDefault = computed(
+    () =>
+      this.totalCount() > SessionLibraryPanelComponent.FOLD_THRESHOLD &&
+      this.groups().length > 1,
+  );
+
+  private foldedState(key: string): boolean {
+    const own = this.folds()[key];
+    if (own !== undefined) return own;
+    if (key === SessionLibraryPanelComponent.FAVORITES_KEY) return false;
+    return this.foldByDefault();
   }
 
   /**
-   * Un groupe est replié seulement quand on <b>parcourt</b>.
+   * Un dossier est replié seulement quand on <b>parcourt</b>.
    *
    * <p>Dès qu'un filtre est posé, tout s'ouvre : chercher « bulgare » dans une catégorie repliée
    * n'affichait que l'en-tête et son compte — la séance trouvée restait cachée derrière le clic
    * qu'on venait précisément d'économiser.</p>
    */
   isCollapsed(key: string): boolean {
-    return !this.filtersActive() && this.collapsed().has(key);
+    return !this.filtersActive() && this.foldedState(key);
   }
 
   toggleGroup(key: string): void {
-    const s = new Set(this.collapsed());
-    if (s.has(key)) s.delete(key);
-    else s.add(key);
-    this.persistCollapsed(s);
+    this.persistFolds({ ...this.folds(), [key]: !this.foldedState(key) });
   }
 
   /** Tout replier : la vue d'ensemble d'une grosse bibliothèque tient alors dans un écran. */
   readonly allCollapsed = computed(() => {
-    const keys = this.groups().map((g) => g.key);
-    return keys.length > 0 && keys.every((k) => this.collapsed().has(k));
+    const keys = this.folderKeys();
+    return keys.length > 0 && keys.every((k) => this.foldedState(k));
   });
 
   toggleAll(): void {
-    const s = new Set(this.collapsed());
-    const keys = this.groups().map((g) => g.key);
-    if (this.allCollapsed()) for (const k of keys) s.delete(k);
-    else for (const k of keys) s.add(k);
-    this.persistCollapsed(s);
+    const fold = !this.allCollapsed();
+    const next = { ...this.folds() };
+    for (const k of this.folderKeys()) next[k] = fold;
+    this.persistFolds(next);
   }
 
-  private persistCollapsed(s: Set<string>): void {
-    this.collapsed.set(s);
+  private persistFolds(next: Record<string, boolean>): void {
+    this.folds.set(next);
     try {
-      localStorage.setItem(
-        SessionLibraryPanelComponent.KEY,
-        JSON.stringify([...s]),
-      );
+      localStorage.setItem(SessionLibraryPanelComponent.KEY, JSON.stringify(next));
     } catch {
       /* préférence non persistée, sans gravité */
     }
