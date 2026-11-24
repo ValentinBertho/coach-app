@@ -44,6 +44,11 @@ import { supportMailto as supportLink } from '../../shared/components/support-li
   ],
   templateUrl: './coach-layout.component.html',
   styleUrl: './coach-layout.component.scss',
+  // Le menu du compte descend désormais sur le contenu : un clic ailleurs ou Échap le referme.
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+    '(document:keydown.escape)': 'closeAccount()',
+  },
 })
 export class CoachLayoutComponent implements OnInit {
   /** Public : le gabarit lit l'espace actif pour présélectionner le sélecteur. */
@@ -141,37 +146,19 @@ export class CoachLayoutComponent implements OnInit {
     return this.solo() && u.clubName === u.fullName ? null : u.clubName;
   });
 
-  /** Nav latérale repliée en rail d'icônes — préférence mémorisée entre sessions. */
-  private static readonly NAV_KEY = 'coach-nav-collapsed';
-  readonly navCollapsed = signal(this.readNavPref());
-
-  private readNavPref(): boolean {
-    try {
-      return localStorage.getItem(CoachLayoutComponent.NAV_KEY) === '1';
-    } catch {
-      return false;
-    }
-  }
-
-  toggleNav(): void {
-    this.navCollapsed.update((v) => !v);
-    try {
-      localStorage.setItem(
-        CoachLayoutComponent.NAV_KEY,
-        this.navCollapsed() ? '1' : '0',
-      );
-    } catch {
-      /* stockage indisponible : préférence non persistée, sans gravité */
-    }
-  }
-
-  /** Menu du compte (bas du menu latéral) : réglages, aide, signalement, déconnexion. */
+  /** Menu du compte (à droite de la barre du haut) : réglages, aide, signalement, déconnexion. */
   readonly accountOpen = signal(false);
   toggleAccount(): void {
     this.accountOpen.update((v) => !v);
   }
   closeAccount(): void {
     this.accountOpen.set(false);
+  }
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.accountOpen()) return;
+    const target = event.target as Element | null;
+    if (target?.closest?.('.side-user')) return;
+    this.closeAccount();
   }
 
   /** Initiales de l'utilisateur, pour le bouton du compte. */

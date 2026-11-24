@@ -1,25 +1,13 @@
 <div class="layout">
-  <!-- Sidebar (desktop / tablette) -->
-  <aside class="sidebar desktop-only" [class.collapsed]="navCollapsed()">
-    <div class="brand">
-      <!-- Le logo ramène au tableau de bord : convention de toute application, et le seul élément
-           permanent du chrome à ne rien faire quand on cliquait dessus. -->
-      <a routerLink="/app" class="brand__home" aria-label="Darilab, tableau de bord">
-        <app-logo [size]="30" [showText]="!navCollapsed()" />
-      </a>
-      @if (!navCollapsed()) {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="palette.show()"
-                aria-label="Recherche globale (Ctrl+K)" title="Rechercher — Ctrl+K">
-          <app-icon name="search" [size]="18" />
-        </button>
-        <app-notification-bell />
-      }
-    </div>
-    <button type="button" class="nav-toggle" (click)="toggleNav()"
-            [title]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'"
-            [attr.aria-label]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'">
-      <app-icon [name]="navCollapsed() ? 'chevrons-right' : 'chevrons-left'" [size]="16" />
-    </button>
+  <!-- Barre de navigation en haut (ordinateur et tablette). Un coach pilote : « vraiment sur le
+       côté gauche, pour avoir un plus grand écran central ; Ma journée, Tableau de bord… on
+       pourrait le mettre en haut ? ». Le menu latéral prenait 248 px à chaque écran ; en haut, il
+       rend toute la largeur au calendrier et laisse la bibliothèque coller au bord gauche. -->
+  <header class="topnav desktop-only">
+    <!-- Le logo ramène au tableau de bord : convention de toute application. -->
+    <a routerLink="/app" class="brand__home" aria-label="Darilab, tableau de bord">
+      <app-logo [size]="26" [showText]="true" />
+    </a>
 
     <!-- Sept entrées, pas quinze. Le travail quotidien se fait dans « Ma journée », la seule
          boîte de tri : alertes, retours, messages et séances du jour, avec le seul compteur de
@@ -28,82 +16,83 @@
          liste des athlètes ; les réglages du compte vivent dans le menu du compte, en bas. -->
     <nav class="snav" aria-label="Navigation principale">
       <a routerLink="/app/journee" routerLinkActive="active" title="Ma journée : ce qui t'attend">
-        <app-icon name="sun" [size]="18" /><span>Ma journée</span>
+        <app-icon name="sun" [size]="16" /><span>Ma journée</span>
         @if (pendingReviews() > 0) {
           <span class="nav-badge" [attr.aria-label]="pendingReviews() + ' retours à traiter'">{{ badgeText(pendingReviews()) }}</span>
         }
       </a>
       <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" title="Tableau de bord">
-        <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
+        <app-icon name="layout-dashboard" [size]="16" /><span>Tableau de bord</span>
       </a>
       <a routerLink="/app/athletes" routerLinkActive="active" [class.active]="inGroups()" title="Athlètes et groupes">
-        <app-icon name="users" [size]="18" /><span>Athlètes</span>
+        <app-icon name="users" [size]="16" /><span>Athlètes</span>
       </a>
-      <a routerLink="/app/calendar" routerLinkActive="active" title="Calendrier"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
+      <a routerLink="/app/calendar" routerLinkActive="active" title="Calendrier"><app-icon name="calendar" [size]="16" /><span>Calendrier</span></a>
       <a routerLink="/app/messages" routerLinkActive="active" title="Messages">
-        <app-icon name="message-square" [size]="18" /><span>Messages</span>
+        <app-icon name="message-square" [size]="16" /><span>Messages</span>
         @if (unreadMessages() > 0) {
           <span class="nav-badge" [attr.aria-label]="unreadMessages() + ' messages non lus'">{{ badgeText(unreadMessages()) }}</span>
         }
       </a>
-      <a routerLink="/app/library" routerLinkActive="active" title="Bibliothèque (course, prépa physique, éducatifs)"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
+      <a routerLink="/app/library" routerLinkActive="active" title="Bibliothèque (course, prépa physique, éducatifs)"><app-icon name="folder-open" [size]="16" /><span>Bibliothèque</span></a>
       <!-- Un indépendant n'a pas de club : l'écran ne contiendrait que lui-même. Il réapparaît
            dès qu'un second coach rejoint l'espace (le serveur lève alors le mode indépendant). -->
       @if (!solo()) {
-        <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+        <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="16" /><span>Club</span></a>
       }
       <!-- Les demandes de coaching venues de l'annuaire : une file à traiter, donc dans le menu
            principal. La fiche publique, elle, se règle une fois : elle vit dans le menu du compte. -->
-      <a routerLink="/app/demandes" routerLinkActive="active" title="Demandes de coaching"><app-icon name="inbox" [size]="18" /><span>Demandes</span></a>
+      <a routerLink="/app/demandes" routerLinkActive="active" title="Demandes de coaching"><app-icon name="inbox" [size]="16" /><span>Demandes</span></a>
     </nav>
 
-    <!-- Menu du compte : ce qu'on règle une fois, pas ce qu'on fait chaque jour. -->
-    <div class="side-user">
-      @if (accountOpen()) {
-        <div class="account-menu" id="account-menu">
-          <!-- Le sélecteur d'espace n'apparaît qu'à partir de deux : un choix unique n'est pas un
-               choix, et l'immense majorité des coachs n'ont qu'un espace. -->
-          @if (showClubSwitcher()) {
-            <label class="club-switch">
-              <select class="club-switch__select" aria-label="Espace de travail" [value]="auth.clubId()"
-                      (change)="switchClub($any($event.target).value)">
-                @for (c of myClubs(); track c.id) {
-                  <option [value]="c.id">{{ c.name }} — {{ c.roleLabel }}</option>
-                }
-              </select>
-            </label>
-          }
-          <a routerLink="/app/vitrine" (click)="closeAccount()"><app-icon name="star" [size]="16" /><span>Ma fiche publique</span></a>
-          <a routerLink="/app/settings" (click)="closeAccount()"><app-icon name="settings" [size]="16" /><span>Paramètres</span></a>
-          <a routerLink="/app/training-zones" (click)="closeAccount()"><app-icon name="target" [size]="16" /><span>Mes zones d'intensité</span></a>
-          <!-- L'écran n'était atteignable que par URL directe et par le lien de pied de page des
-               e-mails — soit exactement là où l'on cherche à se désabonner. -->
-          <a routerLink="/app/notifications" (click)="closeAccount()"><app-icon name="bell" [size]="16" /><span>Notifications</span></a>
-          <a routerLink="/app/aide" (click)="closeAccount()"><app-icon name="life-buoy" [size]="16" /><span>Aide</span></a>
-          <!-- Canal de support explicite : le retour part en base, avec son contexte technique. -->
-          <button type="button" (click)="openFeedback(); closeAccount()"><app-icon name="flag" [size]="16" /><span>Signaler un problème</span></button>
-          <div class="account-menu__ft">
-            <app-push-button />
-            <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
-          </div>
-        </div>
-      }
-      <button type="button" class="account-btn" (click)="toggleAccount()"
-              [attr.aria-expanded]="accountOpen()" aria-controls="account-menu"
-              [title]="navCollapsed() ? 'Mon compte' : ''">
-        <span class="avatar avatar-sm" aria-hidden="true">{{ initials() }}</span>
-        @if (!navCollapsed()) {
-          <span class="account-btn__id">
-            <span class="user-name">{{ user()?.fullName }}</span>
-            @if (workspaceBadge()) { <span class="account-btn__club">{{ activeClubName() }}</span> }
-          </span>
-          <app-icon [name]="accountOpen() ? 'chevron-down' : 'chevron-up'" [size]="16" />
-        } @else {
-          <span class="sr-only">Mon compte</span>
-        }
+    <div class="topnav__tools">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="palette.show()"
+              aria-label="Recherche globale (Ctrl+K)" title="Rechercher — Ctrl+K">
+        <app-icon name="search" [size]="18" />
       </button>
+      <app-notification-bell />
+
+      <!-- Menu du compte : ce qu'on règle une fois, pas ce qu'on fait chaque jour. -->
+      <div class="side-user">
+        @if (accountOpen()) {
+          <div class="account-menu" id="account-menu">
+            <!-- Le sélecteur d'espace n'apparaît qu'à partir de deux : un choix unique n'est pas un
+                 choix, et l'immense majorité des coachs n'ont qu'un espace. -->
+            @if (showClubSwitcher()) {
+              <label class="club-switch">
+                <select class="club-switch__select" aria-label="Espace de travail" [value]="auth.clubId()"
+                        (change)="switchClub($any($event.target).value)">
+                  @for (c of myClubs(); track c.id) {
+                    <option [value]="c.id">{{ c.name }} — {{ c.roleLabel }}</option>
+                  }
+                </select>
+              </label>
+            }
+            <a routerLink="/app/vitrine" (click)="closeAccount()"><app-icon name="star" [size]="16" /><span>Ma fiche publique</span></a>
+            <a routerLink="/app/settings" (click)="closeAccount()"><app-icon name="settings" [size]="16" /><span>Paramètres</span></a>
+            <a routerLink="/app/training-zones" (click)="closeAccount()"><app-icon name="target" [size]="16" /><span>Mes zones d'intensité</span></a>
+            <!-- L'écran n'était atteignable que par URL directe et par le lien de pied de page des
+                 e-mails — soit exactement là où l'on cherche à se désabonner. -->
+            <a routerLink="/app/notifications" (click)="closeAccount()"><app-icon name="bell" [size]="16" /><span>Notifications</span></a>
+            <a routerLink="/app/aide" (click)="closeAccount()"><app-icon name="life-buoy" [size]="16" /><span>Aide</span></a>
+            <!-- Canal de support explicite : le retour part en base, avec son contexte technique. -->
+            <button type="button" (click)="openFeedback(); closeAccount()"><app-icon name="flag" [size]="16" /><span>Signaler un problème</span></button>
+            <div class="account-menu__ft">
+              <app-push-button />
+              <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
+            </div>
+          </div>
+        }
+        <button type="button" class="account-btn" (click)="toggleAccount()"
+                [attr.aria-expanded]="accountOpen()" aria-controls="account-menu"
+                [title]="(user()?.fullName ?? 'Mon compte') + (workspaceBadge() ? ' — ' + activeClubName() : '')">
+          <span class="avatar avatar-sm" aria-hidden="true">{{ initials() }}</span>
+          <span class="sr-only">Mon compte, {{ user()?.fullName }}</span>
+          <app-icon [name]="accountOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
+        </button>
+      </div>
     </div>
-  </aside>
+  </header>
 
   <div class="main">
     <!-- Topbar (mobile uniquement) -->
