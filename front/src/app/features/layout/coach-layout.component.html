@@ -85,9 +85,9 @@
         }
         <button type="button" class="account-btn" (click)="toggleAccount()"
                 [attr.aria-expanded]="accountOpen()" aria-controls="account-menu"
-                [title]="(user()?.fullName ?? 'Mon compte') + (workspaceBadge() ? ' — ' + activeClubName() : '')"
-                [attr.aria-label]="'Mon compte, ' + (user()?.fullName ?? '')">
+                [title]="(user()?.fullName ?? 'Mon compte') + (workspaceBadge() ? ' — ' + activeClubName() : '')">
           <span class="avatar avatar-sm" aria-hidden="true">{{ initials() }}</span>
+          <span class="sr-only">Mon compte, {{ user()?.fullName }}</span>
           <app-icon [name]="accountOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
         </button>
       </div>
