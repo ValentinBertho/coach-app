@@ -47,6 +47,7 @@ describe('strength-session-editor — bibliothèque ouverte', () => {
     http = TestBed.inject(HttpTestingController);
     (component as unknown as { wide: () => boolean }).wide = signal(true);
     component.exercisesLoaded.set(true);
+    localStorage.removeItem('coach-exlib-folds');
   });
 
   it('pose une section sans ouvrir de panneau : elle devient la cible des ajouts', () => {
@@ -122,6 +123,32 @@ describe('strength-session-editor — bibliothèque ouverte', () => {
     expect(component.libGroups().flatMap((g) => g.exercises.map((e) => e.name))).toEqual(['Planche']);
     component.setLibTab('frequent');
     expect(component.libGroups().flatMap((g) => g.exercises.map((e) => e.name))).toEqual(['Squat']);
+  });
+
+  it('replie les familles d’une grande bibliothèque, et les déplie à la recherche', () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      exercise({ id: 'e' + i, name: 'Ex ' + i, category: i % 2 ? 'GAINAGE' : 'MOBILITE' }),
+    );
+    component.exercises.set(many);
+
+    expect(component.libCanFold()).toBe(true);
+    const [first, second] = component.libGroups();
+    expect(component.isLibGroupFolded(first.key)).toBe(true);
+
+    component.toggleLibGroup(first.key);
+    expect(component.isLibGroupFolded(first.key)).toBe(false);
+    expect(component.isLibGroupFolded(second.key)).toBe(true);
+    expect(JSON.parse(localStorage.getItem('coach-exlib-folds')!)).toEqual({ [first.key]: false });
+
+    component.libQuery.set('Ex 1');
+    expect(component.isLibGroupFolded(second.key)).toBe(false);
+  });
+
+  it('laisse dépliée une petite bibliothèque', () => {
+    component.exercises.set([
+      exercise({ id: '1', category: 'MOBILITE' }), exercise({ id: '2', category: 'GAINAGE' }),
+    ]);
+    expect(component.libGroups().some((g) => component.isLibGroupFolded(g.key))).toBe(false);
   });
 
   it('épingle un exercice et l’enregistre', () => {

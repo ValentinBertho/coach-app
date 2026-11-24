@@ -142,9 +142,27 @@
             @else { Aucun exercice dans la bibliothèque — crée-les depuis Préparation physique. }
           </p>
         }
+        @if (libCanFold()) {
+          <div class="ex-lib__tools">
+            <button type="button" class="ex-lib__fold-all" (click)="toggleAllLibGroups()">
+              <app-icon [name]="libAllFolded() ? 'chevron-down' : 'chevron-up'" [size]="14" />
+              {{ libAllFolded() ? 'Tout déplier' : 'Tout replier' }}
+            </button>
+          </div>
+        }
         @for (group of libGroups(); track group.key) {
           <section class="ex-lib__group">
-            <h4 class="picker__cat">{{ group.title }} <span class="picker__count">{{ group.exercises.length }}</span></h4>
+            @if (libCanFold()) {
+              <button type="button" class="ex-lib__group-hd" (click)="toggleLibGroup(group.key)"
+                      [attr.aria-expanded]="!isLibGroupFolded(group.key)">
+                <app-icon class="ex-lib__chev" [name]="isLibGroupFolded(group.key) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+                <span class="ex-lib__group-name">{{ group.title }}</span>
+                <span class="picker__count">{{ group.exercises.length }}</span>
+              </button>
+            } @else {
+              <h4 class="picker__cat">{{ group.title }} <span class="picker__count">{{ group.exercises.length }}</span></h4>
+            }
+            @if (!isLibGroupFolded(group.key)) {
             <div cdkDropList [cdkDropListConnectedTo]="blockDropIds()" [cdkDropListSortingDisabled]="true"
                  [cdkDropListEnterPredicate]="noEnter">
               @for (ex of group.exercises; track ex.id) {
@@ -181,6 +199,7 @@
                 }
               }
             </div>
+            }
           </section>
         }
       </div>
