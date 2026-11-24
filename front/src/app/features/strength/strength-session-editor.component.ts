@@ -1523,6 +1523,17 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
+  /**
+   * Récup en valeur unique : écrire la valeur efface une ancienne borne haute, sinon une
+   * fourchette « 60–90 » saisie avant resterait affichée sans qu'on puisse la voir ni la modifier.
+   */
+  setRest(item: StrengthExerciseItem, raw: unknown): void {
+    const v = StrengthSessionEditorComponent.num(raw);
+    item.prescription.restSecMin = v == null ? null : Math.max(0, Math.round(v));
+    item.prescription.restSecMax = null;
+    this.touch();
+  }
+
   setRestHigh(item: StrengthExerciseItem, raw: unknown): void {
     item.prescription.restSecMax = StrengthSessionEditorComponent.num(raw);
     this.touch();

@@ -77,6 +77,13 @@
       <app-icon name="refresh-cw" [size]="16" />
     </button>
 
+    <!-- Bibliothèque à portée de clic : rangée dans le menu Vue, personne ne la trouvait. -->
+    <button type="button" class="btn btn-ghost btn-sm tb-lib" [class.on]="sidebarOpen()"
+            [attr.aria-pressed]="sidebarOpen()" (click)="toggleSidebar()"
+            [title]="(sidebarOpen() ? 'Masquer' : 'Afficher') + ' la bibliothèque (B)'">
+      <app-icon name="panel-left" [size]="15" /> Bibliothèque
+    </button>
+
     <div class="tb-menu">
       <button type="button" class="btn btn-ghost btn-sm" (click)="viewMenuOpen.set(!viewMenuOpen())"
               [attr.aria-expanded]="viewMenuOpen()" aria-haspopup="menu">
@@ -965,8 +972,15 @@
       <!-- Même panneau que la colonne latérale (recherche, favoris, fréquentes, catégories,
            course + force + éducatifs). L'ancienne liste à plat de TOUS les modèles était une
            seconde UX de sélection, inutilisable dès quelques dizaines de séances. -->
-      <p class="field-hint picker__or">ou depuis la bibliothèque :</p>
-      <app-session-library-panel class="picker__lib"
+      <!-- Grand écran : la bibliothèque s'ouvre à côté du calendrier au lieu d'une liste au
+           milieu de la modale — on y glisse la séance sur le jour, comme sur un agenda papier.
+           Petit écran (pas de colonne latérale) : la liste reste dans la modale. -->
+      <button type="button" class="picker__item picker__lib-side" (click)="openLibraryBeside()">
+        <span class="picker__name"><app-icon name="panel-left" [size]="15" /> Bibliothèque</span>
+        <span class="picker__type">s'ouvre à côté : glisse la séance sur le jour</span>
+      </button>
+      <p class="field-hint picker__or picker__lib-inline">ou depuis la bibliothèque :</p>
+      <app-session-library-panel class="picker__lib picker__lib-inline"
         [pickMode]="true"
         [courseTemplates]="courseTemplates()"
         [strengthSessions]="librarySessions()"

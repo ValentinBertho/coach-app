@@ -490,6 +490,11 @@
         <div class="qe-row">
           <label class="qe-field qe-field--s"><span>Tempo</span>
             <input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></label>
+          <!-- Récup : une seule valeur, comme le coach la dit (« 90 s »). La fourchette min–max
+               chargeait la ligne pour un cas que personne n'utilisait. -->
+          <label class="qe-field qe-field--s"><span>Récup (s)</span>
+            <input type="number" min="0" class="form-control" aria-label="Récupération entre séries, en secondes"
+                   [ngModel]="item.prescription.restSecMin" (ngModelChange)="setRest(item, $event)" /></label>
         </div>
 
         <div class="qe-row">
@@ -533,18 +538,6 @@
           </div>
         </div>
 
-        <div class="qe-row">
-          <div class="qe-field qe-field--range">
-            <span>Repos (s)</span>
-            <div class="qe-range">
-              <input type="number" min="0" class="form-control" aria-label="Repos (min ou valeur exacte)"
-                     [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" />
-              <span class="qe-dash">–</span>
-              <input type="number" min="0" class="form-control" placeholder="max" aria-label="Repos max (facultatif)"
-                     [ngModel]="item.prescription.restSecMax" (ngModelChange)="setRestHigh(item, $event)" />
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Méthode de série : chaque méthode montre ses propres réglages, et l'athlète les lit

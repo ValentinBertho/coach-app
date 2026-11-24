@@ -449,3 +449,13 @@
      y deviendrait un fragment illisible, et le calendrier se lit alors jour par jour. */
   .week-say { display: none; }
 }
+
+/* « + » d'un jour : sur grand écran, la bibliothèque s'ouvre dans la colonne latérale (on y
+   glisse la séance) ; en dessous de 901 px il n'y a pas de colonne, la liste reste dans la modale. */
+.picker__lib-side { display: none; }
+@media (min-width: 901px) {
+  .picker__lib-side { display: flex; }
+  .picker__lib-inline { display: none !important; }
+}
+
+.tb-lib.on { background: var(--primary-wash); color: var(--primary); }

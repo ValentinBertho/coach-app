@@ -1691,6 +1691,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.pickerDates.set([date]);
   }
 
+  /**
+   * Depuis le « + » d'un jour : ouvre la bibliothèque dans la colonne latérale et ferme la
+   * modale, pour glisser la séance sur le jour plutôt que la chercher au milieu de l'écran.
+   */
+  openLibraryBeside(): void {
+    if (!this.sidebarOpen()) this.toggleSidebar();
+    this.closePicker();
+    this.toast.info('Glisse une séance de la bibliothèque sur le jour voulu.');
+  }
+
   closePicker(): void {
     this.pickerDates.set([]);
     this.noteOpen.set(false);
