@@ -217,8 +217,8 @@
 }
 .compose__main { min-width: 0; }
 .lib-col {
-  position: sticky; top: var(--sp-3);
-  max-height: calc(100vh - 2 * var(--sp-3)); overflow: auto;
+  position: sticky; top: calc(var(--app-top, 0px) + var(--sp-3));
+  max-height: calc(100vh - var(--app-top, 0px) - 2 * var(--sp-3)); overflow: auto;
   display: flex; flex-direction: column; gap: var(--sp-2);
 }
 .lib-col__title { margin: 0; font-size: var(--text-md); }

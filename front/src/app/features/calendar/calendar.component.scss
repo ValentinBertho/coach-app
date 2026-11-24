@@ -237,7 +237,7 @@
    glisser-déposer, qui doivent continuer de passer par-dessus. */
 @media (min-width: 901px) {
   .weekday-row {
-    position: sticky; top: 0; z-index: 3;
+    position: sticky; top: var(--app-top, 0px); z-index: 3;
     padding: var(--sp-2) 0 var(--sp-1); margin-bottom: 0;
     background: var(--canvas);
   }
@@ -292,7 +292,7 @@
 .cal-sidebar {
   background: var(--paper); border: 1px solid var(--hairline);
   border-radius: var(--radius-lg); padding: var(--sp-4);
-  position: sticky; top: var(--sp-4); max-height: calc(100dvh - var(--sp-8)); overflow-y: auto;
+  position: sticky; top: calc(var(--app-top, 0px) + var(--sp-4)); max-height: calc(100dvh - var(--app-top, 0px) - var(--sp-8)); overflow-y: auto;
 }
 .cal-sidebar__hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
 @media (max-width: 900px) {
