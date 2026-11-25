@@ -1707,9 +1707,39 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * modale, pour glisser la séance sur le jour plutôt que la chercher au milieu de l'écran.
    */
   openLibraryBeside(): void {
+    // Le jour du « + » reste visé : un clic sur une séance de la colonne l'y planifie. Avant, ce
+    // clic ne faisait rien sur ordinateur, alors qu'au téléphone le même geste planifiait.
+    this.libTarget.set(this.pickerDates());
     if (!this.sidebarOpen()) this.toggleSidebar();
     this.closePicker();
-    this.toast.info('Glisse une séance de la bibliothèque sur le jour voulu.');
+  }
+
+  /** Jour(s) visé(s) par la bibliothèque latérale : un clic y planifie la séance choisie. */
+  readonly libTarget = signal<string[]>([]);
+  readonly libTargetLabel = computed(() => {
+    const d = this.libTarget();
+    if (!d.length) return '';
+    return d.length > 1 ? `${d.length} jours` : this.fmtDate(d[0]);
+  });
+
+  private pickFromSide(run: () => void): void {
+    const dates = this.libTarget();
+    if (!dates.length) {
+      this.toast.info('Glisse la séance sur un jour, ou clique d’abord « + » sur le jour voulu.');
+      return;
+    }
+    this.pickerDates.set(dates);
+    this.libTarget.set([]);
+    run();
+  }
+  sideCourse(t: WorkoutTemplate): void {
+    this.pickFromSide(() => this.scheduleTemplateOn(t));
+  }
+  sideStrength(x: StrengthSession): void {
+    this.pickFromSide(() => this.scheduleStrengthOn(x));
+  }
+  sideDrill(d: RunDrill): void {
+    this.pickFromSide(() => this.scheduleDrillOn(d));
   }
 
   closePicker(): void {

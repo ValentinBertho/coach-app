@@ -138,3 +138,11 @@
 .obj-chip__d { font-weight: 800; font-size: var(--text-sm); }
 .obj-chip__n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .obj-chip__date { opacity: 0.7; white-space: nowrap; }
+
+/* Jour visé par la bibliothèque latérale (après « + » › Bibliothèque). */
+.lib-target {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  margin: var(--sp-2) 0; padding: var(--sp-2) var(--sp-3);
+  background: var(--primary-wash); color: var(--ink-2); border-radius: var(--radius);
+  font-size: var(--text-sm);
+}

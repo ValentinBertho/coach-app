@@ -101,7 +101,7 @@ public class CoachDashboardService {
      */
     public List<FeedbackQueueItemResponse> feedbackQueue(UUID clubId, String scope, UUID coachId,
                                                         int days) {
-        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        List<Athlete> athletes = activeOnly(athletesInScope(clubId, scope, coachId));
         if (athletes.isEmpty()) {
             return List.of();
         }
@@ -150,7 +150,10 @@ public class CoachDashboardService {
      * seule promesse est de tenir sur un écran de téléphone.</p>
      */
     public List<CoachDaySessionResponse> day(UUID clubId, String scope, UUID coachId, LocalDate date) {
-        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        // Athlètes actifs seulement, comme le compteur « Athlètes actifs » et la liste des
+        // athlètes : un athlète archivé garde ses séances planifiées, et « Ma journée » en
+        // affichait onze quand la page Athlètes en comptait six.
+        List<Athlete> athletes = activeOnly(athletesInScope(clubId, scope, coachId));
         if (athletes.isEmpty()) {
             return List.of();
         }
@@ -327,6 +330,10 @@ public class CoachDashboardService {
      * Passer par la même méthode garantit qu'une proposition ne peut pas concerner un athlète que
      * le coach n'a pas le droit de voir, exactement comme la jauge de forme et les alertes.
      */
+    private static List<Athlete> activeOnly(List<Athlete> athletes) {
+        return athletes.stream().filter(a -> a.getStatus() == AthleteStatus.ACTIVE).toList();
+    }
+
     public List<Athlete> athletesInScopeFor(UUID clubId, String scope, UUID coachId) {
         return athletesInScope(clubId, scope, coachId);
     }

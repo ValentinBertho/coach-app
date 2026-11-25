@@ -184,6 +184,13 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
     long countByGroupId(UUID groupId);
 
+    /**
+     * Membres <b>actifs</b> d'un groupe : ceux que le calendrier de groupe affiche et à qui une
+     * séance « tout le groupe » est donnée. Compter les archivés annonçait « Marathon (4) » sur
+     * une grille de deux lignes.
+     */
+    long countByGroupIdAndStatus(UUID groupId, com.coachrun.entity.enums.AthleteStatus status);
+
     /** Athlètes actifs d'un groupe (scopé club) — pour l'application en masse d'un plan/mésocycle. */
     @Query("""
             select a from Athlete a

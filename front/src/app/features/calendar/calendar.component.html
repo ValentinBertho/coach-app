@@ -106,11 +106,7 @@
           }
 
           @if (scopeMode() === 'athlete') {
-            <span class="tb-dropdown__t">Affichage</span>
-            <button type="button" class="ctx-item" [class.on]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
-            <button type="button" class="ctx-item" [class.on]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
-            <button type="button" class="ctx-item" [class.on]="view() === 'both'" (click)="setView('both')">Les deux</button>
-            <div class="ctx-sep"></div>
+            <!-- Prévu / Réalisé / les deux : déjà en onglets au-dessus de la grille. -->
 
             <!-- Plus de section « Période » : la grille affiche quatre semaines, seule maille
                  qui serve à programmer. Un sélecteur à une entrée n'est pas un choix. -->
@@ -158,7 +154,7 @@
 
     <button type="button" class="icon-btn tb-desk" (click)="shortcutsOpen.set(true)"
             title="Raccourcis clavier (?)" aria-label="Raccourcis clavier">
-      <app-icon name="circle-help" [size]="16" />
+      <app-icon name="keyboard" [size]="16" />
     </button>
   </div>
 </div>
@@ -436,13 +432,25 @@
         <h3>Bibliothèque</h3>
         <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque" aria-label="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
       </div>
-      <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
+      @if (libTarget().length) {
+        <p class="lib-target" role="status">
+          <span>Clique une séance pour la planifier le <strong>{{ libTargetLabel() }}</strong>, ou glisse-la sur un autre jour.</span>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="libTarget.set([])">Annuler</button>
+        </p>
+      } @else {
+        <p class="field-hint">Glisse une séance sur un jour pour la planifier, ou clique « + » sur un jour puis la séance.</p>
+      }
 
       <app-session-library-panel
+        [pickMode]="libTarget().length > 0"
+        [pickHint]="'Planifier le ' + libTargetLabel()"
         [courseTemplates]="courseTemplates()"
         [strengthSessions]="librarySessions()"
         [drills]="drills()"
         [categories]="categories()"
+        (courseSelect)="sideCourse($event)"
+        (strengthSelect)="sideStrength($event)"
+        (drillSelect)="sideDrill($event)"
         (favoriteToggle)="toggleFavorite($event)" />
     </aside>
     }
@@ -502,7 +510,7 @@
         @for (day of week.days; track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability"
            [class.day-col--weekend]="day.weekend"
-           [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date)"
+           [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date) || libTarget().includes(day.date)"
            [attr.data-day]="day.date"
            (contextmenu)="openDayMenu(day.date, $event)"
            (mouseenter)="onDayEnter(day.date)" (mouseleave)="onDayLeave(day.date)">
@@ -997,7 +1005,7 @@
            Petit écran (pas de colonne latérale) : la liste reste dans la modale. -->
       <button type="button" class="picker__item picker__lib-side" (click)="openLibraryBeside()">
         <span class="picker__name"><app-icon name="panel-left" [size]="15" /> Bibliothèque</span>
-        <span class="picker__type">s'ouvre à côté : glisse la séance sur le jour</span>
+        <span class="picker__type">s'ouvre à côté : clique la séance, ou glisse-la</span>
       </button>
       <p class="field-hint picker__or picker__lib-inline">ou depuis la bibliothèque :</p>
       <app-session-library-panel class="picker__lib picker__lib-inline"
