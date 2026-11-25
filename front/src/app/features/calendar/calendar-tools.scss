@@ -14,6 +14,18 @@
 .tb-left, .tb-right { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .athlete-select { max-width: 240px; }
 
+/* Téléphone : le premier jour arrivait sous plus d'un demi-écran d'outils. On garde qui, quand,
+   et les deux menus ; annuler/rétablir et les raccourcis sont des gestes de clavier, la
+   bibliothèque latérale n'existe pas (la liste est dans la fenêtre « + »), et le volume se lit
+   dans le total de chaque semaine. */
+@media (max-width: 768px) {
+  .toolbar { gap: var(--sp-2); margin-bottom: var(--sp-2); }
+  .tb-left { width: 100%; }
+  .tb-left .volume, .tb-desk, .tb-lib { display: none !important; }
+  .tb-right { width: 100%; justify-content: flex-end; }
+  .week-label { min-width: 0; padding: 0 var(--sp-1); }
+}
+
 .week-nav {
   display: flex; align-items: center; gap: var(--sp-1);
   border: 1px solid var(--hairline); border-radius: var(--radius);

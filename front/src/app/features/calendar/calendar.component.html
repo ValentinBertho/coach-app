@@ -66,12 +66,12 @@
   <div class="tb-right">
     <!-- Annuler / rétablir visibles : une pile qu'on ne voit pas est une pile dont on ignore
          l'existence, et le libellé dit ce qui sera défait avant de cliquer. -->
-    <button type="button" class="icon-btn" (click)="undoLast()" [disabled]="!canUndo()"
+    <button type="button" class="icon-btn tb-desk" (click)="undoLast()" [disabled]="!canUndo()"
             [title]="(undoLabel() ? 'Annuler ' + undoLabel() : 'Rien à annuler') + ' (' + keys('mod','Z') + ')'"
             aria-label="Annuler">
       <app-icon name="rotate-ccw" [size]="16" />
     </button>
-    <button type="button" class="icon-btn" (click)="redoLast()" [disabled]="!canRedo()"
+    <button type="button" class="icon-btn tb-desk" (click)="redoLast()" [disabled]="!canRedo()"
             [title]="(redoLabel() ? 'Rétablir ' + redoLabel() : 'Rien à rétablir') + ' (' + keys('mod','Maj','Z') + ')'"
             aria-label="Rétablir">
       <app-icon name="refresh-cw" [size]="16" />
@@ -156,7 +156,7 @@
       </div>
     }
 
-    <button type="button" class="icon-btn" (click)="shortcutsOpen.set(true)"
+    <button type="button" class="icon-btn tb-desk" (click)="shortcutsOpen.set(true)"
             title="Raccourcis clavier (?)" aria-label="Raccourcis clavier">
       <app-icon name="circle-help" [size]="16" />
     </button>
@@ -508,6 +508,7 @@
            (mouseenter)="onDayEnter(day.date)" (mouseleave)="onDayLeave(day.date)">
         <header class="day-head">
           <div class="day-head__date">
+            <span class="day-name">{{ day.label }}.</span>
             <span class="day-num">{{ day.dayNum }}</span>
           </div>
           <!-- Le volume du jour se lit là où on lit sa date. Il n'existait qu'au pied de la
