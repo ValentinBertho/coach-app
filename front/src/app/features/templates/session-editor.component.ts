@@ -66,6 +66,21 @@ import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
+import { zoneNameKey } from '../../core/utils/zone-name-key';
+
+/**
+ * Noms de zones par intention, du plus précis au plus large. Les trois modèles de référence
+ * (seuils lactiques, vitesses critiques, VMA) n'emploient pas tous les mêmes : le premier présent
+ * dans le modèle du club l'emporte.
+ */
+const ZONES_RECUP = ['Récupération', 'Footing facile', 'Régénération'];
+const ZONES_EF = ['EF', 'Endurance fondamentale', 'Endurance aérobie', 'Endurance'];
+const ZONES_TEMPO = ['Tempo', 'Allure marathon', 'Marathon', 'Seuil 1'];
+const ZONES_SEUIL = ['Seuil 2 bas', 'Seuil', 'Seuil 2', 'LT2'];
+/** Fractionné long (1000 m) : allure 5 km, à défaut VO2max. */
+const ZONES_VMA_LONG = ['5 km', 'VO2max', 'VO2', 'VMA', '3 km'];
+/** Fractionné court (400 m) : allure 3 km, à défaut VO2max. */
+const ZONES_VMA_COURT = ['3 km', 'VO2max', 'VO2', 'VMA', '1500 m'];
 
 /** Statut de complétude du profil pour la prescription course. */
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
@@ -363,25 +378,37 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   readonly zoneValues = signal<AthleteZoneValue[]>([]);
 
   /** Zone pré-sélectionnée selon le type de bloc (QA4). */
-  private readonly DEFAULT_ZONE_BY_TYPE: Record<string, string> = {
-    intervals: '3 km',
-    tempo: 'Tempo',
-    threshold: 'Seuil 2 bas',
-    easy: 'EF',
-    warmup: 'EF',
-    cooldown: 'Footing facile',
-    recovery: 'Footing facile',
-    long: 'EF',
-    run: 'EF',
+  private readonly DEFAULT_ZONE_BY_TYPE: Record<string, string[]> = {
+    intervals: ZONES_VMA_COURT,
+    tempo: ZONES_TEMPO,
+    threshold: ZONES_SEUIL,
+    easy: ZONES_EF,
+    warmup: ZONES_EF,
+    cooldown: ZONES_RECUP,
+    recovery: ZONES_RECUP,
+    long: ZONES_EF,
+    run: ZONES_EF,
   };
 
-  private zoneIdByName(name: string): string | null {
-    const found = this.zones().find((z) => z.name === name);
-    return found?.id ?? this.zones()[0]?.id ?? null;
+  /**
+   * Zone du club qui répond à l'un des noms donnés, <b>dans l'ordre</b> : le premier présent
+   * gagne. Les noms changent d'un modèle à l'autre (« VO2max » ici, « 5 km » là, « Régénération »
+   * pour la zone la plus basse du modèle VMA) : chercher un seul nom exact faisait retomber les
+   * blocs rapides sur la première zone de la liste — « 6×1000 m » arrivait en Footing facile.
+   * La comparaison passe par {@link zoneNameKey} (casse, accents, alias de la zone la plus basse).
+   */
+  private zoneIdByName(...names: string[]): string | null {
+    const zones = this.zones();
+    for (const name of names) {
+      const key = zoneNameKey(name);
+      const found = zones.find((z) => zoneNameKey(z.name) === key);
+      if (found) return found.id;
+    }
+    return zones[0]?.id ?? null;
   }
 
   private defaultZoneIdForType(type: string): string | null {
-    return this.zoneIdByName(this.DEFAULT_ZONE_BY_TYPE[type] ?? 'EF');
+    return this.zoneIdByName(...(this.DEFAULT_ZONE_BY_TYPE[type] ?? ZONES_EF));
   }
 
   /** Choix de zone d'un bloc (via le sélecteur riche) → met à jour la prescription + recalcule. */
@@ -617,7 +644,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     if (!r) return;
     r.prescription = {
       zoneId:
-        this.recZoneBeforePct()[b.id] ?? this.zoneIdByName('Récupération'),
+        this.recZoneBeforePct()[b.id] ?? this.zoneIdByName(...ZONES_RECUP),
     };
     this.recalcRecovery(b);
     this.touch();
@@ -863,7 +890,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   presetsFor(
     key: keyof SessionStructure,
   ): { label: string; block: Partial<CourseBlock> }[] {
-    const z = (name: string) => this.zoneIdByName(name);
+    const z = (names: string[]) => this.zoneIdByName(...names);
     if (key === 'warmup') {
       return [
         {
@@ -871,7 +898,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
           block: {
             type: 'warmup',
             durationS: 900,
-            prescription: { zoneId: z('Endurance fondamentale') },
+            prescription: { zoneId: z(ZONES_EF) },
           },
         },
       ];
@@ -883,7 +910,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
           block: {
             type: 'cooldown',
             durationS: 600,
-            prescription: { zoneId: z('Récupération') },
+            prescription: { zoneId: z(ZONES_RECUP) },
           },
         },
       ];
@@ -892,26 +919,26 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       type: 'jog',
       durationS,
       distanceM: null,
-      prescription: { zoneId: z('Récupération') },
+      prescription: { zoneId: z(ZONES_RECUP) },
     });
     return [
       {
-        label: "10×400 m r1'",
+        label: '10 × 400 m, récup 1 min',
         block: {
           type: 'intervals',
           reps: 10,
           distanceM: 400,
-          prescription: { zoneId: z('VO2') },
+          prescription: { zoneId: z(ZONES_VMA_COURT) },
           recovery: rec(60),
         },
       },
       {
-        label: "6×1000 m R2'",
+        label: '6 × 1000 m, récup 2 min',
         block: {
           type: 'intervals',
           reps: 6,
           distanceM: 1000,
-          prescription: { zoneId: z('VO2') },
+          prescription: { zoneId: z(ZONES_VMA_LONG) },
           recovery: rec(120),
         },
       },
@@ -920,7 +947,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         block: {
           type: 'threshold',
           durationS: 1200,
-          prescription: { zoneId: z('Seuil') },
+          prescription: { zoneId: z(ZONES_SEUIL) },
         },
       },
       {
@@ -928,7 +955,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         block: {
           type: 'tempo',
           distanceM: 4000,
-          prescription: { zoneId: z('Marathon') },
+          prescription: { zoneId: z(ZONES_TEMPO) },
         },
       },
     ];
@@ -1181,7 +1208,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       type: 'jog',
       durationS: 180,
       distanceM: null,
-      prescription: { zoneId: this.zoneIdByName('Récupération') },
+      prescription: { zoneId: this.zoneIdByName(...ZONES_RECUP) },
     };
     this.touch();
   }
@@ -1366,13 +1393,13 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
             type: 'jog',
             durationS: null,
             distanceM: 100,
-            prescription: { zoneId: this.zoneIdByName('Récupération') },
+            prescription: { zoneId: this.zoneIdByName(...ZONES_RECUP) },
           }
         : {
             type: 'jog',
             durationS: 60,
             distanceM: null,
-            prescription: { zoneId: this.zoneIdByName('Récupération') },
+            prescription: { zoneId: this.zoneIdByName(...ZONES_RECUP) },
           };
     this.recalcRecovery(b);
     this.touch();
