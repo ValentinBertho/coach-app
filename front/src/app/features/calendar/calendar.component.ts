@@ -255,6 +255,7 @@ function toIso(d: Date): string {
     './calendar.component.scss',
     './calendar-group.scss',
     './calendar-tools.scss',
+    './calendar-cards.scss',
   ],
 })
 export class CalendarComponent implements OnInit, OnDestroy {

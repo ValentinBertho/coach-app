@@ -244,7 +244,8 @@
 .block-options { color: var(--ink-3); }
 
 /* Séries × répétitions, au clavier, sur la carte. */
-.ex-inline { display: flex; align-items: flex-end; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.ex-inline { display: flex; align-items: flex-end; gap: var(--sp-2); margin: var(--sp-2) 0; flex-wrap: wrap; }
+.ex-inline__field .form-control.ex-inline__sm { width: 64px; }
 .ex-inline__field { display: flex; flex-direction: column; gap: 2px; }
 .ex-inline__field span { font-size: var(--text-2xs); color: var(--ink-3); font-weight: 700; }
 .ex-inline__field .form-control { width: 82px; padding: var(--sp-1) var(--sp-2); }
@@ -454,3 +455,11 @@
 .ex-method { margin-top: var(--sp-2); }
 .qe-more { margin-top: var(--sp-3); }
 .qe-more summary { cursor: pointer; font-size: var(--text-sm); color: var(--ink-3); margin-bottom: var(--sp-2); }
+
+/* En-tête stable : la pastille d'enregistrement change de texte à chaque frappe (« Enregistrement… »,
+   « Enregistré · à l'instant ») et faisait passer les boutons d'une ligne à l'autre. Largeur
+   réservée, et les actions ne passent plus à la ligne au-delà de la tablette. */
+.editor-head-actions app-autosave-badge { display: inline-flex; min-width: 190px; justify-content: flex-end; }
+@media (min-width: 1100px) {
+  .editor-head-actions { flex-wrap: nowrap; }
+}

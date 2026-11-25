@@ -71,7 +71,16 @@ export class StrengthComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
 
-  readonly tab = signal<Tab>('exercises');
+  // Ouvre sur les séances, comme la bibliothèque course : c'est ce qu'on vient y chercher ; le
+  // catalogue d'exercices reste à un onglet.
+  readonly tab = signal<Tab>('sessions');
+  readonly cardMenu = signal<string | null>(null);
+  toggleCardMenu(id: string): void {
+    this.cardMenu.update((cur) => (cur === id ? null : id));
+  }
+  exerciseCount(s: StrengthSession): number {
+    return s.structure.blocks.reduce((n, b) => n + b.exercises.length, 0);
+  }
 
   // Exercices
   readonly exercises = signal<PpExercise[]>([]);

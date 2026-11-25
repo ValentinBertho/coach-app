@@ -310,3 +310,22 @@
 .star-btn { border: none; background: none; padding: 0; cursor: pointer; color: var(--ink-4, #c4c0b8); display: inline-flex; }
 .star-btn.on, .icon-btn.fav { color: var(--warning, #d9a400); }
 .star-btn.on ::ng-deep svg, .icon-btn.fav ::ng-deep svg { fill: currentColor; }
+
+/* Menu « ⋯ » d'une carte de séance (mêmes règles que la bibliothèque course). */
+.lib-more { position: relative; display: inline-flex; }
+.lib-menu-backdrop { position: fixed; inset: 0; z-index: 30; }
+.lib-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 31; min-width: 200px;
+  display: flex; flex-direction: column; gap: 2px; padding: var(--sp-1);
+  background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+.lib-menu button {
+  display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2);
+  border: 0; background: transparent; border-radius: var(--radius-sm); cursor: pointer;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); text-align: left;
+}
+.lib-menu button:hover { background: var(--paper-sunk); color: var(--ink); }
+.lib-menu button.danger { color: var(--danger); }
+.lib-menu__field { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-1) var(--sp-2); font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
+.lib-menu__field .form-control { min-height: 32px; padding: 2px var(--sp-2); font-size: var(--text-sm); }
