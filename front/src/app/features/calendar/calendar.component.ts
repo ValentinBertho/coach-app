@@ -1832,7 +1832,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * Ouvert par défaut sur desktop large (poste de planification), replié sur petit écran.
    * Préférence mémorisée entre sessions (comme la nav latérale).
    */
-  private static readonly LIB_KEY = 'coach-cal-lib-open';
+  // « -v2 » : la colonne s'ouvre à nouveau une fois chez tous ceux qui l'avaient fermée avant
+  // l'onglet replié — beaucoup ne savaient plus qu'elle existait.
+  private static readonly LIB_KEY = 'coach-cal-lib-open-v2';
   readonly sidebarOpen = signal(this.readLibPref());
 
   private readLibPref(): boolean {
