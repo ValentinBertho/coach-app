@@ -262,6 +262,17 @@
     </div>
   } @else {
     <div class="cal-layout" [class.with-lib]="sidebarOpen()" cdkDropListGroup>
+    @if (!sidebarOpen()) {
+      <!-- Bibliothèque repliée : un onglet reste à gauche, là où l'œil la cherche. Le seul bouton
+           en haut à droite ne se voyait pas une fois la colonne fermée. -->
+      <button type="button" class="cal-rail" (click)="toggleSidebar()" title="Ouvrir la bibliothèque (B)"
+              aria-label="Ouvrir la bibliothèque de séances">
+        <app-icon name="panel-left" [size]="16" />
+        <span class="cal-rail__t">Bibliothèque</span>
+        <app-icon name="footprints" [size]="15" />
+        <app-icon name="dumbbell" [size]="15" />
+      </button>
+    }
     @if (sidebarOpen()) {
       <aside class="cal-sidebar" aria-label="Bibliothèque de séances">
         <div class="cal-sidebar__hd">
@@ -448,6 +459,17 @@
   </div>
 } @else {
   <div class="cal-layout" [class.with-lib]="sidebarOpen()" cdkDropListGroup>
+    @if (!sidebarOpen()) {
+      <!-- Bibliothèque repliée : un onglet reste à gauche, là où l'œil la cherche. Le seul bouton
+           en haut à droite ne se voyait pas une fois la colonne fermée. -->
+      <button type="button" class="cal-rail" (click)="toggleSidebar()" title="Ouvrir la bibliothèque (B)"
+              aria-label="Ouvrir la bibliothèque de séances">
+        <app-icon name="panel-left" [size]="16" />
+        <span class="cal-rail__t">Bibliothèque</span>
+        <app-icon name="footprints" [size]="15" />
+        <app-icon name="dumbbell" [size]="15" />
+      </button>
+    }
     @if (sidebarOpen()) {
     <aside class="cal-sidebar" aria-label="Bibliothèque de séances">
       <div class="cal-sidebar__hd">
