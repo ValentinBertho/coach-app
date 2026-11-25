@@ -135,6 +135,13 @@
   /* La zone des messages est le SEUL élément qui défile. `min-height: 0` est ce qui le
      permet : sans lui, un enfant flexible refuse de se comprimer sous sa hauteur de
      contenu, et c'est la page entière qui repart en défilement. */
+  :host(.thread-open) .upcoming {
+    flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto;
+    padding: var(--sp-2) var(--sp-3); background: var(--paper);
+  }
+  :host(.thread-open) .upcoming__item { flex-shrink: 0; }
+  :host(.thread-open) .upcoming__n { max-width: 16ch; }
+
   :host(.thread-open) .thread {
     flex: 1;
     min-height: 0;
@@ -176,3 +183,27 @@
 .thread-head__icon { color: var(--ink-3); display: inline-flex; }
 .thread-head__id { display: flex; flex-direction: column; min-width: 0; }
 .thread-head__id strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Programme de l'athlète à portée du fil (coach) : adapter une séance sans quitter la conversation. */
+.thread-head__link { margin-left: auto; white-space: nowrap; }
+.upcoming {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline);
+}
+.upcoming__t { white-space: nowrap; font-size: var(--text-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-4); }
+.upcoming__item {
+  display: inline-flex; align-items: center; min-width: 0; max-width: 100%;
+  border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper-sunk);
+}
+.upcoming__open {
+  display: inline-flex; align-items: baseline; gap: var(--sp-1); min-width: 0;
+  padding: 4px var(--sp-2); color: var(--ink-2); text-decoration: none; font-size: var(--text-sm);
+}
+.upcoming__open:hover { color: var(--ink); }
+.upcoming__d { font-weight: 700; color: var(--ink-3); text-transform: capitalize; white-space: nowrap; }
+.upcoming__n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22ch; }
+.upcoming__adapt {
+  display: inline-flex; align-items: center; padding: 4px var(--sp-2);
+  border-left: 1px solid var(--hairline); color: var(--ink-3);
+}
+.upcoming__adapt:hover { color: var(--primary); }
