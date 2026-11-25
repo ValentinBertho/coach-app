@@ -93,6 +93,8 @@
 .ctx-item:hover { background: var(--paper-sunk); color: var(--ink); }
 .ctx-item.danger { color: var(--danger); }
 .ctx-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.ctx-menu--wide { width: 260px; }
+.ctx-hint { margin-left: auto; font-size: var(--text-xs); font-weight: 500; color: var(--ink-4); }
 .ctx-sep { height: 1px; background: var(--hairline); margin: var(--sp-1) 0; }
 .ctx-field {
   display: flex; flex-direction: column; gap: 2px;

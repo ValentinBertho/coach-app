@@ -1,4 +1,22 @@
 .form-card { margin-bottom: var(--sp-6); }
+/* Création en ligne (même geste qu'en prépa physique). */
+.new-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 260px) auto; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+@media (max-width: 600px) { .new-bar { grid-template-columns: 1fr; } }
+.tpl-more { position: relative; display: inline-flex; }
+.tpl-menu-backdrop { position: fixed; inset: 0; z-index: 30; }
+.tpl-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 31; min-width: 170px;
+  display: flex; flex-direction: column; gap: 2px; padding: var(--sp-1);
+  background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+.tpl-menu button {
+  display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2);
+  border: 0; background: transparent; border-radius: var(--radius-sm); cursor: pointer;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); text-align: left;
+}
+.tpl-menu button:hover { background: var(--paper-sunk); color: var(--ink); }
+.tpl-menu button.danger { color: var(--danger); }
 .steps-head { display: flex; align-items: center; justify-content: space-between; margin: var(--sp-4) 0 var(--sp-2); }
 .steps-head h2 { margin: 0; font-size: var(--text-lg); }
 .steps { display: flex; flex-direction: column; gap: var(--sp-2); }

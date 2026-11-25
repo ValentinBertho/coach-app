@@ -24,7 +24,15 @@
 /* Groupe de répétitions ×N : rail teal + fond léger, la récup y est visuellement imbriquée. */
 .block--group { border-left: 3px solid var(--dari-teal); background: color-mix(in srgb, var(--dari-teal) 4%, var(--paper)); }
 
-.block-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+.block-row { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-3); align-items: center; padding-top: 12px; }
+/* Étiquettes courtes au-dessus des champs d'un bloc : « 1 », « libre », « % » seuls ne disaient
+   pas ce qu'ils réglaient. */
+.block-row [data-cap] { position: relative; }
+.block-row [data-cap]::before {
+  content: attr(data-cap); position: absolute; left: 2px; top: -14px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ink-4); white-space: nowrap; pointer-events: none;
+}
 
 .drag-handle { border: none; background: none; color: var(--ink-4); cursor: grab; display: inline-flex; padding: 0; }
 .drag-handle:active { cursor: grabbing; }
@@ -54,6 +62,7 @@
 /* Identité du modèle (nom · titre · catégorie) en tête de l'éditeur. */
 .identity { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
 .identity label { display: block; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; margin-bottom: 4px; }
+.identity__more { display: flex; align-items: flex-end; }
 
 /* Versement d'une séance du calendrier dans la bibliothèque. */
 .save-as { margin-bottom: var(--sp-4); }

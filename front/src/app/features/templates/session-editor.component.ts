@@ -881,6 +881,46 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     };
   });
 
+  /**
+   * Volume <b>écrit</b> de la séance, sans athlète d'aperçu : les durées et distances saisies,
+   * répétitions et récupérations comprises. Le total estimé demande une allure, donc un athlète ;
+   * sans lui, le coach construisait une séance sans jamais voir combien elle durait.
+   */
+  readonly writtenTotals = computed(() => {
+    let durationS = 0;
+    let distanceM = 0;
+    const add = (u: { durationS?: number | null; distanceM?: number | null } | null | undefined, times: number) => {
+      if (!u || times <= 0) return;
+      if (u.durationS) durationS += u.durationS * times;
+      else if (u.distanceM) distanceM += u.distanceM * times;
+    };
+    for (const sec of this.sections) {
+      for (const b of this.structure()[sec.key]) {
+        const sets = this.setCount(b);
+        const repeats = (b.reps && b.reps > 1 ? b.reps : 1) * sets;
+        const setRecoveries = sets > 1 && b.setRecovery ? sets - 1 : 0;
+        if (isChainBlock(b)) {
+          for (const st of this.steps(b)) {
+            add(st, repeats);
+            add(st.recovery, repeats);
+          }
+        } else {
+          add(b, repeats);
+          add(b.recovery, repeats - setRecoveries);
+        }
+        add(b.setRecovery, setRecoveries);
+      }
+    }
+    if (!durationS && !distanceM) return null;
+    const min = Math.round(durationS / 60);
+    return {
+      durationLabel: durationS
+        ? min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`
+        : null,
+      distanceKm: distanceM ? distanceM / 1000 : null,
+    };
+  });
+
   /** Types de bloc proposés (liste fermée plutôt qu'un champ libre, plus intuitif) ; libellés FR. */
   readonly blockTypes: { value: CourseBlockType; label: string }[] = (
     Object.keys(COURSE_BLOCK_TYPE_LABELS) as CourseBlockType[]
@@ -1861,8 +1901,15 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     categoryOptions(this.categories()),
   );
 
+  /** Champ « titre vu par l'athlète » déplié à la main (sinon il suit le nom). */
+  readonly showAthleteTitle = signal(false);
+
   setName(value: string): void {
+    // Tant que le titre n'a pas été rendu distinct, il suit le nom : renommer le modèle renomme
+    // aussi ce que l'athlète lira.
+    const follows = !this.showAthleteTitle() && (!this.title() || this.title() === this.name());
     this.name.set(value);
+    if (follows) this.title.set(value);
     this.touch();
   }
   setTitle(value: string): void {

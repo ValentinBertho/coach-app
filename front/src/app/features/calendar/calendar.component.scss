@@ -48,7 +48,17 @@
   gap: 1px; padding: var(--sp-2);
   background: var(--paper-sunk); border: 1px solid var(--hairline); border-radius: var(--radius);
   cursor: context-menu; /* la colonne porte le menu des opérations de semaine */
+  position: relative;
 }
+/* Bouton visible des actions de semaine (le clic droit reste un raccourci). */
+.week-total .wt-more {
+  position: absolute; top: 2px; right: 2px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--ink-3); cursor: pointer;
+}
+.week-total .wt-more:hover, .week-total .wt-more:focus-visible { background: var(--paper); color: var(--ink); }
 .week-total .wt-val { font-size: var(--text-md); font-weight: 800; color: var(--ink); line-height: 1.15; }
 .week-total .wt-val small { font-size: 0.62em; font-weight: 700; color: var(--ink-3); margin-left: 1px; }
 .week-total .wt-lb { font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-4); }

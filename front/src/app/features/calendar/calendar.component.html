@@ -136,6 +136,13 @@
             <!-- Dupliquer une semaine et en générer un mésocycle sont passés dans le menu de
                  la colonne de totaux : ils portent sur UNE semaine, qu'on y désigne au clic droit,
                  au lieu de « celle qui est affichée » — notion disparue avec la vue semaine. -->
+            <span class="tb-dropdown__t">Une semaine</span>
+            @for (week of weeks(); track $index) {
+              <button type="button" class="ctx-item" (click)="openWeekMenu(week, $event)">
+                <app-icon name="calendar-days" [size]="14" /> Semaine du {{ fmtDate(week.days[0].date) }}
+                <span class="ctx-hint">{{ week.sessions }} séance{{ week.sessions > 1 ? 's' : '' }}</span>
+              </button>
+            }
             <div class="ctx-sep"></div>
             <button type="button" class="ctx-item" (click)="selectAll(); actionsMenuOpen.set(false)">
               Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
@@ -651,8 +658,16 @@
     }
         <!-- Totaux de la semaine (colonne de droite, façon Nolio) -->
         <div class="week-total" [class.week-total--empty]="week.sessions === 0 && week.realSessions === 0"
-             (contextmenu)="openWeekMenu(week, $event)"
-             [title]="'Clic droit : dupliquer, vider ou décaler cette semaine'">
+             (contextmenu)="openWeekMenu(week, $event)">
+          <!-- Les gestes de semaine ne vivaient qu'au clic droit, signalés par une info-bulle :
+               personne ne les trouvait. Le bouton les rend visibles ; le clic droit reste. -->
+          @if (canWriteSelected()) {
+            <button type="button" class="wt-more" (click)="openWeekMenu(week, $event)"
+                    [attr.aria-label]="'Actions de la semaine du ' + fmtDate(week.days[0].date)"
+                    title="Copier, dupliquer, décaler ou vider cette semaine">
+              <app-icon name="ellipsis" [size]="16" />
+            </button>
+          }
           @if (week.sessions === 0 && week.realSessions === 0) {
             <span class="wt-dash">—</span>
           } @else {
@@ -888,8 +903,12 @@
      manipule, c'est donc là que vivent les gestes qui portent sur une semaine entière. -->
 @if (weekMenu(); as m) {
   <div class="ctx-backdrop" (click)="closeWeekMenu()" (contextmenu)="$event.preventDefault(); closeWeekMenu()"></div>
-  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+  <div class="ctx-menu ctx-menu--wide" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
     <span class="ctx-title">Semaine du {{ fmtDate(m.start) }} · {{ m.sessions }} séance{{ m.sessions > 1 ? 's' : '' }}</span>
+    <button type="button" class="ctx-item" (click)="ctxCopyWeek()">
+      <app-icon name="copy" [size]="14" /> Copier la semaine (pour un autre athlète ou un groupe)
+    </button>
+    <div class="ctx-sep"></div>
     <label class="ctx-field">Dupliquer cette semaine vers
       <input type="date" class="form-control" [ngModel]="weekMenuTarget" (ngModelChange)="ctxDuplicateWeek($event)" />
     </label>

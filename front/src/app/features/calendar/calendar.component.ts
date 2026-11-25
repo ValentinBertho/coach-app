@@ -310,7 +310,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * sont plus affichées ». C'est le manque remonté en bêta : « sur les séances de groupe, juste
    * les copier-coller qui sont pas possible ».</p>
    */
-  readonly clipboard = signal<{ entries: ClipEntry[]; label: string }>({
+  readonly clipboard = signal<{
+    entries: ClipEntry[];
+    label: string;
+    /**
+     * Lundi de la semaine copiée, quand le presse-papier porte une semaine entière : le collage
+     * se cale alors sur le lundi de la semaine visée, pour qu'une semaine qui commence le mardi
+     * arrive le mardi — et pas sur le jour où l'on a cliqué.
+     */
+    weekStart?: string | null;
+  }>({
     entries: [],
     label: '',
   });
@@ -1016,14 +1025,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
       );
       return;
     }
+    const at = this.pasteAnchor(cell.date);
     this.pasteRefs(
       entries,
       row.athleteId,
-      cell.date,
-      undefined,
+      at.target,
+      at.base,
       'le collage',
       (n) =>
-        `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(cell.date)}`,
+        `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(at.target)}`,
     );
   }
 
@@ -1067,7 +1077,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       title: 'Coller pour tout le groupe',
       message:
         `Donner « ${this.clipboardLabel()} » à ${rows.length} athlète(s) le ` +
-        `${this.fmtDate(m.date)} ?`,
+        `${this.fmtDate(this.pasteAnchor(m.date).target)} ?`,
       confirmLabel: 'Coller',
     });
     if (!ok) return;
@@ -1075,8 +1085,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Un seul lot, une seule entrée d'annulation : le coach a fait un geste, il doit pouvoir le
     // défaire d'un geste — pas athlète par athlète.
     const created: Created[] = [];
+    const at = this.pasteAnchor(m.date);
     const sourcesFor = (athleteId: string) =>
-      this.pasteSources(entries, m.date).map((src) =>
+      this.pasteSources(entries, at.target, at.base).map((src) =>
         this.pasteOne(src, athleteId, created),
       );
     const run = () =>
@@ -2472,14 +2483,43 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   openWeekMenu(week: WeekRow, ev: MouseEvent): void {
     ev.preventDefault();
+    ev.stopPropagation();
     if (!this.canWriteSelected() || this.scopeMode() !== 'athlete') return;
+    this.actionsMenuOpen.set(false);
     const start = week.days[0].date;
-    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    // Ouvert depuis un bouton (clavier compris, où clientX vaut 0) : le menu se pose sous lui.
+    const el = ev.currentTarget as HTMLElement | null;
+    const rect = ev.type === 'click' && el ? el.getBoundingClientRect() : null;
+    const { x, y } = this.clampToViewport(
+      rect ? rect.right - 260 : ev.clientX,
+      rect ? rect.bottom + 4 : ev.clientY,
+    );
     this.weekMenuTarget = this.shiftDate(start, 7);
     this.weekMenu.set({ start, sessions: week.sessions, x, y });
   }
   closeWeekMenu(): void {
     this.weekMenu.set(null);
+  }
+
+  /**
+   * Met la semaine entière dans le presse-papier, pour la recoller chez un autre athlète ou sur
+   * la ligne « Tout le groupe ». Le collage se cale sur le lundi de la semaine visée.
+   */
+  ctxCopyWeek(): void {
+    const m = this.weekMenu();
+    this.closeWeekMenu();
+    if (!m) return;
+    const entries = this.weekChips(m.start);
+    if (!entries.length) {
+      this.toast.info('Aucune séance à copier cette semaine.');
+      return;
+    }
+    const label = `La semaine du ${this.fmtDate(m.start)}`;
+    this.clipboard.set({ entries, label, weekStart: m.start });
+    this.toast.info(
+      `${label} est copiée (${entries.length} séance${entries.length > 1 ? 's' : ''}). ` +
+        `Choisis un autre athlète ou un groupe, puis « Coller » sur un jour de la semaine voulue.`,
+    );
   }
 
   // --- Menu contextuel d'un jour -------------------------------------------
@@ -2874,7 +2914,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Dépose dans le presse-papier et le dit, avec le raccourci qui sert la suite du geste. */
   private putInClipboard(entries: ClipEntry[], label: string): void {
-    this.clipboard.set({ entries, label });
+    this.clipboard.set({ entries, label, weekStart: null });
     this.toast.info(
       `${label} copiée${entries.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`,
     );
@@ -2895,6 +2935,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }));
   }
 
+  /** Cible et origine d'un collage : une semaine copiée se recolle sur le lundi visé. */
+  private pasteAnchor(target: string): { target: string; base: string | undefined } {
+    const weekStart = this.clipboard().weekStart;
+    if (!weekStart) return { target, base: undefined };
+    return { target: toIso(mondayOf(new Date(target + 'T00:00:00'))), base: weekStart };
+  }
+
   /**
    * Colle le presse-papier sur une date, ou sur le jour survolé.
    */
@@ -2912,13 +2959,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.requireWrite()) return;
+    const at = this.pasteAnchor(target);
     this.pasteRefs(
       clip.entries,
       this.selectedAthleteId,
-      target,
-      undefined,
+      at.target,
+      at.base,
       'le collage',
-      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(target)}`,
+      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(at.target)}`,
     );
   }
 

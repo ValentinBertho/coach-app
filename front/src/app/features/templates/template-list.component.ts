@@ -63,7 +63,14 @@ export class TemplateListComponent implements OnInit {
 
   readonly templates = signal<WorkoutTemplate[]>([]);
   readonly loading = signal(true);
-  readonly showForm = signal(false);
+  /** Création en cours : évite un double modèle sur un double clic. */
+  readonly creating = signal(false);
+
+  /** Carte dont le menu « ⋯ » est ouvert (une seule à la fois). */
+  readonly cardMenu = signal<string | null>(null);
+  toggleCardMenu(id: string): void {
+    this.cardMenu.update((cur) => (cur === id ? null : id));
+  }
 
   // Catégories personnalisées de bibliothèque (scopées club) — seul axe de classement (plus de « type »).
   readonly categories = signal<SessionCategory[]>([]);
@@ -132,14 +139,11 @@ export class TemplateListComponent implements OnInit {
     categoryId: [''],
   });
 
-  /** Champ « nom du modèle » replié : ouvert seulement si le coach veut un nom distinct du titre. */
-  readonly showName = signal(false);
-  toggleName(): void {
-    this.showName.update((v) => !v);
-  }
 
   ngOnInit(): void {
-    this.categoryFilter.set(this.cat());
+    // Sans paramètre d'URL, le routeur passe undefined : le filtre « Toutes catégories » restait vide.
+    this.categoryFilter.set(this.cat() ?? '');
+    this.form.patchValue({ categoryId: this.activeCategoryId() });
     this.load();
     this.loadCategories();
   }
@@ -147,6 +151,8 @@ export class TemplateListComponent implements OnInit {
   /** Change de catégorie de travail et l'inscrit dans l'URL, pour qu'elle survive à l'éditeur. */
   setCategoryFilter(value: string): void {
     this.categoryFilter.set(value);
+    // La séance créée ensuite se range là où l'on regarde.
+    if (!this.form.controls.title.value) this.form.patchValue({ categoryId: this.activeCategoryId() });
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { cat: value || null },
@@ -179,17 +185,6 @@ export class TemplateListComponent implements OnInit {
     });
   }
 
-  /**
-   * Ouvre le formulaire de création en reprenant la catégorie consultée : créer une séance depuis
-   * « Seuil › Seuil long » et la voir atterrir « sans catégorie » obligeait à la ranger à la main
-   * juste après, alors que le contexte disait déjà où elle allait.
-   */
-  toggleForm(): void {
-    this.showForm.update((v) => !v);
-    if (this.showForm())
-      this.form.patchValue({ categoryId: this.activeCategoryId() });
-  }
-
   /** Crée le modèle (métadonnées) puis ouvre l'éditeur de structure. Le « type » technique est
    * conservé par défaut côté modèle (l'UI ne raisonne plus qu'en catégories). */
   save(): void {
@@ -207,15 +202,18 @@ export class TemplateListComponent implements OnInit {
       categoryId: raw.categoryId || null,
       steps: [],
     };
+    this.creating.set(true);
     this.templateService.create(body).subscribe({
       next: (created) => {
-        this.toast.success('Modèle créé — construis la structure');
-        this.form.reset({ categoryId: '' });
-        this.showName.set(false);
-        this.showForm.set(false);
+        this.creating.set(false);
+        this.toast.success('Séance créée — construis sa structure');
+        this.form.reset({ categoryId: this.activeCategoryId() });
         this.router.navigate(['/app/templates', created.id, 'structure']);
       },
-      error: () => this.toast.error('Création impossible.'),
+      error: () => {
+        this.creating.set(false);
+        this.toast.error('Création impossible.');
+      },
     });
   }
 
