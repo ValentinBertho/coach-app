@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
   STATUS_LABELS,
@@ -110,6 +110,11 @@ export class WorkoutDetailComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly library = inject(SaveToLibraryService);
   private readonly router = inject(Router);
+  /**
+   * Arrivé depuis « Ma journée » (une séance du jour, un retour à traiter) : le retour y ramène.
+   * Il menait toujours au programme, et le coach perdait sa file à chaque séance ouverte.
+   */
+  readonly fromDay = inject(ActivatedRoute).snapshot.queryParamMap.get('from') === 'journee';
 
   /** Activité réalisée rapprochée de la séance (vue « réalisé » façon Nolio). */
   readonly activity = signal<Activity | null>(null);

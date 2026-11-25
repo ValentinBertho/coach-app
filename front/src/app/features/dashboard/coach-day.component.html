@@ -88,6 +88,11 @@
   <!-- 1. À traiter maintenant : ce qui appelle une décision aujourd'hui. -->
   <!-- Les propositions du produit : demandes d'athlètes et suggestions détectées. Placées avant
        les alertes parce qu'elles se referment en un tap, là où une alerte demande un jugement. -->
+  <!-- Deux colonnes au bureau : ce qui attend une décision à gauche, la journée et les messages
+       à droite. Sur une seule colonne de 40 rem, un écran de 1 440 px laissait les deux tiers vides
+       et la journée arrivait sous trois écrans de défilement. -->
+  <div class="cd-grid">
+  <div class="cd-col">
   <app-proposal-list [proposals]="proposals()" (decided)="onProposalDecided()" />
 
   @if (alerts().length) {
@@ -148,6 +153,8 @@
                         (countChange)="reviewCount.set($event)" />
   </section>
 
+  </div>
+  <div class="cd-col">
   <!-- 3. Messages non lus : le fil s'ouvre d'un tap, on y répond là-bas. -->
   @if (unread().length) {
     <section class="cd-sec">
@@ -208,68 +215,89 @@
         </button>
       </div>
     } @else {
-      <ul class="cd-list">
-        @for (s of sessions(); track s.workoutId) {
-          <li class="cd-card cd-sess">
-            <div class="cd-card__top">
-              <strong>{{ s.athleteName }}</strong>
-              <span class="badge"
-                    [class.badge-neutral]="s.status === 'PLANNED'"
-                    [class.badge-success]="s.status === 'COMPLETED'"
-                    [class.badge-warning]="s.status === 'PARTIAL'"
-                    [class.badge-danger]="s.status === 'MISSED'">{{ statusLabel(s.status) }}</span>
-            </div>
-            <span class="cd-card__title">{{ s.title }}</span>
-            <div class="cd-badges">
-              @if (s.type) { <span class="badge badge-neutral">{{ typeLabel(s.type) }}</span> }
-              @if (s.movedByAthlete) { <span class="badge badge-info">Déplacée par l'athlète</span> }
-              @if (s.awaitingReview) { <span class="badge badge-warning">Retour à traiter</span> }
-            </div>
-
-            <div class="cd-acts">
-              <button type="button" class="btn btn-ghost btn-sm" (click)="open(s)">Ouvrir</button>
-              <button type="button" class="btn btn-ghost btn-sm" (click)="toggleMenu(s)"
-                      [attr.aria-expanded]="menuFor() === s.workoutId" aria-label="Actions de la séance">
-                <app-icon name="ellipsis" [size]="16" /> Actions
-              </button>
-            </div>
-
-            @if (menuFor() === s.workoutId) {
-              <div class="cd-menu">
-                <button type="button" (click)="replyToSession(s)">
-                  <app-icon name="message-square" [size]="16" /> Écrire à {{ s.athleteName }}
-                </button>
-                <button type="button" (click)="edit(s)">
-                  <app-icon name="pencil" [size]="16" /> Modifier la séance
-                </button>
-                <button type="button" (click)="startMove(s)">
-                  <app-icon name="calendar" [size]="16" /> Déplacer
-                </button>
-                <button type="button" class="cd-menu__danger" (click)="remove(s)">
-                  <app-icon name="trash-2" [size]="16" /> Supprimer
-                </button>
-              </div>
-            }
-
-            @if (movingId() === s.workoutId) {
-              <div class="cd-move">
-                <label class="field-hint" [attr.for]="'move-' + s.workoutId">Nouvelle date</label>
-                <input class="form-control" type="date" [id]="'move-' + s.workoutId" [(ngModel)]="moveDate" />
-                <div class="cd-acts">
-                  <button type="button" class="btn btn-ghost btn-sm" (click)="closeMenu()">Annuler</button>
-                  <button type="button" class="btn btn-primary btn-sm" (click)="confirmMove(s)">Déplacer</button>
-                </div>
-              </div>
-            }
-          </li>
+      <!-- Filtres : une journée de club compte vingt séances ; on cherche d'abord celles qui ne
+           sont pas faites, ou celles qui attendent un retour. -->
+      <div class="cd-filters" role="group" aria-label="Filtrer la journée">
+        @for (f of dayFilters; track f.id) {
+          <button type="button" class="cd-filter" [class.on]="dayFilter() === f.id" (click)="dayFilter.set(f.id)">
+            {{ f.label }} <span class="cd-filter__n">{{ filterCount(f.id) }}</span>
+          </button>
         }
-      </ul>
+      </div>
+
+      <!-- Regroupée par séance : un groupe qui court la même VMA se lit en une ligne, pas en
+           huit cartes identiques. -->
+      @for (g of dayGroups(); track g.title) {
+        <div class="cd-group">
+          <div class="cd-group__hd">
+            <span class="cd-group__t">{{ g.title }}</span>
+            @if (g.type) { <span class="field-hint">{{ typeLabel(g.type) }}</span> }
+            <span class="cd-group__n">{{ g.items.length }}</span>
+          </div>
+          <ul class="cd-rows">
+            @for (s of g.items; track s.workoutId) {
+              <li class="cd-row">
+                <button type="button" class="cd-row__name" (click)="open(s)" [title]="'Ouvrir la séance de ' + s.athleteName">
+                  {{ s.athleteName }}
+                </button>
+                <span class="cd-row__badges">
+                  <span class="badge"
+                        [class.badge-neutral]="s.status === 'PLANNED'"
+                        [class.badge-success]="s.status === 'COMPLETED'"
+                        [class.badge-warning]="s.status === 'PARTIAL'"
+                        [class.badge-danger]="s.status === 'MISSED'">{{ statusLabel(s.status) }}</span>
+                  @if (s.awaitingReview) { <a class="badge badge-warning" href="#retours" title="Un retour attend dans la file">Retour</a> }
+                  @if (s.movedByAthlete) { <span class="badge badge-info" title="Déplacée par l'athlète">Déplacée</span> }
+                </span>
+                <span class="cd-row__acts">
+                  <button type="button" class="icon-btn" (click)="replyToSession(s)" [attr.aria-label]="'Écrire à ' + s.athleteName" [title]="'Écrire à ' + s.athleteName">
+                    <app-icon name="message-square" [size]="16" />
+                  </button>
+                  <button type="button" class="icon-btn" (click)="edit(s)" aria-label="Modifier la séance" title="Modifier la séance">
+                    <app-icon name="pencil" [size]="16" />
+                  </button>
+                  <button type="button" class="icon-btn" (click)="toggleMenu(s)"
+                          [attr.aria-expanded]="menuFor() === s.workoutId" aria-label="Autres actions" title="Déplacer, supprimer">
+                    <app-icon name="ellipsis" [size]="16" />
+                  </button>
+                </span>
+
+                @if (menuFor() === s.workoutId) {
+                  <div class="cd-menu cd-row__full">
+                    <button type="button" (click)="startMove(s)">
+                      <app-icon name="calendar" [size]="16" /> Déplacer
+                    </button>
+                    <button type="button" class="cd-menu__danger" (click)="remove(s)">
+                      <app-icon name="trash-2" [size]="16" /> Supprimer
+                    </button>
+                  </div>
+                }
+
+                @if (movingId() === s.workoutId) {
+                  <div class="cd-move cd-row__full">
+                    <label class="field-hint" [attr.for]="'move-' + s.workoutId">Nouvelle date</label>
+                    <input class="form-control" type="date" [id]="'move-' + s.workoutId" [(ngModel)]="moveDate" />
+                    <div class="cd-acts">
+                      <button type="button" class="btn btn-ghost btn-sm" (click)="closeMenu()">Annuler</button>
+                      <button type="button" class="btn btn-primary btn-sm" (click)="confirmMove(s)">Déplacer</button>
+                    </div>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      } @empty {
+        <p class="field-hint">Aucune séance pour ce filtre.</p>
+      }
 
       <button type="button" class="btn btn-ghost cd-plan-btn" (click)="openPlan()">
         <app-icon name="plus" [size]="16" /> Planifier une séance
       </button>
     }
   </section>
+  </div>
+  </div>
 }
 
 <!-- Feuille « planifier » : athlète, date, séance. Trois choix, dans cet ordre — c'est celui

@@ -374,12 +374,10 @@ export class CoachDayComponent implements OnInit {
   }
 
   open(s: CoachDaySession): void {
-    this.router.navigate([
-      '/app/athletes',
-      s.athleteId,
-      'workouts',
-      s.workoutId,
-    ]);
+    this.router.navigate(
+      ['/app/athletes', s.athleteId, 'workouts', s.workoutId],
+      { queryParams: { from: 'journee' } },
+    );
   }
 
   edit(s: CoachDaySession): void {
@@ -525,6 +523,44 @@ export class CoachDayComponent implements OnInit {
         },
       });
   }
+
+  // --- La journée : filtres et regroupement -----------------------------------
+
+  readonly dayFilters = [
+    { id: 'all', label: 'Tout' },
+    { id: 'todo', label: 'À faire' },
+    { id: 'done', label: 'Faites' },
+    { id: 'missed', label: 'Manquées' },
+    { id: 'review', label: 'Retour en attente' },
+  ] as const;
+  readonly dayFilter = signal<'all' | 'todo' | 'done' | 'missed' | 'review'>('all');
+
+  private matches(s: CoachDaySession, f: string): boolean {
+    switch (f) {
+      case 'todo': return s.status === 'PLANNED';
+      case 'done': return s.status === 'COMPLETED' || s.status === 'PARTIAL';
+      case 'missed': return s.status === 'MISSED';
+      case 'review': return s.awaitingReview;
+      default: return true;
+    }
+  }
+
+  filterCount(f: string): number {
+    return this.sessions().filter((s) => this.matches(s, f)).length;
+  }
+
+  /** Séances du jour filtrées, regroupées par intitulé — un groupe qui court la même séance tient en un bloc. */
+  readonly dayGroups = computed(() => {
+    const f = this.dayFilter();
+    const groups = new Map<string, { title: string; type: string | null; items: CoachDaySession[] }>();
+    for (const s of this.sessions()) {
+      if (!this.matches(s, f)) continue;
+      const g = groups.get(s.title) ?? { title: s.title, type: s.type, items: [] };
+      g.items.push(s);
+      groups.set(s.title, g);
+    }
+    return [...groups.values()].sort((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title));
+  });
 
   // --- Affichage -------------------------------------------------------------
 
