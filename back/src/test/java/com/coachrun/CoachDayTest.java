@@ -35,6 +35,7 @@ class CoachDayTest {
     @Autowired private WebApplicationContext context;
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.coachrun.repository.AthleteRepository athleteRepository;
 
     private MockMvc mvc;
     private String bearer;
@@ -134,5 +135,37 @@ class CoachDayTest {
             present |= athleteId.equals(row.get("athleteId").asText());
         }
         assertThat(present).isTrue();
+    }
+
+    /**
+     * Un athlète archivé garde ses séances planifiées ; elles ne doivent plus remplir la journée
+     * du coach. « Ma journée » en listait onze quand la page Athlètes en comptait six.
+     */
+    @Test
+    void dayLeavesOutArchivedAthletes() throws Exception {
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Ana\",\"lastName\":\"ArchiveTest\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        LocalDate day = LocalDate.now().plusDays(5);
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"" + day + "\",\"type\":\"ENDURANCE\","
+                                + "\"title\":\"Footing\"}"))
+                .andExpect(status().isCreated());
+
+        var athlete = athleteRepository.findById(java.util.UUID.fromString(athleteId)).orElseThrow();
+        athlete.setStatus(com.coachrun.entity.enums.AthleteStatus.ARCHIVED);
+        athleteRepository.saveAndFlush(athlete);
+
+        JsonNode rows = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/dashboard/day", clubId)
+                                .param("date", day.toString())
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode row : rows) {
+            assertThat(row.get("athleteId").asText()).isNotEqualTo(athleteId);
+        }
     }
 }

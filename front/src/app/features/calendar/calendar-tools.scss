@@ -14,6 +14,18 @@
 .tb-left, .tb-right { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .athlete-select { max-width: 240px; }
 
+/* Téléphone : le premier jour arrivait sous plus d'un demi-écran d'outils. On garde qui, quand,
+   et les deux menus ; annuler/rétablir et les raccourcis sont des gestes de clavier, la
+   bibliothèque latérale n'existe pas (la liste est dans la fenêtre « + »), et le volume se lit
+   dans le total de chaque semaine. */
+@media (max-width: 768px) {
+  .toolbar { gap: var(--sp-2); margin-bottom: var(--sp-2); }
+  .tb-left { width: 100%; }
+  .tb-left .volume, .tb-desk, .tb-lib { display: none !important; }
+  .tb-right { width: 100%; justify-content: flex-end; }
+  .week-label { min-width: 0; padding: 0 var(--sp-1); }
+}
+
 .week-nav {
   display: flex; align-items: center; gap: var(--sp-1);
   border: 1px solid var(--hairline); border-radius: var(--radius);
@@ -93,6 +105,8 @@
 .ctx-item:hover { background: var(--paper-sunk); color: var(--ink); }
 .ctx-item.danger { color: var(--danger); }
 .ctx-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.ctx-menu--wide { width: 260px; }
+.ctx-hint { margin-left: auto; font-size: var(--text-xs); font-weight: 500; color: var(--ink-4); }
 .ctx-sep { height: 1px; background: var(--hairline); margin: var(--sp-1) 0; }
 .ctx-field {
   display: flex; flex-direction: column; gap: 2px;
@@ -124,3 +138,25 @@
 .obj-chip__d { font-weight: 800; font-size: var(--text-sm); }
 .obj-chip__n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .obj-chip__date { opacity: 0.7; white-space: nowrap; }
+
+/* Jour visé par la bibliothèque latérale (après « + » › Bibliothèque). */
+.lib-target {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  margin: var(--sp-2) 0; padding: var(--sp-2) var(--sp-3);
+  background: var(--primary-wash); color: var(--ink-2); border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+/* Sélecteur Athlète | Groupe. */
+.seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper); padding: 2px; }
+.seg__b {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px var(--sp-2);
+  border: 0; background: transparent; border-radius: var(--radius-sm); cursor: pointer;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--ink-3);
+}
+.seg__b:hover { color: var(--ink); }
+.seg__b.on { background: var(--primary-wash); color: var(--primary); }
+.ctx-hint--block { display: block; margin: var(--sp-1) var(--sp-2); }
+/* Le choix du groupe gardait la hauteur d'un champ de formulaire et poussait « Aujourd'hui »
+   sur une seconde ligne. */
+.tb-left select.athlete-select { height: 34px; min-height: 0; padding-block: 0; font-size: var(--text-sm); width: auto; max-width: 220px; }

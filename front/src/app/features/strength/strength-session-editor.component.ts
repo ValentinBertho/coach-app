@@ -758,6 +758,60 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
+  /**
+   * Charge, effort et repos en ligne, quand ce sont des valeurs simples. Ils imposaient
+   * d'ouvrir « Éditer » pour changer un chiffre ; une fourchette, elle, reste au panneau — la
+   * réécrire depuis un seul champ la détruirait.
+   */
+  inlineCharge(item: StrengthExerciseItem): 'KG' | 'PCT' | null {
+    const p = item.prescription;
+    if (p.setTargets?.length) return null;
+    if ((!p.chargeRefType || p.chargeRefType === 'KG_FIXE') && p.chargeKgMax == null) return 'KG';
+    if (p.chargeRefType === 'PCT_RM' && p.chargePctRmMax == null) return 'PCT';
+    return null;
+  }
+  inlineEffort(item: StrengthExerciseItem): 'RIR' | 'RPE' | null {
+    const p = item.prescription;
+    if ((!p.effortRefType || p.effortRefType === 'RIR') && p.rirMax == null) return 'RIR';
+    if (p.effortRefType === 'RPE' && p.rpeMax == null) return 'RPE';
+    return null;
+  }
+  inlineRest(item: StrengthExerciseItem): boolean {
+    return item.prescription.restSecMax == null;
+  }
+
+  private num(value: number | null, min: number): number | null {
+    return value == null || !Number.isFinite(value) ? null : Math.max(min, value);
+  }
+
+  setInlineCharge(item: StrengthExerciseItem, value: number | null): void {
+    const p = item.prescription;
+    if (this.inlineCharge(item) === 'PCT') {
+      p.chargePctRmMin = this.num(value, 1);
+    } else {
+      p.chargeKgMin = this.num(value, 0);
+      p.chargeRefType = p.chargeKgMin == null && !p.chargeRefType ? undefined : 'KG_FIXE';
+    }
+    this.touch();
+  }
+
+  setInlineEffort(item: StrengthExerciseItem, value: number | null): void {
+    const p = item.prescription;
+    if (this.inlineEffort(item) === 'RPE') {
+      p.rpeMin = this.num(value, 1);
+    } else {
+      p.rirMin = this.num(value, 0);
+      p.effortRefType = p.rirMin == null && !p.effortRefType ? undefined : 'RIR';
+    }
+    this.touch();
+  }
+
+  setInlineRest(item: StrengthExerciseItem, value: number | null): void {
+    const v = this.num(value, 0);
+    item.prescription.restSecMin = v == null ? null : Math.round(v);
+    this.touch();
+  }
+
   setInlineReps(item: StrengthExerciseItem, value: number | null): void {
     item.prescription.repsFixed =
       value == null || !Number.isFinite(value)

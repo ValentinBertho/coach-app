@@ -22,6 +22,17 @@
 <div class="toolbar">
   <div class="tb-left">
     @if (!lockedToAthlete()) {
+      <!-- Athlète ou groupe : un choix de premier plan, rangé jusqu'ici dans le menu « Vue ». -->
+      <div class="seg" role="group" aria-label="Planifier pour">
+        <button type="button" class="seg__b" [class.on]="scopeMode() === 'athlete'"
+                [attr.aria-pressed]="scopeMode() === 'athlete'" (click)="setScopeMode('athlete')">
+          <app-icon name="user" [size]="14" /> Athlète
+        </button>
+        <button type="button" class="seg__b" [class.on]="scopeMode() === 'group'"
+                [attr.aria-pressed]="scopeMode() === 'group'" (click)="setScopeMode('group')">
+          <app-icon name="users-round" [size]="14" /> Groupe
+        </button>
+      </div>
       @if (scopeMode() === 'athlete') {
         <app-athlete-switcher [athletes]="athletes()" [selectedId]="selectedAthleteId"
                               (selectedIdChange)="onAthleteChange($event)" />
@@ -66,12 +77,12 @@
   <div class="tb-right">
     <!-- Annuler / rétablir visibles : une pile qu'on ne voit pas est une pile dont on ignore
          l'existence, et le libellé dit ce qui sera défait avant de cliquer. -->
-    <button type="button" class="icon-btn" (click)="undoLast()" [disabled]="!canUndo()"
+    <button type="button" class="icon-btn tb-desk" (click)="undoLast()" [disabled]="!canUndo()"
             [title]="(undoLabel() ? 'Annuler ' + undoLabel() : 'Rien à annuler') + ' (' + keys('mod','Z') + ')'"
             aria-label="Annuler">
       <app-icon name="rotate-ccw" [size]="16" />
     </button>
-    <button type="button" class="icon-btn" (click)="redoLast()" [disabled]="!canRedo()"
+    <button type="button" class="icon-btn tb-desk" (click)="redoLast()" [disabled]="!canRedo()"
             [title]="(redoLabel() ? 'Rétablir ' + redoLabel() : 'Rien à rétablir') + ' (' + keys('mod','Maj','Z') + ')'"
             aria-label="Rétablir">
       <app-icon name="refresh-cw" [size]="16" />
@@ -84,44 +95,8 @@
       <app-icon name="panel-left" [size]="15" /> Bibliothèque
     </button>
 
-    <div class="tb-menu">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="viewMenuOpen.set(!viewMenuOpen())"
-              [attr.aria-expanded]="viewMenuOpen()" aria-haspopup="menu">
-        <app-icon name="eye" [size]="15" /> Vue <app-icon name="chevron-down" [size]="14" />
-      </button>
-      @if (viewMenuOpen()) {
-        <div class="ctx-backdrop" (click)="viewMenuOpen.set(false)"></div>
-        <div class="tb-dropdown" role="menu">
-          @if (!lockedToAthlete()) {
-            <span class="tb-dropdown__t">Périmètre</span>
-            <button type="button" class="ctx-item" [class.on]="scopeMode() === 'athlete'"
-                    (click)="setScopeMode('athlete'); viewMenuOpen.set(false)">
-              <app-icon name="user" [size]="14" /> Athlète
-            </button>
-            <button type="button" class="ctx-item" [class.on]="scopeMode() === 'group'"
-                    (click)="setScopeMode('group'); viewMenuOpen.set(false)">
-              <app-icon name="users-round" [size]="14" /> Groupe
-            </button>
-            <div class="ctx-sep"></div>
-          }
-
-          @if (scopeMode() === 'athlete') {
-            <span class="tb-dropdown__t">Affichage</span>
-            <button type="button" class="ctx-item" [class.on]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
-            <button type="button" class="ctx-item" [class.on]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
-            <button type="button" class="ctx-item" [class.on]="view() === 'both'" (click)="setView('both')">Les deux</button>
-            <div class="ctx-sep"></div>
-
-            <!-- Plus de section « Période » : la grille affiche quatre semaines, seule maille
-                 qui serve à programmer. Un sélecteur à une entrée n'est pas un choix. -->
-          }
-
-          <button type="button" class="ctx-item" [class.on]="sidebarOpen()" (click)="toggleSidebar()">
-            <app-icon name="panel-left" [size]="14" /> Bibliothèque <kbd class="ctx-kbd">B</kbd>
-          </button>
-        </div>
-      }
-    </div>
+    <!-- Plus de menu « Vue » : il ne portait que le choix athlète/groupe — devenu un sélecteur
+         visible à gauche — et un doublon du bouton Bibliothèque. -->
 
     @if (scopeMode() === 'athlete') {
       <div class="tb-menu">
@@ -136,6 +111,13 @@
             <!-- Dupliquer une semaine et en générer un mésocycle sont passés dans le menu de
                  la colonne de totaux : ils portent sur UNE semaine, qu'on y désigne au clic droit,
                  au lieu de « celle qui est affichée » — notion disparue avec la vue semaine. -->
+            <span class="tb-dropdown__t">Une semaine</span>
+            @for (week of weeks(); track $index) {
+              <button type="button" class="ctx-item" (click)="openWeekMenu(week, $event)">
+                <app-icon name="calendar-days" [size]="14" /> Semaine du {{ fmtDate(week.days[0].date) }}
+                <span class="ctx-hint">{{ week.sessions }} séance{{ week.sessions > 1 ? 's' : '' }}</span>
+              </button>
+            }
             <div class="ctx-sep"></div>
             <button type="button" class="ctx-item" (click)="selectAll(); actionsMenuOpen.set(false)">
               Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
@@ -149,9 +131,9 @@
       </div>
     }
 
-    <button type="button" class="icon-btn" (click)="shortcutsOpen.set(true)"
+    <button type="button" class="icon-btn tb-desk" (click)="shortcutsOpen.set(true)"
             title="Raccourcis clavier (?)" aria-label="Raccourcis clavier">
-      <app-icon name="circle-help" [size]="16" />
+      <app-icon name="keyboard" [size]="16" />
     </button>
   </div>
 </div>
@@ -307,6 +289,7 @@
         @for (d of weekDates(); track d.date) {
           <span class="gg-day" [class.today]="d.isToday" [class.weekend]="d.weekend">{{ d.label }} {{ d.dayNum }}</span>
         }
+        <span class="gg-day gg-day--tot">Semaine</span>
       </div>
 
       <!-- Ligne « tout le groupe » : déposer une séance ici la planifie pour chaque athlète du
@@ -326,6 +309,12 @@
             <span class="gg-all-hint">+ tout le groupe</span>
           </div>
         }
+        <div class="gg-tot gg-tot--all">
+          <button type="button" class="btn btn-ghost btn-sm gg-tot__more" (click)="openGroupWeekMenu(null, $event)"
+                  aria-haspopup="menu" title="Dupliquer la semaine du groupe, coller une semaine pour tous">
+            Semaine du groupe <app-icon name="ellipsis" [size]="14" />
+          </button>
+        </div>
       </div>
 
       @for (row of groupRows(); track row.athleteId) {
@@ -373,6 +362,16 @@
               }
             </div>
           }
+          @let t = rowWeekTotal(row);
+          <div class="gg-tot">
+            <span class="gg-tot__n">{{ t.sessions }} séance{{ t.sessions > 1 ? 's' : '' }}</span>
+            @if (t.km) { <span class="metric">{{ t.km }}</span> }
+            @if (t.time) { <span class="gg-tot__t">{{ t.time }}</span> }
+            <button type="button" class="icon-btn gg-tot__dots" (click)="openGroupWeekMenu(row, $event)"
+                    aria-haspopup="menu" [attr.aria-label]="'Semaine de ' + row.firstName">
+              <app-icon name="ellipsis" [size]="14" />
+            </button>
+          </div>
         </div>
       }
     </div>
@@ -382,6 +381,32 @@
          Le geste existait au clavier en mode athlète et nulle part ici — un coach de club en
          concluait raisonnablement qu'il n'existait pas (« sur les séances de groupe, juste les
          copier-coller qui sont pas possible »). -->
+    @if (groupWeekMenu(); as wm) {
+      <div class="ctx-backdrop" (click)="closeGroupWeekMenu()" (contextmenu)="$event.preventDefault(); closeGroupWeekMenu()"></div>
+      <div class="ctx-menu ctx-menu--wide" [style.left.px]="wm.x" [style.top.px]="wm.y" (click)="$event.stopPropagation()">
+        <span class="ctx-title">{{ wm.row ? 'Semaine de ' + wm.row.firstName + ' ' + wm.row.lastName : 'Semaine de tout le groupe' }}</span>
+        @if (wm.row) {
+          <button type="button" class="ctx-item" (click)="ctxGroupCopyRowWeek()">
+            <app-icon name="copy" [size]="14" /> Copier sa semaine
+          </button>
+        }
+        <button type="button" class="ctx-item" (click)="ctxGroupPasteWeek()" [disabled]="!clipboardLabel() || (wm.row && !wm.row.canWrite)">
+          <app-icon name="users-round" [size]="14" />
+          {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' » ' + (wm.row ? 'sur sa semaine' : 'pour tout le groupe') : 'Coller (presse-papier vide)' }}
+        </button>
+        @if (!wm.row) {
+          <div class="ctx-sep"></div>
+          <label class="ctx-field">Dupliquer la semaine de chacun vers
+            <input type="date" class="form-control" [ngModel]="nextWeekStart()" #dupTo />
+          </label>
+          <button type="button" class="ctx-item" (click)="ctxGroupDuplicateWeek(dupTo.value)">
+            <app-icon name="calendar-days" [size]="14" /> Dupliquer
+          </button>
+          <span class="ctx-hint ctx-hint--block">Pour coller la semaine d'un athlète, copie-la depuis « ⋯ » de sa ligne.</span>
+        }
+      </div>
+    }
+
     @if (groupMenu(); as gm) {
       <div class="ctx-backdrop" (click)="closeGroupMenu()" (contextmenu)="$event.preventDefault(); closeGroupMenu()"></div>
       <div class="ctx-menu" [style.left.px]="gm.x" [style.top.px]="gm.y" (click)="$event.stopPropagation()">
@@ -429,13 +454,25 @@
         <h3>Bibliothèque</h3>
         <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque" aria-label="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
       </div>
-      <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
+      @if (libTarget().length) {
+        <p class="lib-target" role="status">
+          <span>Clique une séance pour la planifier le <strong>{{ libTargetLabel() }}</strong>, ou glisse-la sur un autre jour.</span>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="libTarget.set([])">Annuler</button>
+        </p>
+      } @else {
+        <p class="field-hint">Glisse une séance sur un jour pour la planifier, ou clique « + » sur un jour puis la séance.</p>
+      }
 
       <app-session-library-panel
+        [pickMode]="libTarget().length > 0"
+        [pickHint]="'Planifier le ' + libTargetLabel()"
         [courseTemplates]="courseTemplates()"
         [strengthSessions]="librarySessions()"
         [drills]="drills()"
         [categories]="categories()"
+        (courseSelect)="sideCourse($event)"
+        (strengthSelect)="sideStrength($event)"
+        (drillSelect)="sideDrill($event)"
         (favoriteToggle)="toggleFavorite($event)" />
     </aside>
     }
@@ -495,12 +532,13 @@
         @for (day of week.days; track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability"
            [class.day-col--weekend]="day.weekend"
-           [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date)"
+           [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date) || libTarget().includes(day.date)"
            [attr.data-day]="day.date"
            (contextmenu)="openDayMenu(day.date, $event)"
            (mouseenter)="onDayEnter(day.date)" (mouseleave)="onDayLeave(day.date)">
         <header class="day-head">
           <div class="day-head__date">
+            <span class="day-name">{{ day.label }}.</span>
             <span class="day-num">{{ day.dayNum }}</span>
           </div>
           <!-- Le volume du jour se lit là où on lit sa date. Il n'existait qu'au pied de la
@@ -542,9 +580,12 @@
         <div class="day-body" cdkDropList [cdkDropListData]="day" (cdkDropListDropped)="onDrop($event, day.date)">
           @if (showPlanned()) {
           @for (w of day.workouts; track w.id) {
+            @let done = showRealized() ? matchedActivity(day.activities, w) : null;
             <button
               type="button"
               class="workout-card"
+              [class.workout-card--done]="!!done"
+              [attr.data-compliance]="done ? compliance(w, done) : null"
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
               [class.is-selected]="isSelected('course', w.id)"
@@ -584,6 +625,13 @@
                 }
               </span>
               <app-zone-bar [steps]="w.steps" />
+              @if (done) {
+                <span class="wc-done" [title]="complianceTitle(w, done)">
+                  <app-icon name="check" [size]="11" />
+                  @if (activityKm(done); as km) { {{ km }} km }
+                  @if (done.avgHr) { · {{ done.avgHr }} bpm }
+                </span>
+              }
             </button>
           }
           @for (s of day.strength; track s.id) {
@@ -616,7 +664,7 @@
 
           <!-- Activités réalisées (importées) façon Nolio -->
           @if (showRealized()) {
-            @for (a of day.activities; track a.id) {
+            @for (a of looseActivities(day.activities, day.workouts); track a.id) {
               <!-- Rattachée ou non : sans ce repère, une sortie importée et une séance validée se
                    ressemblaient, et rien ne disait qu'il restait un geste à faire pour que le
                    prévu et le réalisé se rejoignent. -->
@@ -651,8 +699,16 @@
     }
         <!-- Totaux de la semaine (colonne de droite, façon Nolio) -->
         <div class="week-total" [class.week-total--empty]="week.sessions === 0 && week.realSessions === 0"
-             (contextmenu)="openWeekMenu(week, $event)"
-             [title]="'Clic droit : dupliquer, vider ou décaler cette semaine'">
+             (contextmenu)="openWeekMenu(week, $event)">
+          <!-- Les gestes de semaine ne vivaient qu'au clic droit, signalés par une info-bulle :
+               personne ne les trouvait. Le bouton les rend visibles ; le clic droit reste. -->
+          @if (canWriteSelected()) {
+            <button type="button" class="wt-more" (click)="openWeekMenu(week, $event)"
+                    [attr.aria-label]="'Actions de la semaine du ' + fmtDate(week.days[0].date)"
+                    title="Copier, dupliquer, décaler ou vider cette semaine">
+              <app-icon name="ellipsis" [size]="16" />
+            </button>
+          }
           @if (week.sessions === 0 && week.realSessions === 0) {
             <span class="wt-dash">—</span>
           } @else {
@@ -888,8 +944,12 @@
      manipule, c'est donc là que vivent les gestes qui portent sur une semaine entière. -->
 @if (weekMenu(); as m) {
   <div class="ctx-backdrop" (click)="closeWeekMenu()" (contextmenu)="$event.preventDefault(); closeWeekMenu()"></div>
-  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+  <div class="ctx-menu ctx-menu--wide" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
     <span class="ctx-title">Semaine du {{ fmtDate(m.start) }} · {{ m.sessions }} séance{{ m.sessions > 1 ? 's' : '' }}</span>
+    <button type="button" class="ctx-item" (click)="ctxCopyWeek()">
+      <app-icon name="copy" [size]="14" /> Copier la semaine (pour un autre athlète ou un groupe)
+    </button>
+    <div class="ctx-sep"></div>
     <label class="ctx-field">Dupliquer cette semaine vers
       <input type="date" class="form-control" [ngModel]="weekMenuTarget" (ngModelChange)="ctxDuplicateWeek($event)" />
     </label>
@@ -977,7 +1037,7 @@
            Petit écran (pas de colonne latérale) : la liste reste dans la modale. -->
       <button type="button" class="picker__item picker__lib-side" (click)="openLibraryBeside()">
         <span class="picker__name"><app-icon name="panel-left" [size]="15" /> Bibliothèque</span>
-        <span class="picker__type">s'ouvre à côté : glisse la séance sur le jour</span>
+        <span class="picker__type">s'ouvre à côté : clique la séance, ou glisse-la</span>
       </button>
       <p class="field-hint picker__or picker__lib-inline">ou depuis la bibliothèque :</p>
       <app-session-library-panel class="picker__lib picker__lib-inline"

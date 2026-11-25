@@ -64,3 +64,17 @@
    que le geste n'existe pas — exactement le malentendu qu'on corrige ici. */
 .ctx-item:disabled { opacity: 0.45; cursor: not-allowed; }
 .ctx-title--note { font-weight: 600; color: var(--ink-3); white-space: normal; }
+
+/* Colonne « Semaine » : le total de chacun et les gestes qui portent sur une semaine entière. */
+.gg-head, .gg-row { grid-template-columns: 180px repeat(7, minmax(110px, 1fr)) 128px; }
+.gg-day--tot { color: var(--ink-3); }
+.gg-tot {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+  position: relative; padding: var(--sp-1) var(--sp-2); padding-right: 28px;
+  background: var(--paper-sunk); border-radius: var(--radius-sm); font-size: var(--text-xs); color: var(--ink-2);
+}
+.gg-tot__n { font-weight: 700; color: var(--ink); }
+.gg-tot__t { color: var(--ink-3); }
+.gg-tot__dots { position: absolute; top: 2px; right: 2px; }
+.gg-tot--all { background: transparent; padding: 0; align-items: stretch; }
+.gg-tot__more { justify-content: space-between; height: 100%; font-size: var(--text-xs); white-space: normal; text-align: left; }

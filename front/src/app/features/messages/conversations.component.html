@@ -56,7 +56,29 @@
           <strong>{{ c.title }}</strong>
           @if (c.subtitle) { <span class="field-hint">{{ c.subtitle }}</span> }
         </div>
+        @if (threadAthleteId(); as aid) {
+          <a class="btn btn-ghost btn-sm thread-head__link" [routerLink]="['/app/athletes', aid, 'programme']">
+            <app-icon name="calendar-days" [size]="15" /> Programme
+          </a>
+        }
       </header>
+      @if (threadAthleteId() && upcoming().length) {
+        <nav class="upcoming" aria-label="Prochaines séances">
+          <span class="upcoming__t">À venir</span>
+          @for (w of upcoming(); track w.id) {
+            <span class="upcoming__item">
+              <a [routerLink]="['/app/athletes', threadAthleteId(), 'workouts', w.id]" class="upcoming__open">
+                <span class="upcoming__d">{{ w.scheduledDate | date: 'EEE d' }}</span>
+                <span class="upcoming__n">{{ w.title }}</span>
+              </a>
+              <a [routerLink]="['/app/athletes', threadAthleteId(), 'workouts', w.id, 'structure']"
+                 class="upcoming__adapt" [attr.aria-label]="'Adapter ' + w.title" title="Adapter cette séance">
+                <app-icon name="pencil" [size]="13" />
+              </a>
+            </span>
+          }
+        </nav>
+      }
 
       <div class="thread" #thread>
         @if (loadingThread()) {

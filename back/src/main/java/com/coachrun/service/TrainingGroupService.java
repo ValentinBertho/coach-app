@@ -54,7 +54,7 @@ public class TrainingGroupService {
     public List<TrainingGroupResponse> list(UUID clubId, UUID coachId) {
         return groupRepository.findByClubIdOrderByNameAsc(clubId).stream()
                 .filter(g -> g.isVisibleTo(coachId))
-                .map(g -> TrainingGroupResponse.of(g, athleteRepository.countByGroupId(g.getId()), coachId))
+                .map(g -> TrainingGroupResponse.of(g, athleteRepository.countByGroupIdAndStatus(g.getId(), AthleteStatus.ACTIVE), coachId))
                 .toList();
     }
 
@@ -160,7 +160,7 @@ public class TrainingGroupService {
         g.setVisibility(request.visibilityOrDefault());
         g.getInvitedCoachIds().clear();
         g.getInvitedCoachIds().addAll(invited(request));
-        return TrainingGroupResponse.of(g, athleteRepository.countByGroupId(id), coachId);
+        return TrainingGroupResponse.of(g, athleteRepository.countByGroupIdAndStatus(id, AthleteStatus.ACTIVE), coachId);
     }
 
     private static java.util.Set<UUID> invited(TrainingGroupRequest request) {

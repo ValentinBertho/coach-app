@@ -56,11 +56,24 @@
         <div class="card ex-card lib-card" (click)="openExercise(e)">
           <div class="lib-card__head">
             @if (e.categoryId) { <span class="badge badge-neutral" [title]="catName(e.categoryId)">{{ catName(e.categoryId) }}</span> }
+            <!-- Comme la bibliothèque course : deux actions visibles, le reste derrière « ⋯ ». -->
             <div class="lib-card__actions" (click)="$event.stopPropagation()">
-              <button type="button" class="icon-btn" (click)="renameExercise(e)" title="Renommer"><app-icon name="type" [size]="15" /></button>
-              <button type="button" class="icon-btn" (click)="openExercise(e, true)" title="Modifier"><app-icon name="pencil" [size]="15" /></button>
-              <button type="button" class="icon-btn" (click)="duplicateExercise(e)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
-              <button type="button" class="icon-btn danger" (click)="deleteExercise(e)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
+              <button type="button" class="icon-btn" (click)="openExercise(e, true)" title="Modifier"
+                      [attr.aria-label]="'Modifier ' + e.name"><app-icon name="pencil" [size]="15" /></button>
+              <span class="lib-more">
+                <button type="button" class="icon-btn" (click)="toggleCardMenu('ex:' + e.id)" [attr.aria-expanded]="cardMenu() === 'ex:' + e.id"
+                        aria-haspopup="menu" [attr.aria-label]="'Autres actions sur ' + e.name" title="Autres actions">
+                  <app-icon name="ellipsis" [size]="15" />
+                </button>
+                @if (cardMenu() === 'ex:' + e.id) {
+                  <div class="lib-menu-backdrop" (click)="cardMenu.set(null)"></div>
+                  <div class="lib-menu" role="menu">
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); renameExercise(e)"><app-icon name="type" [size]="14" /> Renommer</button>
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); duplicateExercise(e)" [disabled]="duplicating()"><app-icon name="copy" [size]="14" /> Dupliquer</button>
+                    <button type="button" role="menuitem" class="danger" (click)="cardMenu.set(null); deleteExercise(e)"><app-icon name="trash-2" [size]="14" /> Supprimer</button>
+                  </div>
+                }
+              </span>
             </div>
           </div>
           <strong class="lib-card__name">
@@ -148,24 +161,47 @@
         <div class="card ex-card lib-card" (click)="openSession(s)">
           <div class="lib-card__head">
             @if (s.categoryId) { <span class="badge badge-neutral" [title]="catName(s.categoryId)">{{ catName(s.categoryId) }}</span> }
+            @else { <span class="badge badge-neutral muted">Sans catégorie</span> }
+            <!-- Comme la bibliothèque course : deux actions visibles, le reste derrière « ⋯ ». -->
             <div class="lib-card__actions" (click)="$event.stopPropagation()">
-              <button type="button" class="icon-btn" (click)="renameSession(s)" title="Renommer"><app-icon name="type" [size]="15" /></button>
-              <a class="icon-btn" [routerLink]="['/app/strength/sessions', s.id, 'structure']" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
-              <button type="button" class="icon-btn" (click)="duplicateSession(s)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
-              <button type="button" class="icon-btn danger" (click)="deleteSession(s)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
+              <a class="icon-btn" [routerLink]="['/app/strength/sessions', s.id, 'structure']" title="Modifier"
+                 [attr.aria-label]="'Modifier ' + s.name"><app-icon name="pencil" [size]="15" /></a>
+              <span class="lib-more">
+                <button type="button" class="icon-btn" (click)="toggleCardMenu(s.id)" [attr.aria-expanded]="cardMenu() === s.id"
+                        aria-haspopup="menu" [attr.aria-label]="'Autres actions sur ' + s.name" title="Autres actions">
+                  <app-icon name="ellipsis" [size]="15" />
+                </button>
+                @if (cardMenu() === s.id) {
+                  <div class="lib-menu-backdrop" (click)="cardMenu.set(null)"></div>
+                  <div class="lib-menu" role="menu">
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); openSession(s)"><app-icon name="eye" [size]="14" /> Consulter</button>
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); renameSession(s)"><app-icon name="type" [size]="14" /> Renommer</button>
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); duplicateSession(s)" [disabled]="duplicating()"><app-icon name="copy" [size]="14" /> Dupliquer</button>
+                    <!-- Reclasser sans ouvrir la séance : ranger une bibliothèque se fait en rafale. -->
+                    <label class="lib-menu__field">Catégorie
+                      <select class="form-control" [ngModel]="s.categoryId ?? ''"
+                              (ngModelChange)="assignSessionCategory(s, $event); cardMenu.set(null)">
+                        <option value="">Sans catégorie</option>
+                        @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                      </select>
+                    </label>
+                    <button type="button" role="menuitem" class="danger" (click)="cardMenu.set(null); deleteSession(s)"><app-icon name="trash-2" [size]="14" /> Supprimer</button>
+                  </div>
+                }
+              </span>
             </div>
           </div>
           <strong class="lib-card__name">
             @if (s.favorite) { <app-icon name="star" [size]="13" class="lib-card__star" /> }
             {{ s.name }}
           </strong>
-          <span class="field-hint lib-card__sub">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</span>
-          <!-- Reclasser sans ouvrir la séance : ranger une bibliothèque se fait en rafale. -->
-          <select class="form-control lib-card__cat" [ngModel]="s.categoryId ?? ''" (click)="$event.stopPropagation()"
-                  (ngModelChange)="assignSessionCategory(s, $event)" title="Catégorie">
-            <option value="">Sans catégorie</option>
-            @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-          </select>
+          <!-- La liste ne porte pas toujours la structure complète : « 0 bloc(s) » s'affichait sur des
+               séances bien remplies. On ne dit que ce qu'on sait. -->
+          <span class="field-hint lib-card__sub">
+            @if (exerciseCount(s)) { {{ exerciseCount(s) }} exercice{{ exerciseCount(s) > 1 ? 's' : '' }} }
+            @if (exerciseCount(s) && s.useCount) { · }
+            @if (s.useCount) { planifiée {{ s.useCount }} fois } @else if (!exerciseCount(s)) { jamais planifiée }
+          </span>
         </div>
       } @empty {
         @if (sessions().length) {

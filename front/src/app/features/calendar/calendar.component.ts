@@ -255,6 +255,7 @@ function toIso(d: Date): string {
     './calendar.component.scss',
     './calendar-group.scss',
     './calendar-tools.scss',
+    './calendar-cards.scss',
   ],
 })
 export class CalendarComponent implements OnInit, OnDestroy {
@@ -310,7 +311,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * sont plus affichées ». C'est le manque remonté en bêta : « sur les séances de groupe, juste
    * les copier-coller qui sont pas possible ».</p>
    */
-  readonly clipboard = signal<{ entries: ClipEntry[]; label: string }>({
+  readonly clipboard = signal<{
+    entries: ClipEntry[];
+    label: string;
+    /**
+     * Lundi de la semaine copiée, quand le presse-papier porte une semaine entière : le collage
+     * se cale alors sur le lundi de la semaine visée, pour qu'une semaine qui commence le mardi
+     * arrive le mardi — et pas sur le jour où l'on a cliqué.
+     */
+    weekStart?: string | null;
+  }>({
     entries: [],
     label: '',
   });
@@ -591,6 +601,144 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
   rowStrength(row: GroupCalendarRow, date: string): ScheduledStrength[] {
     return row.strength.filter((s) => s.scheduledDate === date);
+  }
+
+  /**
+   * Total de la semaine d'une ligne du groupe : séances, kilomètres prescrits, durée.
+   *
+   * <p>La grille groupe n'avait aucun total — le coach recomptait de tête la charge de chacun.
+   * Les kilomètres ne viennent que des distances écrites : une séance en durée n'a pas d'allure
+   * de référence ici (elle est propre à chaque athlète), on la compte donc en temps.</p>
+   */
+  rowWeekTotal(row: GroupCalendarRow): { sessions: number; km: string | null; time: string | null } {
+    const sessions = row.workouts.length + row.strength.length;
+    const m = row.workouts.reduce((s, w) => s + (w.targetDistanceM ?? 0), 0);
+    const sec = row.workouts.reduce((s, w) => s + (w.targetDurationS ?? 0), 0);
+    const h = Math.floor(sec / 3600);
+    const min = Math.round((sec % 3600) / 60);
+    return {
+      sessions,
+      km: m > 0 ? frNumber(m / 1000, 1) + ' km' : null,
+      time: sec > 0 ? (h ? `${h} h ${String(min).padStart(2, '0')}` : `${min} min`) : null,
+    };
+  }
+
+  /** Menu « ⋯ » de la colonne Semaine, en vue groupe : une ligne d'athlète, ou tout le groupe. */
+  readonly groupWeekMenu = signal<{ x: number; y: number; row: GroupCalendarRow | null } | null>(null);
+
+  openGroupWeekMenu(row: GroupCalendarRow | null, ev: MouseEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const el = ev.currentTarget as HTMLElement | null;
+    const r = el?.getBoundingClientRect();
+    const { x, y } = this.clampToViewport(r ? r.right - 260 : ev.clientX, r ? r.bottom + 4 : ev.clientY);
+    this.groupWeekMenu.set({ x, y, row });
+  }
+
+  closeGroupWeekMenu(): void {
+    this.groupWeekMenu.set(null);
+  }
+
+  /** Les séances d'une ligne du groupe, en entrées de presse-papier. */
+  private rowEntries(row: GroupCalendarRow): ClipEntry[] {
+    return [...row.workouts, ...row.strength].map((c) => this.groupEntry(row, c));
+  }
+
+  /** Copie la semaine d'un athlète du groupe, pour la recoller chez un autre ou pour tous. */
+  ctxGroupCopyRowWeek(): void {
+    const m = this.groupWeekMenu();
+    this.closeGroupWeekMenu();
+    if (!m?.row) return;
+    const entries = this.rowEntries(m.row);
+    if (!entries.length) {
+      this.toast.info('Aucune séance à copier cette semaine.');
+      return;
+    }
+    const start = this.weekDates()[0].date;
+    const label = `La semaine de ${m.row.firstName}`;
+    this.clipboard.set({ entries, label, weekStart: start });
+    this.toast.info(
+      `${label} est copiée (${entries.length} séance${entries.length > 1 ? 's' : ''}). ` +
+        `Colle-la sur une autre ligne, ou pour tout le groupe depuis « ⋯ » de la ligne Tout le groupe.`,
+    );
+  }
+
+  /** Colle le presse-papier sur la semaine affichée : une ligne, ou tout le groupe. */
+  ctxGroupPasteWeek(): void {
+    const m = this.groupWeekMenu();
+    this.closeGroupWeekMenu();
+    if (!m) return;
+    const monday = this.weekDates()[0].date;
+    if (m.row) {
+      this.pasteOnGroupCell({ athleteId: m.row.athleteId, date: monday });
+    } else {
+      void this.groupPasteAll(monday);
+    }
+  }
+
+  /**
+   * Recopie la semaine affichée de CHAQUE athlète du groupe vers la semaine suivante (ou celle
+   * choisie). Chacun garde ses propres séances, telles qu'adaptées pour lui : c'est une semaine
+   * de groupe qu'on reconduit, pas une séance qu'on distribue.
+   */
+  async ctxGroupDuplicateWeek(targetStart: string): Promise<void> {
+    this.closeGroupWeekMenu();
+    if (!targetStart) return;
+    const source = this.weekDates()[0].date;
+    const target = toIso(mondayOf(new Date(targetStart + 'T00:00:00')));
+    if (target === source) {
+      this.toast.info('Choisis une autre semaine que celle affichée.');
+      return;
+    }
+    const rows = this.groupRows().filter((r) => r.canWrite && this.rowEntries(r).length);
+    const total = rows.reduce((n, r) => n + this.rowEntries(r).length, 0);
+    if (!total) {
+      this.toast.info('Aucune séance à dupliquer cette semaine.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Dupliquer la semaine du groupe',
+      message:
+        `Recopier ${total} séance(s) de ${rows.length} athlète(s) vers la semaine du ` +
+        `${this.fmtDate(target)} ? Chacun garde ses propres séances ; celles déjà présentes restent.`,
+      confirmLabel: 'Dupliquer',
+    });
+    if (!ok) return;
+    const created: Created[] = [];
+    const run = () =>
+      defer(() => {
+        created.length = 0;
+        return this.all(
+          rows.flatMap((r) =>
+            this.pasteSources(this.rowEntries(r), target, source).map((src) =>
+              this.pasteOne(src, r.athleteId, created),
+            ),
+          ),
+        );
+      });
+    run().subscribe({
+      next: () => {
+        this.anchor.set(new Date(target + 'T00:00:00'));
+        this.refreshAll();
+        this.commit(
+          {
+            label: 'la duplication de la semaine du groupe',
+            undo: () => this.all(created.map((c) => this.removeCreated(c))),
+            redo: () => run(),
+          },
+          `${total} séance(s) recopiée(s) sur la semaine du ${this.fmtDate(target)}`,
+        );
+      },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Duplication impossible.');
+      },
+    });
+  }
+
+  /** Lundi suivant la semaine affichée, valeur par défaut du champ « Dupliquer vers ». */
+  nextWeekStart(): string {
+    return this.shiftDate(this.weekDates()[0].date, 7);
   }
 
   setScopeMode(m: 'athlete' | 'group'): void {
@@ -1016,14 +1164,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
       );
       return;
     }
+    const at = this.pasteAnchor(cell.date);
     this.pasteRefs(
       entries,
       row.athleteId,
-      cell.date,
-      undefined,
+      at.target,
+      at.base,
       'le collage',
       (n) =>
-        `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(cell.date)}`,
+        `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(at.target)}`,
     );
   }
 
@@ -1049,6 +1198,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const m = this.groupMenu();
     this.closeGroupMenu();
     if (!m) return;
+    await this.groupPasteAll(m.date);
+  }
+
+  private async groupPasteAll(date: string): Promise<void> {
     const entries = this.clipboard().entries;
     if (!entries.length) {
       this.toast.info(
@@ -1067,7 +1220,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       title: 'Coller pour tout le groupe',
       message:
         `Donner « ${this.clipboardLabel()} » à ${rows.length} athlète(s) le ` +
-        `${this.fmtDate(m.date)} ?`,
+        `${this.fmtDate(this.pasteAnchor(date).target)} ?`,
       confirmLabel: 'Coller',
     });
     if (!ok) return;
@@ -1075,8 +1228,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Un seul lot, une seule entrée d'annulation : le coach a fait un geste, il doit pouvoir le
     // défaire d'un geste — pas athlète par athlète.
     const created: Created[] = [];
+    const at = this.pasteAnchor(date);
     const sourcesFor = (athleteId: string) =>
-      this.pasteSources(entries, m.date).map((src) =>
+      this.pasteSources(entries, at.target, at.base).map((src) =>
         this.pasteOne(src, athleteId, created),
       );
     const run = () =>
@@ -1228,6 +1382,40 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Km d'une activité réalisée (pour la pastille). */
+  /**
+   * Activité rapprochée de cette séance, le même jour. Prévu et réalisé se lisaient en deux
+   * pastilles l'une sous l'autre — la journée doublait de hauteur et il fallait les apparier
+   * de tête. Une séance faite n'est plus qu'une carte, qui porte les deux.
+   */
+  matchedActivity(activities: Activity[], w: Workout): Activity | null {
+    return activities.find((a) => a.matchedWorkoutId === w.id) ?? null;
+  }
+
+  /** Les activités qui restent à part : non rapprochées, ou rapprochées d'une séance d'un autre jour. */
+  looseActivities(activities: Activity[], workouts: Workout[]): Activity[] {
+    if (!this.showPlanned()) return activities;
+    const ids = new Set(workouts.map((w) => w.id));
+    return activities.filter((a) => !a.matchedWorkoutId || !ids.has(a.matchedWorkoutId));
+  }
+
+  /**
+   * Respect de la consigne, en distance : « ok » entre 80 et 120 % du prévu, « low » en dessous,
+   * « high » au-dessus. Sans distance prévue ni réalisée, faite suffit à dire « ok ».
+   */
+  compliance(w: Workout, a: Activity): 'ok' | 'low' | 'high' {
+    const planned = this.volumeM(w);
+    if (!planned || !a.distanceM) return 'ok';
+    const r = a.distanceM / planned;
+    return r < 0.8 ? 'low' : r > 1.2 ? 'high' : 'ok';
+  }
+
+  complianceTitle(w: Workout, a: Activity): string {
+    const c = this.compliance(w, a);
+    const real = this.activityKm(a);
+    const base = `Réalisé${real ? ' : ' + real + ' km' : ''}${a.avgHr ? ' · ' + a.avgHr + ' bpm' : ''}`;
+    return c === 'ok' ? `${base} — conforme au prévu` : c === 'low' ? `${base} — en dessous du prévu` : `${base} — au-dessus du prévu`;
+  }
+
   activityKm(a: Activity): string | null {
     return a.distanceM ? frNumber(a.distanceM / 1000, 1) : null;
   }
@@ -1696,9 +1884,39 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * modale, pour glisser la séance sur le jour plutôt que la chercher au milieu de l'écran.
    */
   openLibraryBeside(): void {
+    // Le jour du « + » reste visé : un clic sur une séance de la colonne l'y planifie. Avant, ce
+    // clic ne faisait rien sur ordinateur, alors qu'au téléphone le même geste planifiait.
+    this.libTarget.set(this.pickerDates());
     if (!this.sidebarOpen()) this.toggleSidebar();
     this.closePicker();
-    this.toast.info('Glisse une séance de la bibliothèque sur le jour voulu.');
+  }
+
+  /** Jour(s) visé(s) par la bibliothèque latérale : un clic y planifie la séance choisie. */
+  readonly libTarget = signal<string[]>([]);
+  readonly libTargetLabel = computed(() => {
+    const d = this.libTarget();
+    if (!d.length) return '';
+    return d.length > 1 ? `${d.length} jours` : this.fmtDate(d[0]);
+  });
+
+  private pickFromSide(run: () => void): void {
+    const dates = this.libTarget();
+    if (!dates.length) {
+      this.toast.info('Glisse la séance sur un jour, ou clique d’abord « + » sur le jour voulu.');
+      return;
+    }
+    this.pickerDates.set(dates);
+    this.libTarget.set([]);
+    run();
+  }
+  sideCourse(t: WorkoutTemplate): void {
+    this.pickFromSide(() => this.scheduleTemplateOn(t));
+  }
+  sideStrength(x: StrengthSession): void {
+    this.pickFromSide(() => this.scheduleStrengthOn(x));
+  }
+  sideDrill(d: RunDrill): void {
+    this.pickFromSide(() => this.scheduleDrillOn(d));
   }
 
   closePicker(): void {
@@ -2472,14 +2690,43 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   openWeekMenu(week: WeekRow, ev: MouseEvent): void {
     ev.preventDefault();
+    ev.stopPropagation();
     if (!this.canWriteSelected() || this.scopeMode() !== 'athlete') return;
+    this.actionsMenuOpen.set(false);
     const start = week.days[0].date;
-    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    // Ouvert depuis un bouton (clavier compris, où clientX vaut 0) : le menu se pose sous lui.
+    const el = ev.currentTarget as HTMLElement | null;
+    const rect = ev.type === 'click' && el ? el.getBoundingClientRect() : null;
+    const { x, y } = this.clampToViewport(
+      rect ? rect.right - 260 : ev.clientX,
+      rect ? rect.bottom + 4 : ev.clientY,
+    );
     this.weekMenuTarget = this.shiftDate(start, 7);
     this.weekMenu.set({ start, sessions: week.sessions, x, y });
   }
   closeWeekMenu(): void {
     this.weekMenu.set(null);
+  }
+
+  /**
+   * Met la semaine entière dans le presse-papier, pour la recoller chez un autre athlète ou sur
+   * la ligne « Tout le groupe ». Le collage se cale sur le lundi de la semaine visée.
+   */
+  ctxCopyWeek(): void {
+    const m = this.weekMenu();
+    this.closeWeekMenu();
+    if (!m) return;
+    const entries = this.weekChips(m.start);
+    if (!entries.length) {
+      this.toast.info('Aucune séance à copier cette semaine.');
+      return;
+    }
+    const label = `La semaine du ${this.fmtDate(m.start)}`;
+    this.clipboard.set({ entries, label, weekStart: m.start });
+    this.toast.info(
+      `${label} est copiée (${entries.length} séance${entries.length > 1 ? 's' : ''}). ` +
+        `Choisis un autre athlète ou un groupe, puis « Coller » sur un jour de la semaine voulue.`,
+    );
   }
 
   // --- Menu contextuel d'un jour -------------------------------------------
@@ -2874,7 +3121,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Dépose dans le presse-papier et le dit, avec le raccourci qui sert la suite du geste. */
   private putInClipboard(entries: ClipEntry[], label: string): void {
-    this.clipboard.set({ entries, label });
+    this.clipboard.set({ entries, label, weekStart: null });
     this.toast.info(
       `${label} copiée${entries.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`,
     );
@@ -2895,6 +3142,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }));
   }
 
+  /** Cible et origine d'un collage : une semaine copiée se recolle sur le lundi visé. */
+  private pasteAnchor(target: string): { target: string; base: string | undefined } {
+    const weekStart = this.clipboard().weekStart;
+    if (!weekStart) return { target, base: undefined };
+    return { target: toIso(mondayOf(new Date(target + 'T00:00:00'))), base: weekStart };
+  }
+
   /**
    * Colle le presse-papier sur une date, ou sur le jour survolé.
    */
@@ -2912,13 +3166,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.requireWrite()) return;
+    const at = this.pasteAnchor(target);
     this.pasteRefs(
       clip.entries,
       this.selectedAthleteId,
-      target,
-      undefined,
+      at.target,
+      at.base,
       'le collage',
-      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(target)}`,
+      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(at.target)}`,
     );
   }
 

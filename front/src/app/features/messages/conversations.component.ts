@@ -12,8 +12,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Message } from '../../core/models/message.model';
+import { Workout } from '../../core/models/workout.model';
+import { WorkoutService } from '../../core/services/workout.service';
 import { SseStream } from '../../core/services/stream-token.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -49,7 +51,7 @@ const KIND_ICONS: Record<ConversationKind, string> = {
 @Component({
   selector: 'app-conversations',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, IconComponent, SkeletonComponent],
+  imports: [FormsModule, DatePipe, RouterLink, IconComponent, SkeletonComponent],
   templateUrl: './conversations.component.html',
   styleUrl: './conversations.component.scss',
   // Un fil ouvert change la nature de l'écran au téléphone : il passe en plein écran. La classe
@@ -63,6 +65,7 @@ export class ConversationsComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly workouts = inject(WorkoutService);
 
   private readonly threadRef = viewChild<ElementRef<HTMLElement>>('thread');
 
@@ -86,6 +89,44 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     () => this.list().find((c) => c.id === this.openId()) ?? null,
   );
   readonly canPost = computed(() => this.current()?.canPost ?? false);
+
+  /**
+   * Athlète du fil ouvert, côté coach. Un athlète écrit « douleur au tendon », le coach répond
+   * « on remplace la séance de demain » : il devait quitter la conversation, ouvrir le
+   * calendrier, choisir l'athlète et retrouver le jour. Le fil porte maintenant son programme.
+   */
+  readonly threadAthleteId = computed(() => {
+    const c = this.current();
+    return this.auth.isCoach() && c?.kind === 'ATHLETE_COACH' ? c.athleteId : null;
+  });
+  /** Trois prochaines séances encore à faire de cet athlète. */
+  readonly upcoming = signal<Workout[]>([]);
+  private upcomingFor: string | null = null;
+
+  private readonly loadUpcoming = effect(() => {
+    const athleteId = this.threadAthleteId();
+    if (athleteId === this.upcomingFor) return;
+    this.upcomingFor = athleteId;
+    this.upcoming.set([]);
+    if (!athleteId) return;
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const from = new Date();
+    const to = new Date();
+    to.setDate(to.getDate() + 14);
+    this.workouts.calendar(athleteId, iso(from), iso(to)).subscribe({
+      next: (list) => {
+        if (this.upcomingFor !== athleteId) return;
+        this.upcoming.set(
+          list
+            .filter((w) => w.status === 'PLANNED')
+            .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
+            .slice(0, 3),
+        );
+      },
+      error: () => this.upcoming.set([]),
+    });
+  });
 
   readonly filteredRecipients = computed(() => {
     const q = this.searchTerm().trim().toLowerCase();

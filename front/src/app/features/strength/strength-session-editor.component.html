@@ -3,7 +3,7 @@
     @if (isScheduled()) {
       <a [routerLink]="['/app/athletes', athleteId(), 'programme']" class="back-link">← Programme</a>
     } @else {
-      <a [routerLink]="['/app/library/strength']" class="back-link">← Séances de force</a>
+      <a [routerLink]="['/app/library/strength']" class="back-link">← Bibliothèque</a>
     }
     <h1 class="display-sm">{{ name() || 'Séance de force' }}</h1>
     <!-- Nom éditable : sans lui, une séance dupliquée restait « … (copie) » sans recours. -->
@@ -26,8 +26,8 @@
     } @else {
       <p class="scope-note scope-note--template">
         <app-icon name="library" [size]="14" />
-        <strong>Modèle de bibliothèque</strong> — ce que vous écrivez ici suivra la séance chez
-        <strong>chaque</strong> athlète à qui vous la prescrirez ensuite.
+        <strong>Modèle de bibliothèque</strong> — ce que tu écris ici suivra la séance chez
+        <strong>chaque</strong> athlète à qui tu la prescriras ensuite.
       </p>
     }
     <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
@@ -50,7 +50,12 @@
         <app-icon name="library" [size]="16" /> Enregistrer comme modèle
       </button>
     }
-    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
+    <!-- L'enregistrement est automatique : le bouton ne réclame l'attention (plein) que s'il
+         reste quelque chose à enregistrer. Plein en permanence, il contredisait la pastille
+         « Enregistré » posée à côté. -->
+    <button type="button" class="btn" [class.btn-primary]="autosave.state() === 'dirty' || autosave.state() === 'error'"
+            [class.btn-ghost]="autosave.state() !== 'dirty' && autosave.state() !== 'error'"
+            [disabled]="saving()" (click)="save()">
       {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
     </button>
   </div>
@@ -344,6 +349,29 @@
                   <span>Secondes</span>
                   <input type="number" class="form-control" min="1" max="600" [ngModel]="item.prescription.durationSec"
                          (ngModelChange)="setInlineDuration(item, $event)" [ngModelOptions]="{ standalone: true }" />
+                </label>
+              }
+              @if (inlineCharge(item); as cu) {
+                <label class="ex-inline__field">
+                  <span>{{ cu === 'PCT' ? '% 1RM' : 'Charge (kg)' }}</span>
+                  <input type="number" class="form-control" min="0" step="0.5"
+                         [ngModel]="cu === 'PCT' ? item.prescription.chargePctRmMin : item.prescription.chargeKgMin"
+                         (ngModelChange)="setInlineCharge(item, $event)" [ngModelOptions]="{ standalone: true }" />
+                </label>
+              }
+              @if (inlineEffort(item); as eu) {
+                <label class="ex-inline__field">
+                  <span>{{ eu }}</span>
+                  <input type="number" class="form-control ex-inline__sm" min="0" max="10"
+                         [ngModel]="eu === 'RPE' ? item.prescription.rpeMin : item.prescription.rirMin"
+                         (ngModelChange)="setInlineEffort(item, $event)" [ngModelOptions]="{ standalone: true }" />
+                </label>
+              }
+              @if (inlineRest(item)) {
+                <label class="ex-inline__field">
+                  <span>Repos (s)</span>
+                  <input type="number" class="form-control" min="0" step="15" [ngModel]="item.prescription.restSecMin"
+                         (ngModelChange)="setInlineRest(item, $event)" [ngModelOptions]="{ standalone: true }" />
                 </label>
               }
             </div>

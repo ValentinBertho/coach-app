@@ -4,7 +4,6 @@
     <button type="button" class="btn btn-ghost" (click)="toggleCategories()" title="Gérer les catégories">
       <app-icon name="library" [size]="16" /> Catégories
     </button>
-    <button type="button" class="btn btn-primary" (click)="toggleForm()">{{ showForm() ? 'Fermer' : '+ Nouveau modèle' }}</button>
   </div>
 </section>
 
@@ -48,32 +47,17 @@
   </section>
 }
 
-@if (showForm()) {
-  <form class="card form-card" [formGroup]="form" (ngSubmit)="save()">
-    <p class="field-hint">Renseigne les informations du modèle ; tu construiras ensuite sa structure
-      (échauffement / corps / retour au calme) en <strong>zones</strong> dans l'éditeur.</p>
-    <div class="form-row">
-      <div class="form-group"><label>Titre de la séance *</label><input class="form-control" formControlName="title" placeholder="VMA 10×400 m" /></div>
-      <div class="form-group"><label>Catégorie</label>
-        <select class="form-control" formControlName="categoryId">
-          <option value="">Sans catégorie</option>
-          @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
-        </select>
-      </div>
-    </div>
-    <!-- Le nom de rangement reprend le titre par défaut : un seul champ à remplir. -->
-    @if (showName()) {
-      <div class="form-group">
-        <label>Nom dans la bibliothèque</label>
-        <input class="form-control" formControlName="name" placeholder="Repris du titre si vide" />
-      </div>
-    } @else {
-      <button type="button" class="btn btn-ghost btn-sm" (click)="toggleName()">+ Nom différent dans la bibliothèque</button>
-    }
-    <div class="form-group"><label>Notes (optionnel)</label><textarea class="form-control" rows="2" formControlName="notes" placeholder="Intention de séance…"></textarea></div>
-    <button type="submit" class="btn btn-primary btn-lg" style="margin-top:var(--sp-4)">Créer et éditer la structure →</button>
-  </form>
-}
+<!-- Création en un geste, comme en prépa physique : le nom, la catégorie, et l'éditeur s'ouvre.
+     Un formulaire intermédiaire redemandait ensuite les mêmes champs dans l'éditeur. -->
+<form class="new-bar" [formGroup]="form" (ngSubmit)="save()">
+  <input class="form-control" formControlName="title" placeholder="Nom de la nouvelle séance…"
+         aria-label="Nom de la nouvelle séance" maxlength="255" />
+  <select class="form-control" formControlName="categoryId" title="Catégorie de la nouvelle séance">
+    <option value="">Sans catégorie</option>
+    @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
+  </select>
+  <button type="submit" class="btn btn-primary" [disabled]="form.invalid || creating()">+ Séance</button>
+</form>
 
 @if (loading()) {
   <div class="card"><app-skeleton shape="list" [rows]="5" /></div>
@@ -109,12 +93,26 @@
           <div class="tpl-head">
             @if (t.categoryId) { <span class="badge badge-neutral tpl-cat-badge">{{ categoryPathOf(t.categoryId) }}</span> }
             @else { <span class="badge badge-neutral tpl-cat-badge muted">Sans catégorie</span> }
+            <!-- Deux actions visibles, le reste derrière « ⋯ » : cinq icônes coupaient l'étiquette
+                 de catégorie (« VMA / », « Compé ») et se ressemblaient toutes. -->
             <div class="tpl-head-actions" (click)="$event.stopPropagation()">
-              <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
-              <button type="button" class="icon-btn" (click)="rename(t)" title="Renommer"><app-icon name="type" [size]="15" /></button>
-              <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
-              <button type="button" class="icon-btn" (click)="duplicate(t)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
-              <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
+              <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Modifier la structure"
+                 [attr.aria-label]="'Modifier ' + t.name"><app-icon name="pencil" [size]="15" /></a>
+              <span class="tpl-more">
+                <button type="button" class="icon-btn" (click)="toggleCardMenu(t.id)" [attr.aria-expanded]="cardMenu() === t.id"
+                        aria-haspopup="menu" [attr.aria-label]="'Autres actions sur ' + t.name" title="Autres actions">
+                  <app-icon name="ellipsis" [size]="15" />
+                </button>
+                @if (cardMenu() === t.id) {
+                  <div class="tpl-menu-backdrop" (click)="cardMenu.set(null)"></div>
+                  <div class="tpl-menu" role="menu">
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); openDetail(t)"><app-icon name="eye" [size]="14" /> Consulter</button>
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); rename(t)"><app-icon name="type" [size]="14" /> Renommer</button>
+                    <button type="button" role="menuitem" (click)="cardMenu.set(null); duplicate(t)" [disabled]="duplicating()"><app-icon name="copy" [size]="14" /> Dupliquer</button>
+                    <button type="button" role="menuitem" class="danger" (click)="cardMenu.set(null); remove(t)"><app-icon name="trash-2" [size]="14" /> Supprimer</button>
+                  </div>
+                }
+              </span>
             </div>
           </div>
           <strong class="tpl-name">{{ t.name }}</strong>

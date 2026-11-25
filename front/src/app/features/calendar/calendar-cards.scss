@@ -1,0 +1,28 @@
+/* Cartes de séance : prévu et réalisé réunis, titres lisibles. Séparé de calendar.component.scss,
+ * qui atteignait le budget de style par composant. */
+
+/* --- Prévu et réalisé sur une seule carte ------------------------------------
+   Une séance faite porte sa ligne « réalisé » et se teinte selon le respect de la consigne :
+   vert conforme, ambre en dessous, orange au-dessus — la lecture de TrainingPeaks, sans la
+   seconde pastille qui doublait la hauteur de la journée. */
+.workout-card--done { border-left-color: var(--success, #2f9e44); }
+.workout-card--done[data-compliance='low'] { border-left-color: var(--warning, #f5b301); }
+.workout-card--done[data-compliance='high'] { border-left-color: var(--danger, #e8590c); }
+.wc-done {
+  display: inline-flex; align-items: center; gap: 3px; align-self: flex-start; max-width: 100%;
+  white-space: nowrap; overflow: hidden;
+  padding: 0 5px; border-radius: var(--radius-full);
+  font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--success-text); background: var(--success-bg);
+}
+[data-compliance='low'] .wc-done { color: var(--warning-text); background: var(--warning-bg); }
+[data-compliance='high'] .wc-done { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--paper)); }
+
+/* Vue 4 semaines : deux lignes de titre. Sur une ligne, « Endurance fondamentale » devenait
+   « Enduran… » dès que la bibliothèque était ouverte. */
+.grid.weeks4 .w-title { -webkit-line-clamp: 2; }
+.strength-chip .sc-title {
+  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.gg-chip .w-title { -webkit-line-clamp: 2; }
