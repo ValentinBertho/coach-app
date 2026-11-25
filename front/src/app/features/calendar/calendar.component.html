@@ -22,6 +22,17 @@
 <div class="toolbar">
   <div class="tb-left">
     @if (!lockedToAthlete()) {
+      <!-- Athlète ou groupe : un choix de premier plan, rangé jusqu'ici dans le menu « Vue ». -->
+      <div class="seg" role="group" aria-label="Planifier pour">
+        <button type="button" class="seg__b" [class.on]="scopeMode() === 'athlete'"
+                [attr.aria-pressed]="scopeMode() === 'athlete'" (click)="setScopeMode('athlete')">
+          <app-icon name="user" [size]="14" /> Athlète
+        </button>
+        <button type="button" class="seg__b" [class.on]="scopeMode() === 'group'"
+                [attr.aria-pressed]="scopeMode() === 'group'" (click)="setScopeMode('group')">
+          <app-icon name="users-round" [size]="14" /> Groupe
+        </button>
+      </div>
       @if (scopeMode() === 'athlete') {
         <app-athlete-switcher [athletes]="athletes()" [selectedId]="selectedAthleteId"
                               (selectedIdChange)="onAthleteChange($event)" />
@@ -84,40 +95,8 @@
       <app-icon name="panel-left" [size]="15" /> Bibliothèque
     </button>
 
-    <div class="tb-menu">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="viewMenuOpen.set(!viewMenuOpen())"
-              [attr.aria-expanded]="viewMenuOpen()" aria-haspopup="menu">
-        <app-icon name="eye" [size]="15" /> Vue <app-icon name="chevron-down" [size]="14" />
-      </button>
-      @if (viewMenuOpen()) {
-        <div class="ctx-backdrop" (click)="viewMenuOpen.set(false)"></div>
-        <div class="tb-dropdown" role="menu">
-          @if (!lockedToAthlete()) {
-            <span class="tb-dropdown__t">Périmètre</span>
-            <button type="button" class="ctx-item" [class.on]="scopeMode() === 'athlete'"
-                    (click)="setScopeMode('athlete'); viewMenuOpen.set(false)">
-              <app-icon name="user" [size]="14" /> Athlète
-            </button>
-            <button type="button" class="ctx-item" [class.on]="scopeMode() === 'group'"
-                    (click)="setScopeMode('group'); viewMenuOpen.set(false)">
-              <app-icon name="users-round" [size]="14" /> Groupe
-            </button>
-            <div class="ctx-sep"></div>
-          }
-
-          @if (scopeMode() === 'athlete') {
-            <!-- Prévu / Réalisé / les deux : déjà en onglets au-dessus de la grille. -->
-
-            <!-- Plus de section « Période » : la grille affiche quatre semaines, seule maille
-                 qui serve à programmer. Un sélecteur à une entrée n'est pas un choix. -->
-          }
-
-          <button type="button" class="ctx-item" [class.on]="sidebarOpen()" (click)="toggleSidebar()">
-            <app-icon name="panel-left" [size]="14" /> Bibliothèque <kbd class="ctx-kbd">B</kbd>
-          </button>
-        </div>
-      }
-    </div>
+    <!-- Plus de menu « Vue » : il ne portait que le choix athlète/groupe — devenu un sélecteur
+         visible à gauche — et un doublon du bouton Bibliothèque. -->
 
     @if (scopeMode() === 'athlete') {
       <div class="tb-menu">
@@ -310,6 +289,7 @@
         @for (d of weekDates(); track d.date) {
           <span class="gg-day" [class.today]="d.isToday" [class.weekend]="d.weekend">{{ d.label }} {{ d.dayNum }}</span>
         }
+        <span class="gg-day gg-day--tot">Semaine</span>
       </div>
 
       <!-- Ligne « tout le groupe » : déposer une séance ici la planifie pour chaque athlète du
@@ -329,6 +309,12 @@
             <span class="gg-all-hint">+ tout le groupe</span>
           </div>
         }
+        <div class="gg-tot gg-tot--all">
+          <button type="button" class="btn btn-ghost btn-sm gg-tot__more" (click)="openGroupWeekMenu(null, $event)"
+                  aria-haspopup="menu" title="Dupliquer la semaine du groupe, coller une semaine pour tous">
+            Semaine du groupe <app-icon name="ellipsis" [size]="14" />
+          </button>
+        </div>
       </div>
 
       @for (row of groupRows(); track row.athleteId) {
@@ -376,6 +362,16 @@
               }
             </div>
           }
+          @let t = rowWeekTotal(row);
+          <div class="gg-tot">
+            <span class="gg-tot__n">{{ t.sessions }} séance{{ t.sessions > 1 ? 's' : '' }}</span>
+            @if (t.km) { <span class="metric">{{ t.km }}</span> }
+            @if (t.time) { <span class="gg-tot__t">{{ t.time }}</span> }
+            <button type="button" class="icon-btn gg-tot__dots" (click)="openGroupWeekMenu(row, $event)"
+                    aria-haspopup="menu" [attr.aria-label]="'Semaine de ' + row.firstName">
+              <app-icon name="ellipsis" [size]="14" />
+            </button>
+          </div>
         </div>
       }
     </div>
@@ -385,6 +381,32 @@
          Le geste existait au clavier en mode athlète et nulle part ici — un coach de club en
          concluait raisonnablement qu'il n'existait pas (« sur les séances de groupe, juste les
          copier-coller qui sont pas possible »). -->
+    @if (groupWeekMenu(); as wm) {
+      <div class="ctx-backdrop" (click)="closeGroupWeekMenu()" (contextmenu)="$event.preventDefault(); closeGroupWeekMenu()"></div>
+      <div class="ctx-menu ctx-menu--wide" [style.left.px]="wm.x" [style.top.px]="wm.y" (click)="$event.stopPropagation()">
+        <span class="ctx-title">{{ wm.row ? 'Semaine de ' + wm.row.firstName + ' ' + wm.row.lastName : 'Semaine de tout le groupe' }}</span>
+        @if (wm.row) {
+          <button type="button" class="ctx-item" (click)="ctxGroupCopyRowWeek()">
+            <app-icon name="copy" [size]="14" /> Copier sa semaine
+          </button>
+        }
+        <button type="button" class="ctx-item" (click)="ctxGroupPasteWeek()" [disabled]="!clipboardLabel() || (wm.row && !wm.row.canWrite)">
+          <app-icon name="users-round" [size]="14" />
+          {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' » ' + (wm.row ? 'sur sa semaine' : 'pour tout le groupe') : 'Coller (presse-papier vide)' }}
+        </button>
+        @if (!wm.row) {
+          <div class="ctx-sep"></div>
+          <label class="ctx-field">Dupliquer la semaine de chacun vers
+            <input type="date" class="form-control" [ngModel]="nextWeekStart()" #dupTo />
+          </label>
+          <button type="button" class="ctx-item" (click)="ctxGroupDuplicateWeek(dupTo.value)">
+            <app-icon name="calendar-days" [size]="14" /> Dupliquer
+          </button>
+          <span class="ctx-hint ctx-hint--block">Pour coller la semaine d'un athlète, copie-la depuis « ⋯ » de sa ligne.</span>
+        }
+      </div>
+    }
+
     @if (groupMenu(); as gm) {
       <div class="ctx-backdrop" (click)="closeGroupMenu()" (contextmenu)="$event.preventDefault(); closeGroupMenu()"></div>
       <div class="ctx-menu" [style.left.px]="gm.x" [style.top.px]="gm.y" (click)="$event.stopPropagation()">
@@ -558,9 +580,12 @@
         <div class="day-body" cdkDropList [cdkDropListData]="day" (cdkDropListDropped)="onDrop($event, day.date)">
           @if (showPlanned()) {
           @for (w of day.workouts; track w.id) {
+            @let done = showRealized() ? matchedActivity(day.activities, w) : null;
             <button
               type="button"
               class="workout-card"
+              [class.workout-card--done]="!!done"
+              [attr.data-compliance]="done ? compliance(w, done) : null"
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
               [class.is-selected]="isSelected('course', w.id)"
@@ -600,6 +625,13 @@
                 }
               </span>
               <app-zone-bar [steps]="w.steps" />
+              @if (done) {
+                <span class="wc-done" [title]="complianceTitle(w, done)">
+                  <app-icon name="check" [size]="11" />
+                  @if (activityKm(done); as km) { {{ km }} km }
+                  @if (done.avgHr) { · {{ done.avgHr }} bpm }
+                </span>
+              }
             </button>
           }
           @for (s of day.strength; track s.id) {
@@ -632,7 +664,7 @@
 
           <!-- Activités réalisées (importées) façon Nolio -->
           @if (showRealized()) {
-            @for (a of day.activities; track a.id) {
+            @for (a of looseActivities(day.activities, day.workouts); track a.id) {
               <!-- Rattachée ou non : sans ce repère, une sortie importée et une séance validée se
                    ressemblaient, et rien ne disait qu'il restait un geste à faire pour que le
                    prévu et le réalisé se rejoignent. -->

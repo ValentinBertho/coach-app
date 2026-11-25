@@ -602,6 +602,144 @@ export class CalendarComponent implements OnInit, OnDestroy {
     return row.strength.filter((s) => s.scheduledDate === date);
   }
 
+  /**
+   * Total de la semaine d'une ligne du groupe : séances, kilomètres prescrits, durée.
+   *
+   * <p>La grille groupe n'avait aucun total — le coach recomptait de tête la charge de chacun.
+   * Les kilomètres ne viennent que des distances écrites : une séance en durée n'a pas d'allure
+   * de référence ici (elle est propre à chaque athlète), on la compte donc en temps.</p>
+   */
+  rowWeekTotal(row: GroupCalendarRow): { sessions: number; km: string | null; time: string | null } {
+    const sessions = row.workouts.length + row.strength.length;
+    const m = row.workouts.reduce((s, w) => s + (w.targetDistanceM ?? 0), 0);
+    const sec = row.workouts.reduce((s, w) => s + (w.targetDurationS ?? 0), 0);
+    const h = Math.floor(sec / 3600);
+    const min = Math.round((sec % 3600) / 60);
+    return {
+      sessions,
+      km: m > 0 ? frNumber(m / 1000, 1) + ' km' : null,
+      time: sec > 0 ? (h ? `${h} h ${String(min).padStart(2, '0')}` : `${min} min`) : null,
+    };
+  }
+
+  /** Menu « ⋯ » de la colonne Semaine, en vue groupe : une ligne d'athlète, ou tout le groupe. */
+  readonly groupWeekMenu = signal<{ x: number; y: number; row: GroupCalendarRow | null } | null>(null);
+
+  openGroupWeekMenu(row: GroupCalendarRow | null, ev: MouseEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const el = ev.currentTarget as HTMLElement | null;
+    const r = el?.getBoundingClientRect();
+    const { x, y } = this.clampToViewport(r ? r.right - 260 : ev.clientX, r ? r.bottom + 4 : ev.clientY);
+    this.groupWeekMenu.set({ x, y, row });
+  }
+
+  closeGroupWeekMenu(): void {
+    this.groupWeekMenu.set(null);
+  }
+
+  /** Les séances d'une ligne du groupe, en entrées de presse-papier. */
+  private rowEntries(row: GroupCalendarRow): ClipEntry[] {
+    return [...row.workouts, ...row.strength].map((c) => this.groupEntry(row, c));
+  }
+
+  /** Copie la semaine d'un athlète du groupe, pour la recoller chez un autre ou pour tous. */
+  ctxGroupCopyRowWeek(): void {
+    const m = this.groupWeekMenu();
+    this.closeGroupWeekMenu();
+    if (!m?.row) return;
+    const entries = this.rowEntries(m.row);
+    if (!entries.length) {
+      this.toast.info('Aucune séance à copier cette semaine.');
+      return;
+    }
+    const start = this.weekDates()[0].date;
+    const label = `La semaine de ${m.row.firstName}`;
+    this.clipboard.set({ entries, label, weekStart: start });
+    this.toast.info(
+      `${label} est copiée (${entries.length} séance${entries.length > 1 ? 's' : ''}). ` +
+        `Colle-la sur une autre ligne, ou pour tout le groupe depuis « ⋯ » de la ligne Tout le groupe.`,
+    );
+  }
+
+  /** Colle le presse-papier sur la semaine affichée : une ligne, ou tout le groupe. */
+  ctxGroupPasteWeek(): void {
+    const m = this.groupWeekMenu();
+    this.closeGroupWeekMenu();
+    if (!m) return;
+    const monday = this.weekDates()[0].date;
+    if (m.row) {
+      this.pasteOnGroupCell({ athleteId: m.row.athleteId, date: monday });
+    } else {
+      void this.groupPasteAll(monday);
+    }
+  }
+
+  /**
+   * Recopie la semaine affichée de CHAQUE athlète du groupe vers la semaine suivante (ou celle
+   * choisie). Chacun garde ses propres séances, telles qu'adaptées pour lui : c'est une semaine
+   * de groupe qu'on reconduit, pas une séance qu'on distribue.
+   */
+  async ctxGroupDuplicateWeek(targetStart: string): Promise<void> {
+    this.closeGroupWeekMenu();
+    if (!targetStart) return;
+    const source = this.weekDates()[0].date;
+    const target = toIso(mondayOf(new Date(targetStart + 'T00:00:00')));
+    if (target === source) {
+      this.toast.info('Choisis une autre semaine que celle affichée.');
+      return;
+    }
+    const rows = this.groupRows().filter((r) => r.canWrite && this.rowEntries(r).length);
+    const total = rows.reduce((n, r) => n + this.rowEntries(r).length, 0);
+    if (!total) {
+      this.toast.info('Aucune séance à dupliquer cette semaine.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Dupliquer la semaine du groupe',
+      message:
+        `Recopier ${total} séance(s) de ${rows.length} athlète(s) vers la semaine du ` +
+        `${this.fmtDate(target)} ? Chacun garde ses propres séances ; celles déjà présentes restent.`,
+      confirmLabel: 'Dupliquer',
+    });
+    if (!ok) return;
+    const created: Created[] = [];
+    const run = () =>
+      defer(() => {
+        created.length = 0;
+        return this.all(
+          rows.flatMap((r) =>
+            this.pasteSources(this.rowEntries(r), target, source).map((src) =>
+              this.pasteOne(src, r.athleteId, created),
+            ),
+          ),
+        );
+      });
+    run().subscribe({
+      next: () => {
+        this.anchor.set(new Date(target + 'T00:00:00'));
+        this.refreshAll();
+        this.commit(
+          {
+            label: 'la duplication de la semaine du groupe',
+            undo: () => this.all(created.map((c) => this.removeCreated(c))),
+            redo: () => run(),
+          },
+          `${total} séance(s) recopiée(s) sur la semaine du ${this.fmtDate(target)}`,
+        );
+      },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Duplication impossible.');
+      },
+    });
+  }
+
+  /** Lundi suivant la semaine affichée, valeur par défaut du champ « Dupliquer vers ». */
+  nextWeekStart(): string {
+    return this.shiftDate(this.weekDates()[0].date, 7);
+  }
+
   setScopeMode(m: 'athlete' | 'group'): void {
     this.scopeMode.set(m);
     if (m === 'athlete') {
@@ -1059,6 +1197,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const m = this.groupMenu();
     this.closeGroupMenu();
     if (!m) return;
+    await this.groupPasteAll(m.date);
+  }
+
+  private async groupPasteAll(date: string): Promise<void> {
     const entries = this.clipboard().entries;
     if (!entries.length) {
       this.toast.info(
@@ -1077,7 +1219,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       title: 'Coller pour tout le groupe',
       message:
         `Donner « ${this.clipboardLabel()} » à ${rows.length} athlète(s) le ` +
-        `${this.fmtDate(this.pasteAnchor(m.date).target)} ?`,
+        `${this.fmtDate(this.pasteAnchor(date).target)} ?`,
       confirmLabel: 'Coller',
     });
     if (!ok) return;
@@ -1085,7 +1227,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Un seul lot, une seule entrée d'annulation : le coach a fait un geste, il doit pouvoir le
     // défaire d'un geste — pas athlète par athlète.
     const created: Created[] = [];
-    const at = this.pasteAnchor(m.date);
+    const at = this.pasteAnchor(date);
     const sourcesFor = (athleteId: string) =>
       this.pasteSources(entries, at.target, at.base).map((src) =>
         this.pasteOne(src, athleteId, created),
@@ -1239,6 +1381,40 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Km d'une activité réalisée (pour la pastille). */
+  /**
+   * Activité rapprochée de cette séance, le même jour. Prévu et réalisé se lisaient en deux
+   * pastilles l'une sous l'autre — la journée doublait de hauteur et il fallait les apparier
+   * de tête. Une séance faite n'est plus qu'une carte, qui porte les deux.
+   */
+  matchedActivity(activities: Activity[], w: Workout): Activity | null {
+    return activities.find((a) => a.matchedWorkoutId === w.id) ?? null;
+  }
+
+  /** Les activités qui restent à part : non rapprochées, ou rapprochées d'une séance d'un autre jour. */
+  looseActivities(activities: Activity[], workouts: Workout[]): Activity[] {
+    if (!this.showPlanned()) return activities;
+    const ids = new Set(workouts.map((w) => w.id));
+    return activities.filter((a) => !a.matchedWorkoutId || !ids.has(a.matchedWorkoutId));
+  }
+
+  /**
+   * Respect de la consigne, en distance : « ok » entre 80 et 120 % du prévu, « low » en dessous,
+   * « high » au-dessus. Sans distance prévue ni réalisée, faite suffit à dire « ok ».
+   */
+  compliance(w: Workout, a: Activity): 'ok' | 'low' | 'high' {
+    const planned = this.volumeM(w);
+    if (!planned || !a.distanceM) return 'ok';
+    const r = a.distanceM / planned;
+    return r < 0.8 ? 'low' : r > 1.2 ? 'high' : 'ok';
+  }
+
+  complianceTitle(w: Workout, a: Activity): string {
+    const c = this.compliance(w, a);
+    const real = this.activityKm(a);
+    const base = `Réalisé${real ? ' : ' + real + ' km' : ''}${a.avgHr ? ' · ' + a.avgHr + ' bpm' : ''}`;
+    return c === 'ok' ? `${base} — conforme au prévu` : c === 'low' ? `${base} — en dessous du prévu` : `${base} — au-dessus du prévu`;
+  }
+
   activityKm(a: Activity): string | null {
     return a.distanceM ? frNumber(a.distanceM / 1000, 1) : null;
   }

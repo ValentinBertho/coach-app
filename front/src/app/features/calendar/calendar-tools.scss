@@ -146,3 +146,17 @@
   background: var(--primary-wash); color: var(--ink-2); border-radius: var(--radius);
   font-size: var(--text-sm);
 }
+
+/* Sélecteur Athlète | Groupe. */
+.seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper); padding: 2px; }
+.seg__b {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px var(--sp-2);
+  border: 0; background: transparent; border-radius: var(--radius-sm); cursor: pointer;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--ink-3);
+}
+.seg__b:hover { color: var(--ink); }
+.seg__b.on { background: var(--primary-wash); color: var(--primary); }
+.ctx-hint--block { display: block; margin: var(--sp-1) var(--sp-2); }
+/* Le choix du groupe gardait la hauteur d'un champ de formulaire et poussait « Aujourd'hui »
+   sur une seconde ligne. */
+.tb-left select.athlete-select { height: 34px; min-height: 0; padding-block: 0; font-size: var(--text-sm); width: auto; max-width: 220px; }
