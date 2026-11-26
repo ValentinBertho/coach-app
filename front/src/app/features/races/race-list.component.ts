@@ -41,6 +41,8 @@ export class RaceListComponent implements OnInit {
 
   readonly races = signal<RaceObjective[]>([]);
   readonly loading = signal(true);
+  /** Formulaire « Nouvel objectif », replié dès qu'il existe au moins un objectif. */
+  readonly formOpen = signal(false);
   /**
    * Saisie de l'objectif. La distance se donne en kilomètres et le chrono en hh:mm:ss : personne
    * ne pense un marathon en « 42195 m » ni un objectif en « 10800 s ».
@@ -214,6 +216,7 @@ export class RaceListComponent implements OnInit {
       })
       .subscribe(() => {
         this.toast.success('Objectif ajouté');
+        this.formOpen.set(false);
         this.draft = {
           name: '',
           raceDate: '',

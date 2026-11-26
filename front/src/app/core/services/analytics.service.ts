@@ -12,6 +12,8 @@ export interface WeekPoint {
 export interface Analytics {
   weeklyVolume: WeekPoint[];
   zoneDistribution: Record<string, number>;
+  /** Couleur des zones nommées du club (absente pour Z1–Z5). */
+  zoneColors?: Record<string, string>;
   statusCounts: Record<string, number>;
 }
 

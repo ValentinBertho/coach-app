@@ -20,6 +20,31 @@
 .search-bar .form-control {
   flex: 1;
 }
+.search-bar .sb-status { max-width: 170px; }
+.search-bar .sb-group { max-width: 200px; }
+/* Téléphone : la recherche sur toute la largeur, les deux filtres dessous, côte à côte. Sur une
+   seule ligne, les trois champs étaient coupés (« Recherch », « Tous les »). */
+@media (max-width: 640px) {
+  .search-bar { flex-wrap: wrap; margin-bottom: var(--sp-4); }
+  .search-bar .sb-search { order: -1; flex: 1 1 100%; }
+  .search-bar .sb-status,
+  .search-bar .sb-group { max-width: none; flex: 1 1 0; min-width: 0; }
+}
+
+/* Coup d'œil sur l'entraînement, sur la carte d'un athlète. */
+.athlete-glance {
+  order: 3; flex: 1 1 100%;
+  display: flex; flex-wrap: wrap; gap: 4px var(--sp-2);
+  font-size: var(--text-xs); color: var(--ink-2);
+}
+.athlete-glance .gl {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px; border-radius: var(--radius-full); background: var(--paper-sunk);
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+.athlete-glance .gl--ok { color: var(--success); font-weight: 700; }
+.athlete-glance .gl--ko { color: var(--danger); font-weight: 700; }
+.athlete-glance .gl--race { min-width: 0; }
 
 /* Liste */
 .athlete-grid {
@@ -30,6 +55,7 @@
 
 .athlete-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
@@ -342,3 +368,11 @@
 }
 .sub-nav a:hover { color: var(--ink-2); }
 .sub-nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* Lien vers le profil physio complet (onglet Tests), à la place du panneau répété. */
+.physio-link {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-bottom: var(--sp-4); text-decoration: none; color: var(--ink);
+  > span { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  &:hover strong { color: var(--primary); }
+}

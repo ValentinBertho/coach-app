@@ -38,8 +38,16 @@ import { VideoEmbedComponent } from '../../shared/components/video-embed/video-e
           est dans son propre module.
         </p>
       </div>
+      <!-- Le formulaire de création occupait le haut de la page, au-dessus de la liste qu'on vient
+           consulter : il s'ouvre désormais à la demande (et d'office quand la liste est vide). -->
+      @if (!showCreate()) {
+        <button type="button" class="btn btn-primary" (click)="createOpen.set(true)">
+          <app-icon name="plus" [size]="15" /> Nouvel éducatif
+        </button>
+      }
     </section>
 
+    @if (showCreate()) {
     <div class="card create">
       <h2>Nouvel éducatif</h2>
       <div class="form-row-3">
@@ -86,10 +94,16 @@ import { VideoEmbedComponent } from '../../shared/components/video-embed/video-e
           />
         </div>
       </div>
-      <button type="button" class="btn btn-primary" (click)="create()">
-        + Ajouter
-      </button>
+      <div class="create-actions">
+        <button type="button" class="btn btn-primary" (click)="create()">
+          + Ajouter
+        </button>
+        @if (drills().length) {
+          <button type="button" class="btn btn-ghost" (click)="createOpen.set(false)">Fermer</button>
+        }
+      </div>
     </div>
+    }
 
     <div class="card cat-manage">
       <div class="cat-filter">
@@ -249,6 +263,10 @@ import { VideoEmbedComponent } from '../../shared/components/video-embed/video-e
       .create h2 {
         margin: 0 0 var(--sp-2);
         font-size: var(--text-lg);
+      }
+      .create-actions {
+        display: flex;
+        gap: var(--sp-2);
       }
       .form-row-2 {
         display: grid;
@@ -420,6 +438,10 @@ export class RunDrillsComponent implements OnInit {
 
   readonly drills = signal<RunDrill[]>([]);
   readonly loading = signal(true);
+  readonly createOpen = signal(false);
+  readonly showCreate = computed(
+    () => this.createOpen() || (!this.loading() && this.drills().length === 0),
+  );
   draft = {
     name: '',
     category: 'TECHNIQUE' as RunDrillCategory,
@@ -499,6 +521,7 @@ export class RunDrillsComponent implements OnInit {
       })
       .subscribe(() => {
         this.toast.success('Éducatif ajouté');
+        this.createOpen.set(false);
         this.draft = {
           name: '',
           category: this.draft.category,

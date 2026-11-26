@@ -1,4 +1,5 @@
 import { frNumber } from '../../core/utils/number-format';
+import { blankSessionTitle } from '../../core/utils/blank-session-title';
 import {
   CdkDragDrop,
   DragDropModule,
@@ -758,6 +759,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
           this.groups.set(g);
           if (!this.selectedGroupId && g.length) {
             this.selectedGroupId = g[0].id;
+          }
+          // Groupe déjà choisi (arrivée par ?group=…) : il faut aussi charger sa grille.
+          if (this.selectedGroupId) {
             this.loadGroup();
           }
         });
@@ -1392,6 +1396,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Les activités qui restent à part : non rapprochées, ou rapprochées d'une séance d'un autre jour. */
+  /**
+   * Séance à laquelle rattacher une sortie libre d'un clic : la seule séance course du jour
+   * qui n'a encore aucune sortie. Plusieurs candidates (ou aucune) : on laisse le coach choisir.
+   */
+  attachCandidate(activities: Activity[], workouts: Workout[]): Workout | null {
+    const taken = new Set(activities.map((a) => a.matchedWorkoutId).filter((x): x is string => !!x));
+    const free = workouts.filter((w) => w.status === 'PLANNED' && !taken.has(w.id) && w.type !== 'REST');
+    const loose = activities.filter((a) => !a.matchedWorkoutId);
+    return free.length === 1 && loose.length === 1 ? free[0] : null;
+  }
+
+  quickAttach(a: Activity, w: Workout): void {
+    this.activityService.match(this.selectedAthleteId, a.id, w.id).subscribe({
+      next: () => {
+        this.toast.success(`Sortie rattachée à « ${w.title} ».`);
+        this.load();
+      },
+      error: () => this.toast.error('Rattachement impossible.'),
+    });
+  }
+
   looseActivities(activities: Activity[], workouts: Workout[]): Activity[] {
     if (!this.showPlanned()) return activities;
     const ids = new Set(workouts.map((w) => w.id));
@@ -1477,6 +1502,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
       this.selectedAthleteId = this.athleteId()!;
       this.load();
       this.loadOverlays();
+    }
+    // Arrivée depuis la carte d'un groupe (« Calendrier ») : on ouvre directement sa grille.
+    const groupParam = !this.athleteId()
+      ? new URLSearchParams(window.location.search).get('group')
+      : null;
+    if (groupParam) {
+      this.selectedGroupId = groupParam;
+      this.setScopeMode('group');
     }
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((page) => {
       this.athletes.set(page.content);
@@ -2091,7 +2124,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       .create(this.selectedAthleteId, {
         scheduledDate: date,
         type: 'ENDURANCE',
-        title: 'Séance',
+        title: blankSessionTitle(date),
         notes: null,
         steps: [],
       })

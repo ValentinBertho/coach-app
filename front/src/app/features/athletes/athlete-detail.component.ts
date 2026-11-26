@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Athlete, Ref } from '../../core/models/athlete.model';
 import { StravaStatus } from '../../core/models/strava.model';
 import {
@@ -22,7 +22,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { CoachingRequestService, PlannedEnd } from '../../core/services/coaching-request.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
-import { PhysioPanelComponent } from './physio-panel.component';
+import { AthleteWeekSummaryComponent } from './athlete-week-summary.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { AthleteTimelineComponent } from '../../shared/components/athlete-timeline/athlete-timeline.component';
 import { TrajectoryBannerComponent } from '../../shared/components/trajectory-banner/trajectory-banner.component';
@@ -43,7 +43,8 @@ import { AthleteAccessPanelComponent } from '../../shared/components/athlete-acc
     IconComponent,
     FormsModule,
     DatePipe,
-    PhysioPanelComponent,
+    AthleteWeekSummaryComponent,
+    RouterLink,
     TrajectoryBannerComponent,
     AthleteTimelineComponent,
     AthleteAccessPanelComponent,
@@ -72,6 +73,8 @@ export class AthleteDetailComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   /** Volet « Rattachements & réglages » (coachs, clubs, Strava) — replié pour aérer la fiche. */
   readonly showAdmin = signal(false);
+  /** Volet « Fin de suivi et archivage », replié par défaut (ouvert si une fin est prévue). */
+  readonly showEnd = signal(false);
 
   /** Multi-tenant : athlète privé (hors club) vs rattaché à un ou plusieurs clubs. */
   readonly isPrivate = computed(

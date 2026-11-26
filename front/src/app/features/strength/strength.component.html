@@ -216,7 +216,17 @@
 
 <!-- ===================== CYCLES ===================== -->
 @if (tab() === 'cycles') {
-  <div class="cycle-layout">
+  <!-- Le formulaire ne s'ouvre plus d'office : les cycles existants passent d'abord, et
+       « + Nouveau cycle » l'ouvre. Sans aucun cycle, il reste ouvert : c'est le seul geste utile. -->
+  @if (!(cycleFormOpen() || (!loadingCycles() && !cycles().length))) {
+    <div class="new-bar">
+      <button type="button" class="btn btn-primary" (click)="cycleFormOpen.set(true)">
+        <app-icon name="plus" [size]="15" /> Nouveau cycle
+      </button>
+    </div>
+  }
+  <div class="cycle-layout" [class.cycle-layout--solo]="!(cycleFormOpen() || (!loadingCycles() && !cycles().length))">
+    @if (cycleFormOpen() || (!loadingCycles() && !cycles().length)) {
     <div class="card cycle-form">
       <h2>Nouveau cycle</h2>
       <p class="field-hint">Programme une progression sur plusieurs semaines (charge croissante).</p>
@@ -266,8 +276,14 @@
           <p class="empty-hint">Crée d'abord des séances dans l'onglet Séances.</p>
         }
       </div>
-      <button type="button" class="btn btn-accent" [disabled]="!newCycle.name.trim() || !newCycle.sessionIds.length" (click)="createCycle()">Créer le cycle</button>
+      <div class="cycle-form__actions">
+        <button type="button" class="btn btn-accent" [disabled]="!newCycle.name.trim() || !newCycle.sessionIds.length" (click)="createCycle()">Créer le cycle</button>
+        @if (cycles().length) {
+          <button type="button" class="btn btn-ghost" (click)="cycleFormOpen.set(false)">Annuler</button>
+        }
+      </div>
     </div>
+    }
 
     <div class="cycle-list-col">
       @if (loadingCycles()) {
@@ -304,7 +320,7 @@
         <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="rm.reps" (ngModelChange)="computeRm()" /></div>
         <div class="form-group"><label>Formule</label>
           <select class="form-control" [(ngModel)]="rm.formula" (ngModelChange)="computeRm()">
-            @for (f of formulas; track f) { <option [value]="f">{{ f }}</option> }
+            @for (f of formulas; track f) { <option [value]="f">{{ formulaLabels[f] || f }}</option> }
           </select>
         </div>
       </div>
@@ -313,7 +329,7 @@
     @if (rmResult(); as r) {
       <div class="card rm-result">
         <span class="stat-label">1RM estimé</span>
-        <span class="metric rm-value">{{ r.e1rm }} kg</span>
+        <span class="metric rm-value">{{ kg(r.e1rm) }} kg</span>
         <h3 class="zones-title">Zones de travail (Lacourpaille)</h3>
         <table class="zones">
           <tbody>
@@ -321,7 +337,7 @@
               <tr>
                 <td>{{ z.name }}</td>
                 <td class="metric">{{ z.pctMin }}–{{ z.pctMax }} %</td>
-                <td class="metric zone-kg">{{ z.kgMin }}–{{ z.kgMax }} kg</td>
+                <td class="metric zone-kg">{{ kg(z.kgMin) }}–{{ kg(z.kgMax) }} kg</td>
               </tr>
             }
           </tbody>
@@ -333,7 +349,7 @@
   <!-- Enregistrer un test direct (met à jour le 1RM 'tested') -->
   <div class="card test-record">
     <h2>Enregistrer un test</h2>
-    <p class="field-hint">Un test direct met à jour le profil 1RM de l'athlète (source <strong>tested</strong>, prévaut sur l'estimation).</p>
+    <p class="field-hint">Un test direct met à jour le profil 1RM de l'athlète (il devient la référence « testé » et prévaut sur l'estimation).</p>
     <div class="form-row">
       <div class="form-group">
         <label>Athlète</label>
@@ -380,8 +396,8 @@
               <td class="metric">{{ t.testDate | date: 'dd/MM/yy' }}</td>
               <td>{{ exerciseName(t.exerciseId) }}</td>
               <td><span class="badge badge-neutral">{{ protocolLabel(t.protocol) }}</span></td>
-              <td class="metric">{{ t.weightKg }} kg{{ t.reps ? ' × ' + t.reps : '' }}</td>
-              <td class="metric hist-e1rm">{{ t.computedE1rmKg }} kg</td>
+              <td class="metric">{{ kg(t.weightKg) }} kg{{ t.reps ? ' × ' + t.reps : '' }}</td>
+              <td class="metric hist-e1rm">{{ kg(t.computedE1rmKg) }} kg</td>
             </tr>
           }
         </tbody>
@@ -410,8 +426,8 @@
             @for (p of profile1rm(); track p.exerciseId) {
               <tr>
                 <td>{{ p.exerciseName || exerciseName(p.exerciseId) }}</td>
-                <td class="metric">{{ p.rmKg }} kg</td>
-                <td><span class="badge" [class.badge-success]="p.source === 'tested'" [class.badge-neutral]="p.source !== 'tested'">{{ p.source }}</span></td>
+                <td class="metric">{{ kg(p.rmKg) }} kg</td>
+                <td><span class="badge" [class.badge-success]="p.source === 'tested'" [class.badge-neutral]="p.source !== 'tested'">{{ sourceLabel(p.source) }}</span></td>
                 <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadHistory(p.exerciseId)">Historique</button></td>
               </tr>
             }

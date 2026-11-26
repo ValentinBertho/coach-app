@@ -9,7 +9,9 @@ import {
 } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
+import { forkJoin, of, switchMap, catchError } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
+import { GroupAnalytics, TrainingGroupService } from '../../core/services/training-group.service';
 import {
   AthleteForm,
   CoachAlert,
@@ -78,6 +80,16 @@ export class DashboardComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly dashboardService = inject(CoachDashboardService);
   private readonly scopeStore = inject(CoachScopeService);
+  private readonly groupService = inject(TrainingGroupService);
+
+  /**
+   * Tendance par groupe sur les 4 dernières semaines : volume réalisé/prévu et adhérence.
+   *
+   * <p>Le tableau de bord recopiait Ma journée (alertes, retours) et ne donnait, pour le reste,
+   * que des effectifs (Route : 7, Trail : 3). Ma journée sert à agir ; ici, on regarde comment
+   * le club tient son plan, groupe par groupe.</p>
+   */
+  readonly groupTrends = signal<GroupAnalytics[]>([]);
 
   readonly user = this.auth.currentUser;
   readonly data = signal<CoachDashboard | null>(null);
@@ -174,6 +186,37 @@ export class DashboardComponent implements OnInit {
       next: (a) => this.alerts.set(a),
       error: () => this.alerts.set([]),
     });
+    this.groupService
+      .list()
+      .pipe(
+        switchMap((groups) =>
+          groups.length
+            ? forkJoin(
+                groups.slice(0, 8).map((g) =>
+                  this.groupService.analytics(g.id, 4).pipe(catchError(() => of(null))),
+                ),
+              )
+            : of([]),
+        ),
+        catchError(() => of([])),
+      )
+      .subscribe((rows) =>
+        this.groupTrends.set(
+          (rows as (GroupAnalytics | null)[]).filter(
+            (r): r is GroupAnalytics => !!r && r.athleteCount > 0,
+          ),
+        ),
+      );
+  }
+
+  /** Part du volume prévu réellement couru, bornée à 100 pour la barre. */
+  trendPct(g: GroupAnalytics): number {
+    const p = g.totals.plannedKm;
+    return p > 0 ? Math.min(100, Math.round((g.totals.realizedKm / p) * 100)) : 0;
+  }
+
+  km(v: number): string {
+    return Math.round(v).toLocaleString('fr-FR');
   }
 
   setScope(value: string): void {

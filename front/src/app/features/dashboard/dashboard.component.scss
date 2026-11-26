@@ -46,7 +46,7 @@
 
 /* --- Club overview -------------------------------------------------------- */
 .club-grid {
-  display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--sp-4);
+  display: grid; grid-template-columns: 1fr; gap: var(--sp-4);
 }
 .club-distrib { display: flex; flex-direction: column; gap: var(--sp-3); }
 .distrib-bar { display: flex; gap: 3px; height: 12px; border-radius: var(--radius-full); overflow: hidden; }
@@ -123,4 +123,25 @@
   gap: 2px;
   flex: 1;
   min-width: 0;
+}
+
+/* --- Tendances par groupe ------------------------------------------------- */
+.trends { padding: var(--sp-2) var(--sp-4); display: flex; flex-direction: column; }
+.trend-row {
+  display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto 92px; align-items: center;
+  gap: var(--sp-3); padding: var(--sp-3) 0; border-top: 1px solid var(--hairline);
+  text-decoration: none; color: var(--ink);
+}
+.trend-row:first-child { border-top: none; }
+.trend-row:hover strong { color: var(--primary); }
+.trend-name { display: flex; flex-direction: column; min-width: 0; }
+.trend-bar { height: 8px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
+.trend-fill { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+.trend-km { font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
+.trend-adh { display: flex; flex-direction: column; align-items: flex-end; font-weight: 800; }
+.trend-adh--low { color: var(--warning, var(--danger)); }
+@media (max-width: 640px) {
+  .trend-row { grid-template-columns: 1fr auto; }
+  .trend-bar { grid-column: 1 / -1; grid-row: 2; }
+  .trend-km { grid-row: 3; }
 }

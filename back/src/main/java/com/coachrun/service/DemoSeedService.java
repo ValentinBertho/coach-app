@@ -1660,7 +1660,10 @@ public class DemoSeedService {
         } else if (type == WorkoutType.TEMPO) {
             steps.add(step(WorkoutStepType.STEADY, 1, IntensityZone.Z3, 5000, null));
         } else {
-            steps.add(step(WorkoutStepType.STEADY, 1, IntensityZone.Z2, distanceFor(type), null));
+            // Le bloc continu laisse la place à l'échauffement et au retour au calme (25 min,
+            // soit environ 4 km) : sans cette soustraction, « Footing récupération 6 km »
+            // détaillait en réalité 15 min + 6 km + 10 min, près de 10 km.
+            steps.add(step(WorkoutStepType.STEADY, 1, IntensityZone.Z2, distanceFor(type) - 4000, null));
         }
         steps.add(step(WorkoutStepType.COOLDOWN, 1, IntensityZone.Z1, null, 600));
         return steps;

@@ -127,6 +127,9 @@
   gap: var(--sp-4);
   align-items: start;
 }
+.cycle-layout--solo { grid-template-columns: 1fr; }
+.new-bar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-3); }
+.cycle-form__actions { display: flex; gap: var(--sp-2); }
 .cycle-session-picker {
   display: flex;
   flex-direction: column;

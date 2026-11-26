@@ -1,4 +1,5 @@
 import { DatePipe, LowerCasePipe } from '@angular/common';
+import { blankSessionTitle } from '../../core/utils/blank-session-title';
 import { FormsModule } from '@angular/forms';
 import {
   ChangeDetectionStrategy,
@@ -501,7 +502,7 @@ export class CoachDayComponent implements OnInit {
       .create(athleteId, {
         scheduledDate: this.planDate,
         type: 'ENDURANCE',
-        title: 'Séance',
+        title: blankSessionTitle(this.planDate),
         notes: null,
         steps: [],
       })

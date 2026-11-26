@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import {
@@ -45,6 +46,7 @@ const LEVEL_OF: Record<FormStatus, FormLevel> = {
     FormsModule,
     PaginatorComponent,
     FormPillComponent,
+    IconComponent,
   ],
   templateUrl: './athlete-list.component.html',
   styleUrl: './athletes.scss',
@@ -155,6 +157,23 @@ export class AthleteListComponent implements OnInit {
 
   levelLabel(level: string): string {
     return ATHLETE_LEVEL_LABELS[level as AthleteLevel] ?? level;
+  }
+
+  lastLabel(status: string | null): string {
+    return (
+      { COMPLETED: 'faite', PARTIAL: 'faite en partie', MISSED: 'non faite', PLANNED: 'sans retour' }[
+        status ?? ''
+      ] ?? '—'
+    );
+  }
+
+  /** « 24 nov. », ou « auj. » pour aujourd'hui. */
+  shortDate(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    const t = new Date();
+    if (d.toDateString() === t.toDateString()) return "auj.";
+    return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(d);
   }
 
   statusLabel(status: string): string {

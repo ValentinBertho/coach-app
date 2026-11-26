@@ -421,6 +421,15 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         .fq__metrics {
           justify-content: flex-start;
         }
+        /* Les trois boutons tenaient sur deux lignes : une seule, plus serrée. */
+        .fq__actions {
+          flex-wrap: nowrap;
+          gap: 4px;
+        }
+        .fq__actions .btn {
+          padding-inline: var(--sp-2);
+          white-space: nowrap;
+        }
       }
     `,
   ],

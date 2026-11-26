@@ -70,7 +70,11 @@ export class AnalyticsComponent implements OnInit {
     const d = this.data();
     if (!d) return [];
     const max = this.maxKm();
-    return d.weeklyVolume.map((w) => ({
+    // Les semaines vides en tête (avant le premier plan ou la première sortie) n'apprennent
+    // rien et tassaient les barres utiles à droite du graphe.
+    const first = d.weeklyVolume.findIndex((w) => w.plannedKm > 0 || w.realizedKm > 0);
+    const weeks = first > 0 ? d.weeklyVolume.slice(first) : d.weeklyVolume;
+    return weeks.map((w) => ({
       label: w.weekStart.slice(5),
       planned: w.plannedKm,
       realized: w.realizedKm,
@@ -87,10 +91,19 @@ export class AnalyticsComponent implements OnInit {
     if (!d) return null;
     const planned = d.weeklyVolume.reduce((s, w) => s + w.plannedKm, 0);
     const realized = d.weeklyVolume.reduce((s, w) => s + w.realizedKm, 0);
+    // L'adhérence ne compte que les semaines terminées ET planifiées : la semaine en cours
+    // (ses séances de demain sont « prévues » mais pas encore « manquées ») et les semaines
+    // sans plan faisaient tomber le taux à 36 % chez un athlète qui faisait tout.
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const closed = d.weeklyVolume.filter((w) => w.plannedKm > 0 && this.weekEnd(w.weekStart) < todayIso);
+    const cPlanned = closed.reduce((s, w) => s + w.plannedKm, 0);
+    const cRealized = closed.reduce((s, w) => s + w.realizedKm, 0);
     return {
       planned: Math.round(planned),
       realized: Math.round(realized),
-      compliance: planned > 0 ? Math.round((realized / planned) * 100) : null,
+      compliance: cPlanned > 0 ? Math.round((cRealized / cPlanned) * 100) : null,
+      closedWeeks: closed.length,
     };
   });
 
@@ -104,6 +117,7 @@ export class AnalyticsComponent implements OnInit {
       count,
       pct: Math.round((count / max) * 100),
       num: this.zoneNum(zone),
+      color: d.zoneColors?.[zone] ?? null,
     }));
   });
 
@@ -133,9 +147,18 @@ export class AnalyticsComponent implements OnInit {
       });
   }
 
+  /** Dimanche (ISO) de la semaine qui commence le lundi `weekStart`. */
+  private weekEnd(weekStart: string): string {
+    const d = new Date(weekStart + 'T00:00:00');
+    d.setDate(d.getDate() + 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   zoneNum(zone: string): ZoneNum | null {
-    const n = Number(zone.replace(/\D/g, ''));
-    return n >= 1 && n <= 5 ? (n as ZoneNum) : null;
+    // Seules les zones génériques Z1–Z5 ont un badge numéroté : « Seuil 1 » est une zone
+    // nommée du club, pas la Z1.
+    const m = /^Z([1-5])$/.exec(zone);
+    return m ? (Number(m[1]) as ZoneNum) : null;
   }
 
   /** Tonalité de compliance : alerte si < 70 %, succès si proche de 100. */

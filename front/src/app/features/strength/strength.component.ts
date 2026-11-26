@@ -530,6 +530,7 @@ export class StrengthComponent implements OnInit {
       })
       .subscribe(() => {
         this.toast.success('Cycle créé');
+        this.cycleFormOpen.set(false);
         this.newCycle = {
           name: '',
           weeks: 4,
@@ -579,8 +580,36 @@ export class StrengthComponent implements OnInit {
     });
   }
 
+  /** Formulaire « Nouveau cycle » ouvert (il reste ouvert d'office quand il n'y a aucun cycle). */
+  readonly cycleFormOpen = signal(false);
+
   switchTab(t: Tab): void {
     this.tab.set(t);
+    // « Suivi & Analyse » s'ouvrait sur une page vide avec un seul menu déroulant : on affiche
+    // d'emblée le premier athlète, le menu sert à en changer.
+    if (t === 'analysis' && !this.selectedAthlete() && this.athleteList().length) {
+      this.onAthleteChange(this.athleteList()[0].id);
+    }
+  }
+
+  /** Libellés lisibles des formules (les codes serveur s'affichaient en majuscules). */
+  readonly formulaLabels: Record<string, string> = {
+    NUZZO: 'Nuzzo (par défaut)',
+    EPLEY: 'Epley',
+    BRZYCKI: 'Brzycki',
+    RIR_BASED: 'Selon les répétitions en réserve (RIR)',
+  };
+
+  /** « 108,84 » → « 109 kg » : un 1RM au centième prête une précision que la mesure n'a pas.
+   *  Arrondi au demi-kilo, la plus petite charge qu'on ajoute sur une barre. */
+  kg(v: number | null | undefined): string {
+    if (v == null) return '—';
+    const r = Math.round(v * 2) / 2;
+    return r.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+  }
+
+  sourceLabel(source: string | null | undefined): string {
+    return source === 'tested' ? 'Testé' : source === 'estimated' ? 'Estimé' : (source ?? '—');
   }
 
   // --- Exercices ---

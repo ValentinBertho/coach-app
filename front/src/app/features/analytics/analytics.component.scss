@@ -48,3 +48,6 @@
   gap: var(--sp-4); margin-bottom: var(--sp-5);
 }
 .zline { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; }
+
+/* Zones nommées du club : pastille de leur couleur devant le nom. */
+.zdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }

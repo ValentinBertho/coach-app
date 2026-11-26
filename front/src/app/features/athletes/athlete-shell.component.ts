@@ -62,6 +62,8 @@ const STATUS_BADGES: Record<AthleteStatus, string> = {
 const TABS: { path: string; label: string }[] = [
   { path: 'resume', label: 'Résumé' },
   { path: 'programme', label: 'Programme' },
+  // Les sorties réalisées avaient leur page mais pas d'onglet : on n'y arrivait que par un lien.
+  { path: 'activities', label: 'Activités' },
   { path: 'load', label: 'Charge' },
   { path: 'zones', label: 'Zones' },
   { path: 'tests', label: 'Tests' },
@@ -269,13 +271,21 @@ const SECTION_LABELS: Record<string, string> = {
               class="btn btn-ghost btn-sm"
               >Modifier</a
             >
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              (click)="invite()"
-            >
-              Inviter
-            </button>
+            <!-- « Inviter » n'a de sens que pour un athlète sans compte : sur une fiche active,
+                 il restait le bouton principal alors que le geste attendu est de planifier. -->
+            @if (!a.appAccount && !a.coachingEnded) {
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                (click)="invite()"
+              >
+                Inviter
+              </button>
+            } @else if (!a.coachingEnded) {
+              <a [routerLink]="['programme']" class="btn btn-primary btn-sm">
+                <app-icon name="calendar" [size]="15" /> Planifier
+              </a>
+            }
           </div>
         </div>
 
@@ -659,21 +669,37 @@ const SECTION_LABELS: Record<string, string> = {
           min-height: 44px;
         }
 
-        /* Métriques : deux colonnes lisibles plutôt qu'une ligne qui se replie n'importe où. */
+        /* Métriques : une seule ligne qui défile au doigt. En deux colonnes, l'en-tête
+         prenait à lui seul ~570 px avant les onglets. L'avatar et l'e-mail sortent aussi :
+         le nom suffit à savoir sur quelle fiche on est. */
         .stat-strip {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: var(--sp-2) var(--sp-4);
+          display: flex;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          gap: var(--sp-4);
+          scrollbar-width: none;
         }
-        .stat-strip__item:first-child {
-          grid-column: 1 / -1;
+        .stat-strip::-webkit-scrollbar {
+          display: none;
+        }
+        .stat-strip__item {
+          flex-shrink: 0;
         }
         .stat-strip__item dd {
           font-size: var(--text-md);
+          flex-wrap: nowrap;
+        }
+        .shell-id > .avatar-lg,
+        .shell-head .subtitle {
+          display: none;
         }
 
         /* Onglets : cibles confortables, défilement au doigt cran par cran. */
         .shell-tabs {
+          /* Dégradé au bord droit : les onglets coupés (« O… ») ne disaient pas qu'il en
+             restait d'autres à faire défiler. */
+          mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+          -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
           scroll-snap-type: x proximity;
           scrollbar-width: none;
           margin-inline: calc(var(--sp-4) * -1);

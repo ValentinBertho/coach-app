@@ -59,6 +59,8 @@ public class AthleteService {
     private final ZoneValueSyncService zoneValueSyncService;
     private final NotificationService notificationService;
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
+    private final com.coachrun.repository.WorkoutRepository workoutRepository;
+    private final com.coachrun.repository.RaceObjectiveRepository raceRepository;
     /**
      * Journal. Trois gestes seulement y entrent : créer, archiver, inviter. Ce sont ceux qui
      * ouvrent ou ferment un dossier — le reste (une VMA corrigée, une zone retouchée) se compte en
@@ -101,8 +103,52 @@ public class AthleteService {
         var page = principal.role() == UserRole.PLATFORM_ADMIN
                 ? athleteRepository.search(clubId, status, groupId, q, f, pageable)
                 : athleteRepository.searchVisibleTo(clubId, status, groupId, q, viewerId, f, pageable);
+        var glances = glances(page.getContent().stream().map(Athlete::getId).toList());
         return PageResponse.from(page,
-                a -> AthleteSummaryResponse.from(a, canWrite(viewerId, a.getId()), coachingEnded(a.getId())));
+                a -> AthleteSummaryResponse.from(a, canWrite(viewerId, a.getId()), coachingEnded(a.getId()))
+                        .withGlance(glances.get(a.getId())));
+    }
+
+    /**
+     * Le coup d'œil de chaque carte, en deux requêtes pour toute la page (et non deux par
+     * athlète) : les séances des 7 derniers jours et les courses à venir.
+     */
+    private java.util.Map<UUID, AthleteSummaryResponse.Glance> glances(List<UUID> ids) {
+        if (ids.isEmpty()) return java.util.Map.of();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        var byAthlete = new java.util.HashMap<UUID, List<com.coachrun.entity.Workout>>();
+        for (var w : workoutRepository.findByAthleteIdInAndScheduledDateBetween(ids, today.minusDays(6), today)) {
+            if (w.getType() == com.coachrun.entity.enums.WorkoutType.REST) continue;
+            byAthlete.computeIfAbsent(w.getAthlete().getId(), k -> new java.util.ArrayList<>()).add(w);
+        }
+        var nextRace = new java.util.HashMap<UUID, com.coachrun.entity.RaceObjective>();
+        for (var r : raceRepository.findByAthleteIdInAndRaceDateBetween(ids, today, today.plusYears(1))) {
+            if (r.getStatus() != com.coachrun.entity.enums.RaceObjectiveStatus.UPCOMING) continue;
+            nextRace.merge(r.getAthlete().getId(), r,
+                    (a, b) -> a.getRaceDate().isAfter(b.getRaceDate()) ? b : a);
+        }
+        var out = new java.util.HashMap<UUID, AthleteSummaryResponse.Glance>();
+        for (UUID id : ids) {
+            var ws = byAthlete.getOrDefault(id, List.of());
+            // Dernière séance déjà vécue : celle d'aujourd'hui ne compte que si elle est renseignée.
+            var last = ws.stream()
+                    .filter(w -> w.getScheduledDate().isBefore(today)
+                            || w.getStatus() != com.coachrun.entity.enums.WorkoutStatus.PLANNED)
+                    .max(java.util.Comparator.comparing(com.coachrun.entity.Workout::getScheduledDate))
+                    .orElse(null);
+            int done = (int) ws.stream()
+                    .filter(w -> w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.COMPLETED
+                            || w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.PARTIAL)
+                    .count();
+            var race = nextRace.get(id);
+            out.put(id, new AthleteSummaryResponse.Glance(
+                    last != null ? last.getScheduledDate() : null,
+                    last != null ? last.getStatus().name() : null,
+                    done, ws.size(),
+                    race != null ? race.getName() : null,
+                    race != null ? race.getRaceDate() : null));
+        }
+        return out;
     }
 
     /** Le suivi de cette fiche est-il terminé (une relation référente a existé, aucune n'est active) ? */

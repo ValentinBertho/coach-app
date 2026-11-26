@@ -65,7 +65,7 @@
       }
       @if (d.impact.followers.length > 0) {
         <p>
-          {{ d.impact.followers.length }} athlète(s) privé(s) {{ d.self ? 'vous suivent' : 'suivent ' + d.impact.coachName }}
+          {{ d.impact.followers.length }} athlète(s) privé(s) {{ d.self ? 'te suivent' : 'suivent ' + d.impact.coachName }}
           dans {{ d.impact.opensSoloSpace ? 'un espace indépendant ouvert pour l’occasion' : 'son autre espace' }},
           avec leur montre et leurs sorties.
         </p>
@@ -75,7 +75,7 @@
         <p>Aucun athlète n'est concerné.</p>
       }
       @if (d.impact.opensSoloSpace) {
-        <p class="field-hint">{{ d.self ? 'Vous gardez' : d.impact.coachName + ' garde' }} un compte : un espace indépendant {{ d.self ? 'vous' : 'lui' }} est ouvert.</p>
+        <p class="field-hint">{{ d.self ? 'Tu gardes' : d.impact.coachName + ' garde' }} un compte : un espace indépendant {{ d.self ? 't’' : 'lui ' }}est ouvert.</p>
       }
       <div class="departure__actions">
         <button type="button" class="btn btn-ghost" (click)="departure.set(null)">Annuler</button>
@@ -86,6 +86,13 @@
     </div>
   }
 
+  <!-- L'ajout d'un coach est un geste rare : replié derrière un bouton, il ne coiffe plus la
+       liste des coachs qu'on vient consulter. -->
+  @if (!addCoachOpen()) {
+    <button type="button" class="btn btn-ghost btn-sm" (click)="addCoachOpen.set(true)">
+      <app-icon name="plus" [size]="15" /> Ajouter un coach
+    </button>
+  } @else {
   <form class="add-coach" (ngSubmit)="addCoach()">
     <input type="email" class="form-control" name="coachEmail" placeholder="email du coach"
            [(ngModel)]="newCoachEmail" required autocomplete="off" />
@@ -99,6 +106,7 @@
     </button>
   </form>
   <p class="field-hint add-hint">S'il a déjà un compte Darilab, le coach est ajouté immédiatement ; sinon une invitation lui est envoyée par e-mail.</p>
+  }
   @if (lastInviteUrl(); as url) {
     <p class="field-hint invite-url">Lien d'invitation (si l'e-mail n'est pas configuré) : <a [href]="url">{{ url }}</a></p>
   }
@@ -137,7 +145,9 @@
       <h3 class="shared-h"><app-icon name="footprints" [size]="15" /> Course ({{ courseTemplates().length }})</h3>
       @if (courseTemplates().length) {
         <ul class="shared-list">
-          @for (t of courseTemplates(); track t.id) { <li>{{ t.name }}</li> }
+          @for (t of courseTemplates(); track t.id) {
+            <li><a [routerLink]="['/app/templates', t.id, 'structure']">{{ t.name }}</a></li>
+          }
         </ul>
       } @else { <p class="empty-hint">Aucun modèle de course.</p> }
     </div>
@@ -145,7 +155,9 @@
       <h3 class="shared-h"><app-icon name="dumbbell" [size]="15" /> Force ({{ strengthSessions().length }})</h3>
       @if (strengthSessions().length) {
         <ul class="shared-list">
-          @for (s of strengthSessions(); track s.id) { <li>{{ s.name }}</li> }
+          @for (s of strengthSessions(); track s.id) {
+            <li><a [routerLink]="['/app/strength/sessions', s.id, 'structure']">{{ s.name }}</a></li>
+          }
         </ul>
       } @else { <p class="empty-hint">Aucune séance de force.</p> }
     </div>

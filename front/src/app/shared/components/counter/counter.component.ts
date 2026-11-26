@@ -94,7 +94,12 @@ export class CounterComponent implements OnDestroy {
   }
 
   private format(v: number): string {
-    return v.toFixed(this.decimals());
+    // Format français (virgule décimale, espace des milliers) : toFixed() affichait « 1.24 »
+    // et « 318.0 » sur toutes les cartes de métriques, à côté de tableaux en « 1,24 ».
+    // Un « ,0 » final n'apporte rien sur une valeur ronde.
+    const d = this.decimals();
+    const txt = v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+    return d > 0 ? txt.replace(/,0+$/, '') : txt;
   }
 
   private cancel(): void {

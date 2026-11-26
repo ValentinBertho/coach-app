@@ -191,7 +191,7 @@ export class AdminAuditComponent implements OnInit {
   /** Libellés des rôles, pour ne pas afficher un SCREAMING_SNAKE_CASE dans un tableau français. */
   private static readonly ROLE_LABELS: Record<string, string> = {
     PLATFORM_ADMIN: 'Admin plateforme',
-    HEAD_COACH: 'Head coach',
+    HEAD_COACH: 'Responsable club',
     COACH: 'Coach',
     ATHLETE: 'Athlète',
   };

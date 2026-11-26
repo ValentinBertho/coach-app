@@ -5,44 +5,52 @@
   </div>
 </section>
 
-<form class="card import-form" [formGroup]="form" (ngSubmit)="import()">
-  <h2>Importer une activité</h2>
-  <div class="import-grid">
-    <div class="form-group">
-      <label for="d">Date *</label>
-      <input id="d" type="date" class="form-control" formControlName="activityDate" />
-    </div>
-    <div class="form-group">
-      <label for="t">Titre</label>
-      <input id="t" class="form-control" formControlName="title" placeholder="Footing matin" />
-    </div>
-    <div class="form-group">
-      <label for="dist">Distance (m)</label>
-      <input id="dist" type="number" class="form-control" formControlName="distanceM" />
-    </div>
-    <div class="form-group">
-      <label for="dur">Durée (s)</label>
-      <input id="dur" type="number" class="form-control" formControlName="durationS" />
-    </div>
-    <div class="form-group">
-      <label for="hr">FC moy.</label>
-      <input id="hr" type="number" class="form-control" formControlName="avgHr" />
-    </div>
-    <button type="submit" class="btn btn-primary" [disabled]="submitting()">Importer</button>
-  </div>
-  <p class="field-hint">Le rapprochement avec la séance prévue (±1 jour) est automatique.</p>
-</form>
-
-<div class="card" style="margin-bottom: var(--sp-5); display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); flex-wrap:wrap">
+<!-- Ajouter une sortie : deux boutons, le formulaire ne s'ouvre qu'à la demande. Il occupait
+     tout le haut de la page alors que la plupart des sorties arrivent seules (Strava, montres). -->
+<div class="card add-bar">
   <div>
-    <strong>Importer un fichier GPS</strong>
-    <p class="field-hint">Formats FIT, GPX et TCX (export Garmin Connect, COROS, Strava…). Le tracé et les métriques sont repris du fichier.</p>
+    <strong>Ajouter une sortie</strong>
+    <p class="field-hint">Le rapprochement avec la séance prévue (±1 jour) est automatique.</p>
   </div>
-  <label class="btn btn-ghost">
-    Choisir un fichier
-    <input type="file" accept=".fit,.gpx,.tcx" hidden (change)="onFile($event)" />
-  </label>
+  <div class="add-bar__actions">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="manualOpen.set(!manualOpen())"
+            [attr.aria-expanded]="manualOpen()">
+      <app-icon name="plus" [size]="15" /> Saisie manuelle
+    </button>
+    <label class="btn btn-ghost btn-sm">
+      <app-icon name="download" [size]="15" /> Fichier FIT, GPX, TCX
+      <input type="file" accept=".fit,.gpx,.tcx" hidden (change)="onFile($event)" />
+    </label>
+  </div>
 </div>
+
+@if (manualOpen()) {
+  <form class="card import-form" [formGroup]="form" (ngSubmit)="import()">
+    <div class="import-grid">
+      <div class="form-group">
+        <label for="d">Date *</label>
+        <input id="d" type="date" class="form-control" formControlName="activityDate" />
+      </div>
+      <div class="form-group">
+        <label for="t">Titre</label>
+        <input id="t" class="form-control" formControlName="title" placeholder="Footing matin" />
+      </div>
+      <div class="form-group">
+        <label for="dist">Distance (km)</label>
+        <input id="dist" type="text" inputmode="decimal" class="form-control" formControlName="distanceKm" placeholder="10,5" />
+      </div>
+      <div class="form-group">
+        <label for="dur">Durée (h:mm:ss)</label>
+        <input id="dur" type="text" inputmode="numeric" class="form-control" formControlName="duration" placeholder="52:30" />
+      </div>
+      <div class="form-group">
+        <label for="hr">FC moy.</label>
+        <input id="hr" type="number" class="form-control" formControlName="avgHr" placeholder="bpm" />
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="submitting()">Ajouter</button>
+    </div>
+  </form>
+}
 
 @if (loading()) {
   <div class="card"><app-skeleton shape="list" [rows]="5" /></div>
@@ -79,15 +87,37 @@
         </div>
         <!-- Un import Strava porte désormais tracé et flux, comme un GPX : la carte et le temps
              en zone ne sont plus réservés aux fichiers importés à la main. -->
-        @if (hasDetail(a)) {
-          <button type="button" class="btn btn-ghost btn-sm" [class.active]="zonesOpen() === a.id" (click)="toggleZones(a.id)">Détail</button>
-          <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', athleteId(), 'activities', a.id, 'map']">Carte</a>
-        }
-        @if (a.status === 'MATCHED') {
-          <button type="button" class="btn btn-ghost btn-sm" (click)="unmatch(a)">Détacher</button>
-        } @else {
-          <button type="button" class="btn btn-ghost btn-sm" (click)="openMatch(a)">Rattacher</button>
-        }
+        <!-- Un seul bouton visible par ligne (Détail, ou Rattacher quand c'est le geste
+             attendu) ; Carte et Détacher passent dans le menu ⋯. Trois boutons par ligne
+             faisaient une colonne de vingt boutons identiques. -->
+        <div class="a-actions">
+          @if (a.status !== 'MATCHED') {
+            <button type="button" class="btn btn-ghost btn-sm" (click)="openMatch(a)">Rattacher</button>
+          } @else if (hasDetail(a)) {
+            <button type="button" class="btn btn-ghost btn-sm" [class.active]="zonesOpen() === a.id" (click)="toggleZones(a.id)">Détail</button>
+          }
+          <div class="a-menu-wrap">
+            <button type="button" class="btn btn-ghost btn-sm a-more" (click)="toggleMenu(a.id)"
+                    [attr.aria-expanded]="menuOpen() === a.id" aria-label="Plus d'actions">
+              <app-icon name="ellipsis" [size]="16" />
+            </button>
+            @if (menuOpen() === a.id) {
+              <div class="a-menu" role="menu">
+                @if (hasDetail(a) && a.status !== 'MATCHED') {
+                  <button type="button" role="menuitem" (click)="toggleZones(a.id); menuOpen.set(null)">Détail</button>
+                }
+                @if (hasDetail(a)) {
+                  <a role="menuitem" [routerLink]="['/app/athletes', athleteId(), 'activities', a.id, 'map']">Carte</a>
+                }
+                @if (a.status === 'MATCHED') {
+                  <button type="button" role="menuitem" (click)="unmatch(a); menuOpen.set(null)">Détacher de la séance</button>
+                } @else {
+                  <button type="button" role="menuitem" (click)="openMatch(a); menuOpen.set(null)">Rattacher à une séance</button>
+                }
+              </div>
+            }
+          </div>
+        </div>
         @if (matchOpen() === a.id) {
           <div class="a-match">
             @if (matchCandidates().length === 0) {

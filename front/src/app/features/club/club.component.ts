@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AthleteService } from '../../core/services/athlete.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -34,6 +35,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
     IconComponent,
     FormsModule,
     AthleteAccessPanelComponent,
+    RouterLink,
   ],
   templateUrl: './club.component.html',
   styleUrl: './club.component.scss',
@@ -56,7 +58,7 @@ export class ClubComponent implements OnInit {
   readonly athleteList = signal<AthleteSummary[]>([]);
   readonly selectedAthlete = signal('');
   readonly roleLabels: Record<string, string> = {
-    OWNER: 'Owner',
+    OWNER: 'Responsable du club',
     COACH_PRINCIPAL: 'Coach principal',
     COACH_ASSISTANT: 'Coach assistant',
   };
@@ -67,6 +69,7 @@ export class ClubComponent implements OnInit {
   newCoachRole: ClubRole = 'COACH_ASSISTANT';
   readonly addableRoles: ClubRole[] = ['COACH_PRINCIPAL', 'COACH_ASSISTANT'];
   readonly addingCoach = signal(false);
+  readonly addCoachOpen = signal(false);
   readonly lastInviteUrl = signal<string | null>(null);
   /** Coach dont l'invitation est en cours de renvoi (un seul à la fois). */
   readonly resending = signal<string | null>(null);

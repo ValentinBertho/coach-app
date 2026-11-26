@@ -58,3 +58,26 @@
   font-size: var(--text-xs); font-weight: 700; white-space: nowrap;
 }
 .a-note { color: var(--ink-2); font-size: var(--text-sm); font-style: italic; }
+
+/* Barre « Ajouter une sortie » : la saisie manuelle et le fichier, côte à côte et repliés. */
+.add-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  flex-wrap: wrap; margin-bottom: var(--sp-4);
+}
+.add-bar p { margin: 2px 0 0; }
+.add-bar__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.add-bar__actions .btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+.a-actions { display: flex; align-items: center; gap: var(--sp-2); }
+.a-menu-wrap { position: relative; }
+.a-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 200px;
+  display: flex; flex-direction: column; padding: 4px;
+  background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.a-menu button, .a-menu a {
+  text-align: left; padding: 8px 10px; border: none; background: none; border-radius: 6px;
+  color: var(--ink); font-size: var(--text-sm); text-decoration: none; cursor: pointer;
+}
+.a-menu button:hover, .a-menu a:hover { background: var(--paper-sunk); }

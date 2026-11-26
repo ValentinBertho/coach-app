@@ -68,7 +68,7 @@ class MailTemplateTest {
     @Test
     void listUnsubscribePointsAtThePreferencesOfTheRightAudience() {
         assertThat(template.listUnsubscribe(Audience.COACH))
-                .contains("<https://www.darilab.app/app/notifications>")
+                .contains("<https://www.darilab.app/app/notifications?tab=reglages>")
                 .contains("mailto:contact@darilab.app");
         assertThat(template.listUnsubscribe(Audience.ATHLETE))
                 .contains("<https://www.darilab.app/athlete/profile>");

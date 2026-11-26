@@ -673,6 +673,7 @@
               [title]="s.title + ' — cliquer pour voir le détail'">
               <app-icon class="sc-icon" name="dumbbell" [size]="13" />
               <span class="sc-title">{{ s.title }}</span>
+              @if (s.exerciseCount) { <span class="sc-count metric" [title]="s.exerciseCount + ' exercices'">{{ s.exerciseCount }} ex.</span> }
               @if (s.sessionPain) { <app-icon class="sc-pain" name="heart-pulse" [size]="12" /> }
             </button>
           }
@@ -694,20 +695,29 @@
                       (click)="openActivity(a)"
                       [title]="(a.title || 'Activité')
                         + (a.matchedWorkoutId ? ' · rapprochée d’une séance' : ' · rattachée à aucune séance — cliquer pour la rapprocher')">
+                <!-- Le titre garde toute la largeur : « à rattacher » sur la même ligne le
+                     réduisait à « Cour… ». Le repère passe sur la ligne des chiffres. -->
                 <span class="ac-head">
                   <app-icon class="ac-icon" name="activity" [size]="13" />
                   <span class="w-title">{{ a.title || 'Activité' }}</span>
                   @if (a.matchedWorkoutId) {
                     <app-icon name="check" [size]="12" />
-                  } @else {
-                    <span class="ac-loose">à rattacher</span>
                   }
                 </span>
                 <span class="ac-meta metric">
                   @if (activityKm(a); as km) { {{ km }} km }
                   @if (a.avgHr) { · {{ a.avgHr }} bpm }
+                  @if (!a.matchedWorkoutId) { <span class="ac-loose">à rattacher</span> }
                 </span>
               </button>
+              <!-- Une seule séance libre ce jour-là : le rattachement le plus probable est
+                   proposé d'un clic, sans ouvrir la sortie ni chercher dans une liste. -->
+              @if (!a.matchedWorkoutId && attachCandidate(day.activities, day.workouts); as w) {
+                <button type="button" class="ac-attach" (click)="quickAttach(a, w)"
+                        [title]="'Rattacher cette sortie à « ' + w.title + ' »'">
+                  <app-icon name="link" [size]="12" /> Rattacher à « {{ w.title }} »
+                </button>
+              }
             }
           }
         </div>
@@ -738,7 +748,11 @@
               <div class="wt-group">
                 @if (showRealized()) { <span class="wt-cap">Prévu</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
-                <span class="wt-val metric">{{ week.km | number: '1.1-1' }}<small>km</small></span>
+                <!-- Semaine écrite en durée et sans allure de référence : « 0,0 km » laissait
+                     croire qu'il n'y avait rien à courir. La durée suffit alors. -->
+                @if (week.km > 0 || !week.durationS) {
+                  <span class="wt-val metric">{{ week.km | number: '1.1-1' }}<small>km</small></span>
+                }
                 @if (week.loadUa > 0) {
                   <span class="wt-val metric" title="Charge prévue de la semaine (sRPE)">{{ week.loadUa }}<small>UA</small></span>
                 }

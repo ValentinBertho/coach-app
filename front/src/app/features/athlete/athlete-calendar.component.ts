@@ -246,6 +246,15 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           [weeks]="monthWeeks()"
           (dayPicked)="openDay($event)"
         />
+        <!-- Légende : les couleurs des pastilles disaient le type de séance sans que rien ne
+             l'explique (« le rouge, c'est quoi ? »). Seuls les types présents sont listés. -->
+        @if (monthLegend().length) {
+          <ul class="month-legend" aria-label="Légende des couleurs">
+            @for (l of monthLegend(); track l.label) {
+              <li><span class="month-legend__dot" [style.background]="l.color"></span>{{ l.label }}</li>
+            }
+          </ul>
+        }
         <p class="month-hint field-hint">Touche un jour pour l'ouvrir.</p>
       </main>
     }
@@ -321,7 +330,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                         @if (orderRank(w); as rank) {
                           <span class="ses-rank">{{ rank }}</span>
                         }
-                        {{ typeLabels[w.type] }} · {{ w.title }}
+                        {{ fullTitle(w) }}
                       </span>
                       @if (volumeLabel(w); as km) {
                         <span class="ses-km metric">{{ km }}</span>
@@ -511,7 +520,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                     @if (orderRank(w); as rank) {
                       <span class="ses-rank">{{ rank }}</span>
                     }
-                    {{ typeLabels[w.type] }} · {{ w.title }}
+                    {{ fullTitle(w) }}
                   </span>
                   @if (volumeLabel(w); as km) {
                     <span class="ses-km metric">{{ km }}</span>
@@ -667,7 +676,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
       @if (detailWorkout(); as w) {
         <div class="det">
           <div class="det-hd">
-            <strong>{{ typeLabels[w.type] }} · {{ w.title }}</strong>
+            <strong>{{ fullTitle(w) }}</strong>
             <div class="det-meta field-hint">
               @if (volumeLabel(w); as km) {
                 <span>{{ km }}</span>
@@ -870,6 +879,14 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   `,
   styles: [
     `
+      .month-legend {
+        display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3);
+        margin: var(--sp-3) 0 0; padding: 0; list-style: none;
+        font-size: var(--text-xs); color: var(--ink-2);
+      }
+      .month-legend li { display: inline-flex; align-items: center; gap: 6px; }
+      .month-legend__dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
       /* Le mot de la semaine : une phrase, jamais un ratio. L'athlète n'a pas à connaître
        l'ACWR pour savoir que sa semaine est chargée. */
       .week-word {
@@ -1491,6 +1508,31 @@ export class AthleteCalendarComponent implements OnInit {
   readonly referencePace = signal<number | null>(null);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
+
+  /**
+   * « Récupération · Footing récupération » répétait le type quand le titre le contenait déjà.
+   * Le type n'est rappelé que s'il apporte quelque chose.
+   */
+  fullTitle(w: Workout): string {
+    const type = WORKOUT_TYPE_LABELS[w.type] ?? '';
+    const norm = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (!type || norm(w.title).includes(norm(type).slice(0, 5))) return w.title;
+    return `${type} · ${w.title}`;
+  }
+
+  /** Types de séance présents ce mois-ci, dans l'ordre de la palette, plus force et réalisé. */
+  readonly monthLegend = computed(() => {
+    const types = new Set(this.workouts().map((w) => w.type));
+    const out: { label: string; color: string }[] = [];
+    for (const t of Object.keys(WORKOUT_TYPE_META) as (keyof typeof WORKOUT_TYPE_META)[]) {
+      if (types.has(t)) out.push({ label: WORKOUT_TYPE_LABELS[t], color: WORKOUT_TYPE_META[t].color });
+    }
+    if (this.strength().length && !types.has('STRENGTH')) {
+      out.push({ label: 'Renforcement', color: WORKOUT_TYPE_META.STRENGTH.color });
+    }
+    if (this.activities().length) out.push({ label: 'Réalisé', color: 'var(--success, var(--dari-teal))' });
+    return out;
+  });
   readonly stepLabels = STEP_TYPE_LABELS;
   readonly reasonIcon = REASON_ICON;
   private readonly weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -1814,7 +1856,7 @@ export class AthleteCalendarComponent implements OnInit {
           color: 'var(--success, var(--dari-teal))',
           icon: 'check',
           sub: this.durationLabel(a.durationS),
-          value: a.distanceM ? `${Math.round(a.distanceM / 100) / 10} km` : '',
+          value: a.distanceM ? `${frNumber(Math.round(a.distanceM / 100) / 10, 1).replace(/,0$/, '')} km` : '',
           strong: false,
           done: true,
           title: a.title || 'Sortie réalisée',

@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 import { FEEL_COLORS, FEEL_LABELS, FEEL_SCALE, feelLabel } from '../feel-scale';
 
+/** Mot court sous chaque visage (le libellé complet reste dans l'aria-label et sous l'échelle). */
+const FEEL_SHORT: Record<number, string> = { 1: 'Top', 2: 'Bien', 3: 'Moyen', 4: 'Dur', 5: 'Raté' };
+
 /**
  * Sensation générale d'une séance, en cinq visages (1 = excellente … 5 = très mauvaise).
  *
@@ -39,12 +42,18 @@ import { FEEL_COLORS, FEEL_LABELS, FEEL_SCALE, feelLabel } from '../feel-scale';
                      plus tombante se confondrait avec le quatrième. -->
                 <path d="M12 15 l5 5 M17 15 l-5 5" />
                 <path d="M23 15 l5 5 M28 15 l-5 5" />
+              } @else if (n === 1) {
+                <!-- Le premier cran se distinguait à peine du deuxième (deux sourires de
+                     courbure voisine) : yeux plissés et grand sourire ouvert pour « excellente ». -->
+                <path d="M11.5 18 Q14.5 14 17.5 18" />
+                <path d="M22.5 18 Q25.5 14 28.5 18" />
               } @else {
                 <circle class="eye" cx="14.5" cy="17" r="1.9" />
                 <circle class="eye" cx="25.5" cy="17" r="1.9" />
               }
               <path [attr.d]="mouth(n)" />
             </svg>
+            <span class="feel__mini">{{ shortOf(n) }}</span>
           </button>
         }
       </div>
@@ -62,7 +71,7 @@ import { FEEL_COLORS, FEEL_LABELS, FEEL_SCALE, feelLabel } from '../feel-scale';
 
     .feel__row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-1); }
     .feel__face {
-      display: flex; align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
       min-height: 56px; padding: var(--sp-1);
       border: 1px solid transparent; border-radius: var(--radius-md);
       background: transparent; cursor: pointer;
@@ -85,6 +94,9 @@ import { FEEL_COLORS, FEEL_LABELS, FEEL_SCALE, feelLabel } from '../feel-scale';
     .feel__face.is-active svg circle, .feel__face.is-active svg path { stroke: var(--fc); }
     .feel__face.is-active svg .eye { fill: var(--fc); }
 
+    /* Un mot sous chaque visage : on choisit sans avoir à deviner ce que chacun veut dire. */
+    .feel__mini { font-size: var(--text-xs); color: var(--ink-3); font-weight: 600; line-height: 1.1; }
+    .feel__face.is-active .feel__mini { color: var(--fc); }
     .feel__word { font-size: var(--text-sm); font-weight: 700; color: var(--fc); text-align: right; }
     .feel__word--empty { color: var(--ink-3); font-weight: 600; }
   `],
@@ -101,6 +113,7 @@ export class FeelSelectorComponent {
     this.value.set(this.value() === n ? null : n);
   }
 
+  protected shortOf(n: number): string { return FEEL_SHORT[n] ?? ''; }
   protected labelOf(n: number): string { return FEEL_LABELS[n] ?? ''; }
   protected color(n: number): string { return FEEL_COLORS[n] ?? 'var(--ink-3)'; }
 
@@ -109,6 +122,8 @@ export class FeelSelectorComponent {
    * moue). Les cinq crans sont ainsi distinguables sans couleur, et à petite taille.
    */
   protected mouth(n: number): string {
+    // Grand sourire ouvert (forme fermée) pour le premier cran.
+    if (n === 1) return 'M12 23 Q20 33 28 23 Z';
     const curve = [8, 4, 0, -4, -6][n - 1] ?? 0;
     return `M13 ${26 - curve / 4} Q20 ${26 + curve} 27 ${26 - curve / 4}`;
   }

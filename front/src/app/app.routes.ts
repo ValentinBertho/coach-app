@@ -456,7 +456,7 @@ export const routes: Routes = [
     children: [
       // Le calendrier est la porte d'entrée du portail : l'athlète ouvre son application pour
       // voir la forme de son mois, pas pour lire d'abord la séance du jour (qui est à un onglet).
-      { path: '', pathMatch: 'full', redirectTo: 'calendar' },
+      { path: '', pathMatch: 'full', redirectTo: 'today' },
       {
         path: 'today',
         loadComponent: () =>

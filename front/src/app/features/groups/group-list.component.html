@@ -1,8 +1,16 @@
 <section class="page-header">
   <div><h1 class="display-sm">Groupes d'entraînement</h1><p class="subtitle">Organise tes athlètes par groupe.</p></div>
-  <a routerLink="/app/athletes" class="btn btn-ghost">← Athlètes</a>
+  <div class="grp-actions">
+    <a routerLink="/app/athletes" class="btn btn-ghost">← Athlètes</a>
+    @if (groups().length > 0) {
+      <button type="button" class="btn btn-primary" (click)="createOpen.set(!createOpen())">+ Nouveau groupe</button>
+    }
+  </div>
 </section>
 
+<!-- La liste d'abord ; le formulaire de création s'ouvre au bouton (ou d'office quand il n'y a
+     encore aucun groupe). Il occupait le haut de la page à chaque visite. -->
+@if (createOpen() || (!loading() && groups().length === 0)) {
 <div class="card" style="margin-bottom: var(--sp-5)">
   <div class="form-row">
     <div class="form-group"><label>Nouveau groupe</label><input class="form-control" [(ngModel)]="newName" placeholder="Marathon, Débutants…" (keyup.enter)="create()" /></div>
@@ -13,13 +21,14 @@
         <option value="PRIVATE">Privé — moi et mes invités</option>
       </select>
     </div>
-    <div class="form-group" style="justify-content:flex-end"><button type="button" class="btn btn-primary" (click)="create()">+ Créer</button></div>
+    <div class="form-group" style="justify-content:flex-end"><button type="button" class="btn btn-primary" (click)="create()">Créer le groupe</button></div>
   </div>
   <p class="field-hint">
     Un groupe privé n'est visible que de son créateur et des coachs qu'il y convie. La visibilité
     des <strong>athlètes</strong>, elle, ne change pas : elle reste réglée fiche par fiche.
   </p>
 </div>
+}
 
 @if (loading()) {
   <div class="card"><app-loader label="Lecture des groupes…" /></div>
@@ -29,59 +38,100 @@
       hint="Regroupe tes athlètes (Marathon, Débutants…) pour appliquer un mésocycle à tout le groupe en une action." />
   </div>
 } @else {
-  <div class="card table-wrap">
-    <table class="data-table">
-      <thead><tr><th>Nom</th><th>Athlètes</th><th>Visibilité</th><th></th></tr></thead>
-      <tbody>
-        @for (g of groups(); track g.id) {
-          <tr>
-            <td><input class="form-control" [(ngModel)]="g.name" (blur)="save(g)" [disabled]="!g.canManage" /></td>
-            <td><span class="metric">{{ g.athleteCount }}</span></td>
-            <td>
-              @if (g.canManage) {
-                <button type="button" class="btn btn-ghost btn-sm" (click)="toggleVisibility(g)"
-                        [title]="g.visibility === 'PRIVATE' ? 'Rendre visible de tout le club' : 'Réserver ce groupe'">
-                  @if (g.visibility === 'PRIVATE') { 🔒 Privé } @else { Club }
-                </button>
-                @if (g.visibility === 'PRIVATE') {
-                  <button type="button" class="btn btn-ghost btn-sm"
-                          (click)="sharingId.set(sharingId() === g.id ? null : g.id)">
-                    Inviter ({{ g.invitedCoachIds.length }})
+  <!-- Une carte par groupe : qui est dedans, d'un coup d'œil, et l'analyse en un clic. Le
+       tableau ne montrait qu'un nombre, un nom éditable en champ brut et un « Suppr. » rouge. -->
+  <div class="grp-grid">
+    @for (g of groups(); track g.id) {
+      <article class="card grp">
+        <header class="grp__hd">
+          @if (renamingId() === g.id) {
+            <input class="form-control" [(ngModel)]="g.name" (blur)="save(g); renamingId.set(null)"
+                   (keyup.enter)="save(g); renamingId.set(null)" aria-label="Nom du groupe" />
+          } @else {
+            <h2 class="grp__name">{{ g.name }}</h2>
+          }
+          <span class="badge badge-neutral">@if (g.visibility === 'PRIVATE') { <app-icon name="lock" [size]="12" /> Privé } @else { Club }</span>
+          @if (g.canManage) {
+            <div class="grp__menu-wrap">
+              <button type="button" class="btn btn-ghost btn-sm" aria-label="Plus d'actions"
+                      (click)="menuId.set(menuId() === g.id ? null : g.id)">
+                <app-icon name="ellipsis" [size]="16" />
+              </button>
+              @if (menuId() === g.id) {
+                <div class="grp__menu" role="menu">
+                  <button type="button" role="menuitem" (click)="renamingId.set(g.id); menuId.set(null)">Renommer</button>
+                  <button type="button" role="menuitem" (click)="toggleVisibility(g); menuId.set(null)">
+                    {{ g.visibility === 'PRIVATE' ? 'Rendre visible de tout le club' : 'Rendre privé' }}
                   </button>
-                }
-              } @else {
-                <span class="badge badge-neutral">{{ g.visibility === 'PRIVATE' ? 'Privé' : 'Club' }}</span>
-              }
-              @if (sharingId() === g.id) {
-                <ul class="invite-list">
-                  @for (m of invitable(g); track m.coachId) {
-                    <li>
-                      <label>
-                        <input type="checkbox" [checked]="g.invitedCoachIds.includes(m.coachId)"
-                               (change)="toggleInvited(g, m.coachId)" />
-                        {{ m.name }}
-                      </label>
-                    </li>
-                  } @empty {
-                    <li class="field-hint">Aucun autre coach dans le club.</li>
+                  @if (g.visibility === 'PRIVATE') {
+                    <button type="button" role="menuitem" (click)="sharingId.set(g.id); menuId.set(null)">
+                      Inviter des coachs ({{ g.invitedCoachIds.length }})
+                    </button>
                   }
-                </ul>
+                  <button type="button" role="menuitem" class="grp__danger" (click)="remove(g); menuId.set(null)">Supprimer le groupe</button>
+                </div>
               }
-            </td>
-            <td class="table-actions">
-              <a class="btn btn-ghost btn-sm" [routerLink]="['/app/groups', g.id, 'analytics']">Analytics</a>
-              @if (g.canManage) {
-                <button type="button" class="btn btn-danger btn-sm" (click)="remove(g)">Suppr.</button>
-              }
-            </td>
-          </tr>
+            </div>
+          }
+        </header>
+
+        <div class="grp__members">
+          @for (m of membersOf(g.id); track m.id) {
+            <a class="grp__member" [routerLink]="['/app/athletes', m.id]" [title]="m.firstName + ' ' + m.lastName">
+              <span class="avatar avatar-sm">{{ m.firstName[0] }}{{ m.lastName[0] }}</span>
+              <span>{{ m.firstName }}</span>
+            </a>
+          } @empty {
+            <span class="field-hint">{{ g.athleteCount }} athlète{{ g.athleteCount > 1 ? 's' : '' }}</span>
+          }
+        </div>
+
+        @if (sharingId() === g.id) {
+          <ul class="invite-list">
+            @for (m of invitable(g); track m.coachId) {
+              <li>
+                <label>
+                  <input type="checkbox" [checked]="g.invitedCoachIds.includes(m.coachId)"
+                         (change)="toggleInvited(g, m.coachId)" />
+                  {{ m.name }}
+                </label>
+              </li>
+            } @empty {
+              <li class="field-hint">Aucun autre coach dans le club.</li>
+            }
+          </ul>
         }
-      </tbody>
-    </table>
+
+        <footer class="grp__ft">
+          <a class="btn btn-ghost btn-sm" [routerLink]="['/app/groups', g.id, 'analytics']">
+            <app-icon name="trending-up" [size]="15" /> Analyse du groupe
+          </a>
+          <a class="btn btn-ghost btn-sm" [routerLink]="['/app/calendar']" [queryParams]="{ group: g.id }">
+            <app-icon name="calendar-days" [size]="15" /> Calendrier
+          </a>
+        </footer>
+      </article>
+    }
   </div>
 }
 
 <style>
+  .grp-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .grp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-4); }
+  .grp { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .grp__hd { display: flex; align-items: center; gap: var(--sp-2); }
+  .grp__hd .form-control { flex: 1; }
+  .grp__name { margin: 0; font-size: var(--text-lg); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grp__menu-wrap { position: relative; }
+  .grp__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 230px; display: flex; flex-direction: column; padding: 4px; background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius); box-shadow: var(--shadow-md); }
+  .grp__menu button { text-align: left; padding: 8px 10px; border: none; background: none; border-radius: 6px; color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
+  .grp__menu button:hover { background: var(--paper-sunk); }
+  .grp__menu .grp__danger { color: var(--danger); }
+  .grp__members { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .grp__member { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: var(--radius-full); background: var(--paper-sunk); color: var(--ink); text-decoration: none; font-size: var(--text-sm); }
+  .grp__member:hover { color: var(--primary); }
+  .grp__ft { display: flex; gap: var(--sp-2); flex-wrap: wrap; border-top: 1px solid var(--hairline); padding-top: var(--sp-2); margin-top: auto; }
+  .grp__ft .btn { display: inline-flex; align-items: center; gap: 6px; }
   .invite-list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
   .invite-list label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); cursor: pointer; }
 </style>

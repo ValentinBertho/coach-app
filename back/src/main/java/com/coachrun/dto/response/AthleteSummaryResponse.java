@@ -18,7 +18,28 @@ public record AthleteSummaryResponse(
         /** Le coach courant peut-il prescrire/modifier cet athlète (sinon lecture seule) ? */
         boolean canWrite,
         /** Le suivi est terminé : la fiche reste en lecture chez le coach qui l'a tenue. */
-        boolean coachingEnded) {
+        boolean coachingEnded,
+        /** Coup d'œil sur l'entraînement (liste des athlètes du coach), null ailleurs. */
+        Glance glance) {
+
+    /**
+     * Ce que la carte d'un athlète dit de son entraînement : sa dernière séance, ce qu'il a fait
+     * de sa semaine, sa prochaine course. La liste ne montrait qu'un nom, un niveau et un statut :
+     * il fallait ouvrir chaque fiche pour savoir qui décrochait.
+     */
+    public record Glance(
+            java.time.LocalDate lastSessionDate,
+            String lastSessionStatus,
+            int done7,
+            int planned7,
+            String nextRaceName,
+            java.time.LocalDate nextRaceDate) {
+    }
+
+    public AthleteSummaryResponse withGlance(Glance g) {
+        return new AthleteSummaryResponse(id, firstName, lastName, level, status, invitationPending,
+                groupName, canWrite, coachingEnded, g);
+    }
 
     public static AthleteSummaryResponse from(Athlete a) {
         return from(a, true);
@@ -33,6 +54,6 @@ public record AthleteSummaryResponse(
                 a.getId(), a.getFirstName(), a.getLastName(),
                 a.getLevel(), a.getStatus(), a.getInviteToken() != null,
                 a.getGroup() != null ? a.getGroup().getName() : null,
-                canWrite, coachingEnded);
+                canWrite, coachingEnded, null);
     }
 }

@@ -33,7 +33,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
       <div>
         <h1 class="display-sm">Demandes de coaching</h1>
         <p class="field-hint">
-          Des athlètes vous ont trouvé dans l'annuaire. Vous acceptez, vous refusez, ou vous posez
+          Des athlètes t'ont trouvé dans l'annuaire. Tu acceptes, tu refuses, ou tu poses
           une question avant de décider.
         </p>
       </div>
@@ -48,8 +48,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         <div>
           <strong>Aucune demande pour l'instant.</strong>
           <p class="field-hint">
-            Les demandes arrivent depuis votre fiche publique : vérifiez qu'elle est publiée et
-            qu'elle dit ce que vous savez faire.
+            Les demandes arrivent depuis ta fiche publique : vérifie qu'elle est publiée et
+            qu'elle dit ce que tu sais faire.
           </p>
         </div>
       </div>
@@ -79,7 +79,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 
               @if (r.coachQuestion) {
                 <div class="cr__q">
-                  <strong>Votre question :</strong> {{ r.coachQuestion }}
+                  <strong>Ta question :</strong> {{ r.coachQuestion }}
                   @if (r.athleteAnswer) {
                     <p><strong>Sa réponse :</strong> {{ r.athleteAnswer }}</p>
                   } @else {
@@ -205,14 +205,14 @@ export class CoachRequestsComponent implements OnInit {
   async accept(r: CoachingRequest): Promise<void> {
     const ok = await this.confirm.ask({
       title: `Accepter ${r.athleteName} ?`,
-      message: 'Sa fiche et son espace d\'entraînement seront créés, et vous pourrez commencer à '
+      message: 'Sa fiche et son espace d\'entraînement seront créés, et tu pourras commencer à '
         + 'lui prescrire des séances. Il en sera prévenu.',
       confirmLabel: 'Accepter',
     });
     if (!ok) {
       return;
     }
-    this.act(r, this.service.accept(r.id), `${r.athleteName} fait maintenant partie de vos athlètes`);
+    this.act(r, this.service.accept(r.id), `${r.athleteName} fait maintenant partie de tes athlètes`);
   }
 
   async decline(r: CoachingRequest): Promise<void> {
@@ -220,7 +220,7 @@ export class CoachRequestsComponent implements OnInit {
     // n'allait pas. Facultatif, parce qu'on ne doit pas non plus forcer à se justifier.
     const note = await this.confirm.prompt({
       title: `Refuser la demande de ${r.athleteName} ?`,
-      message: 'Votre motif lui sera transmis. Il n\'est jamais publié.',
+      message: 'Ton motif lui sera transmis. Il n\'est jamais publié.',
       confirmLabel: 'Refuser',
       promptLabel: 'Motif (facultatif)',
       promptOptional: true,
@@ -234,10 +234,10 @@ export class CoachRequestsComponent implements OnInit {
   async ask(r: CoachingRequest): Promise<void> {
     const note = await this.confirm.prompt({
       title: `Une question à ${r.athleteName}`,
-      message: 'Vous pouvez poser une question avant de décider. Une seule : la suite se passera '
-        + 'dans la messagerie, si vous acceptez.',
+      message: 'Tu peux poser une question avant de décider. Une seule : la suite se passera '
+        + 'dans la messagerie, si tu acceptes.',
       confirmLabel: 'Envoyer',
-      promptLabel: 'Votre question',
+      promptLabel: 'Ta question',
     });
     if (note === null || !note.trim()) {
       return;
@@ -258,8 +258,8 @@ export class CoachRequestsComponent implements OnInit {
     }
     const note = await this.confirm.prompt({
       title: `Mettre fin au coaching de ${r.athleteName} ?`,
-      message: 'Vous ne pourrez plus lui prescrire de séances, et il redeviendra libre de chercher '
-        + 'un autre coach. Sa fiche et son historique restent chez vous, en lecture.',
+      message: 'Tu ne pourras plus lui prescrire de séances, et il redeviendra libre de chercher '
+        + 'un autre coach. Sa fiche et son historique restent chez toi, en lecture.',
       confirmLabel: 'Mettre fin',
       promptLabel: 'Motif (facultatif)',
       promptOptional: true,
