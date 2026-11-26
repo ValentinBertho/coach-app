@@ -237,10 +237,12 @@ export class AuthService {
     switch (this.currentUser()?.role) {
       case 'PLATFORM_ADMIN': return '/admin';
       // Avec ou sans coach, l'athlète a désormais une fiche (son espace personnel s'il n'est pas
-      // suivi) : il arrive sur sa journée. Sans fiche — un client resté sur une ancienne
+      // suivi) : il arrive sur sa journée — séance du jour en tête. Le calendrier était l'écran
+      // d'ouverture des athlètes suivis, ce qui obligeait à un geste de plus pour savoir quoi
+      // courir aujourd'hui. Sans fiche — un client resté sur une ancienne
       // version du serveur —, on l'envoie chercher un coach comme avant.
       case 'ATHLETE': return this.currentUser()?.athleteId
-        ? (this.hasCoach() ? '/athlete/calendar' : '/athlete/today')
+        ? '/athlete/today'
         : '/coachs';
       case 'COACH':
       case 'HEAD_COACH': return '/app';

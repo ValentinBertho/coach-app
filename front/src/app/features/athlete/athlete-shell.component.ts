@@ -40,10 +40,9 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
            libellés à 10 px. « Sorties » entre dans Progrès (accès rapide), « Profil » devient
            l'avatar de la barre supérieure.
 
-           Le calendrier passe en première position, et devient l'écran d'ouverture du portail :
-           en lançant l'application, un athlète veut d'abord voir la forme de son mois — ce qui
-           l'attend, ce qu'il a fait. « Aujourd'hui » reste juste à côté : c'est l'écran de la
-           journée en cours (check-in, séance, ressenti), pas celui de la vue d'ensemble. -->
+           « Aujourd'hui » est en première position et sert d'écran d'ouverture : en lançant
+           l'application, un athlète veut d'abord savoir quoi courir aujourd'hui. Le calendrier,
+           juste à côté, donne la vue d'ensemble du mois. -->
       <!-- Un athlète venu du hub n'a pas encore de coach, donc pas de fiche : calendrier,
            « Aujourd'hui », progrès et messages n'ont rien à lui montrer et échoueraient côté
            serveur. On lui propose ce qui a un sens à ce moment-là — chercher, et suivre ses
@@ -54,11 +53,11 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
            coach et suivre ses demandes, au même endroit. -->
       <nav class="ashell__nav" aria-label="Navigation athlète">
         @if (hasFile()) {
-          <a routerLink="/athlete/calendar" routerLinkActive="active">
-            <app-icon name="calendar-days" [size]="22" /><span class="lb">Calendrier</span>
-          </a>
           <a routerLink="/athlete/today" routerLinkActive="active">
             <app-icon name="house" [size]="22" /><span class="lb">Aujourd'hui</span>
+          </a>
+          <a routerLink="/athlete/calendar" routerLinkActive="active">
+            <app-icon name="calendar-days" [size]="22" /><span class="lb">Calendrier</span>
           </a>
           <a routerLink="/athlete/progress" routerLinkActive="active">
             <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
@@ -127,6 +126,26 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
     .ashell__nav a .ic { font-size: 20px; line-height: 1; filter: grayscale(0.4); opacity: 0.75; }
     .ashell__nav a.active { color: var(--primary); }
     .ashell__nav a.active .ic { filter: none; opacity: 1; }
+
+    /* Grand écran : la barre d'onglets du téléphone, collée en bas d'un écran de 1440 px,
+       faisait de l'ordinateur un téléphone agrandi. Les onglets montent dans la barre du haut,
+       à l'horizontale, comme côté coach. */
+    @media (min-width: 1024px) {
+      .ashell__content { padding-bottom: var(--sp-6); }
+      .ashell__nav {
+        top: 0; bottom: auto; left: 50%; right: auto; transform: translateX(-50%);
+        z-index: 150;
+        display: flex; gap: var(--sp-1);
+        background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+        border-top: none; padding: 10px 0 0;
+      }
+      .ashell__nav a {
+        flex-direction: row; gap: 8px; min-height: 40px;
+        padding: 0 var(--sp-3); border-radius: var(--radius-full);
+        font-size: var(--text-sm);
+      }
+      .ashell__nav a.active { background: var(--primary-wash); }
+    }
   `],
 })
 export class AthleteShellComponent implements OnInit {

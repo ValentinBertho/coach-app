@@ -12,6 +12,9 @@ import {
   TrainingGroup,
 } from '../../core/models/training-group.model';
 import { ClubMember, ClubService } from '../../core/services/club.service';
+import { AthleteService } from '../../core/services/athlete.service';
+import { AthleteSummary } from '../../core/models/athlete.model';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
@@ -23,7 +26,7 @@ import {
 @Component({
   selector: 'app-group-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, EmptyStateComponent, LoaderComponent],
+  imports: [FormsModule, RouterLink, EmptyStateComponent, LoaderComponent, IconComponent],
   templateUrl: './group-list.component.html',
 })
 export class GroupListComponent implements OnInit {
@@ -31,6 +34,29 @@ export class GroupListComponent implements OnInit {
   private readonly clubService = inject(ClubService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
+  private readonly athletes = inject(AthleteService);
+
+  /** Formulaire de création, replié quand des groupes existent. */
+  readonly createOpen = signal(false);
+  /** Menu ⋯ ouvert, et groupe en cours de renommage. */
+  readonly menuId = signal<string | null>(null);
+  readonly renamingId = signal<string | null>(null);
+  /** Athlètes actifs par groupe, pour montrer qui est dedans. */
+  private readonly membersByGroup = signal<Record<string, AthleteSummary[]>>({});
+
+  membersOf(groupId: string): AthleteSummary[] {
+    return this.membersByGroup()[groupId] ?? [];
+  }
+
+  private loadMembers(groups: TrainingGroup[]): void {
+    for (const g of groups) {
+      this.athletes.list({ status: 'ACTIVE', groupId: g.id }).subscribe({
+        next: (page) =>
+          this.membersByGroup.update((m) => ({ ...m, [g.id]: page.content })),
+        error: () => {},
+      });
+    }
+  }
 
   readonly groups = signal<TrainingGroup[]>([]);
   readonly loading = signal(true);
@@ -55,6 +81,7 @@ export class GroupListComponent implements OnInit {
       next: (g) => {
         this.groups.set(g);
         this.loading.set(false);
+        this.loadMembers(g);
       },
       error: () => this.loading.set(false),
     });
@@ -72,6 +99,7 @@ export class GroupListComponent implements OnInit {
         );
         this.newName = '';
         this.newVisibility = 'CLUB';
+        this.createOpen.set(false);
         this.load();
       });
   }

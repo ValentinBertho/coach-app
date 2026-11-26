@@ -69,7 +69,16 @@ const SLIDERS: Slider[] = [
   template: `
     @if (!dismissed()) {
       <section class="ci card" [class.ci--done]="saved()">
-        @if (saved() && !expanded()) {
+        @if (!saved() && !expanded()) {
+          <!-- Pas encore rempli : une seule ligne qui se déplie. Les trois curseurs ouverts
+               d'office occupaient tout le haut de « Aujourd'hui », au-dessus de la séance. -->
+          <button type="button" class="ci__invite" (click)="expanded.set(true)">
+            <app-icon name="sun" [size]="16" />
+            <span class="ci__recap-txt">Comment tu te sens ce matin&nbsp;?</span>
+            <span class="ci__recap-vals">10 s</span>
+            <app-icon name="chevron-right" [size]="16" />
+          </button>
+        } @else if (saved() && !expanded()) {
           <!-- Rempli : une ligne de rappel, et la possibilité de se corriger. -->
           <button type="button" class="ci__recap" (click)="expanded.set(true)">
             <app-icon name="check" [size]="16" />
@@ -196,6 +205,21 @@ const SLIDERS: Slider[] = [
         border: none;
         background: transparent;
         color: var(--success);
+        cursor: pointer;
+        font-weight: 700;
+        font-size: var(--text-sm);
+      }
+      .ci__invite {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        width: 100%;
+        min-height: 44px;
+        padding: 0;
+        text-align: left;
+        border: none;
+        background: transparent;
+        color: var(--ink);
         cursor: pointer;
         font-weight: 700;
         font-size: var(--text-sm);

@@ -263,6 +263,8 @@ export interface ScheduledStrength {
   chargeSummary?: string | null;
   /** Date du « vu 👏 » du coach sur le débrief ; null tant qu'il n'a pas eu lieu. */
   coachAcknowledgedAt?: string | null;
+  /** Nombre d'exercices de la séance planifiée. */
+  exerciseCount?: number;
 }
 
 export interface CycleWeek {

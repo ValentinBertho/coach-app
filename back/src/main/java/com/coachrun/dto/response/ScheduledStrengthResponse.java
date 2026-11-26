@@ -28,8 +28,30 @@ public record ScheduledStrengthResponse(
          */
         String chargeSummary,
         /** Date du « vu 👏 » du coach sur le débrief ; null tant qu'il n'a pas eu lieu. */
-        java.time.Instant coachAcknowledgedAt
+        java.time.Instant coachAcknowledgedAt,
+        /**
+         * Nombre d'exercices du snapshot. La carte du calendrier ne disait que « Renfo haut du
+         * corps » : impossible de distinguer une séance de 3 exercices d'une de 10 sans l'ouvrir.
+         */
+        int exerciseCount
 ) {
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /** Compte les exercices des blocs du snapshot ; 0 si absent ou illisible. */
+    static int countExercises(String snapshot) {
+        if (snapshot == null || snapshot.isBlank()) return 0;
+        try {
+            int n = 0;
+            for (var block : JSON.readTree(snapshot).path("blocks")) {
+                n += block.path("exercises").size();
+            }
+            return n;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
 
     public static ScheduledStrengthResponse from(ScheduledStrengthSession s) {
         return from(s, null);
@@ -41,6 +63,7 @@ public record ScheduledStrengthResponse(
                 s.getScheduledDate(), s.getOriginalDate(), s.isMovedByAthlete(), s.isCompleted(),
                 s.getSessionFatigue(), s.getSessionPain(), s.getSessionRpe(), s.getSessionComment(),
                 chargeSummary,
-                s.getCoachAcknowledgedAt());
+                s.getCoachAcknowledgedAt(),
+                countExercises(s.getSessionSnapshot()));
     }
 }

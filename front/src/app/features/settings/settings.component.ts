@@ -7,8 +7,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ROLE_LABELS } from '../../core/models/admin.model';
 import { AuthService } from '../../core/services/auth.service';
-import { ClubDefaults, ClubService } from '../../core/services/club.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -77,7 +77,7 @@ import { ThemePickerComponent } from '../../shared/components/theme-picker/theme
           </div>
           <dl class="kv">
             <dt>Rôle</dt>
-            <dd>{{ u.role }}</dd>
+            <dd>{{ roleLabels[u.role] || u.role }}</dd>
             <dt>Club</dt>
             <dd>{{ u.clubName || '—' }}</dd>
           </dl>
@@ -150,72 +150,14 @@ import { ThemePickerComponent } from '../../shared/components/theme-picker/theme
         />
       </div>
 
-      <!-- ===== Domaines d'intensité par défaut : réellement éditables ===== -->
+      <!-- Les domaines d'intensité ont rejoint « Mes zones » : réglés ici, loin des zones, ils
+           passaient pour un second système concurrent. -->
       <div class="card">
-        <h2>Domaines d'intensité (défauts)</h2>
+        <h2>Domaines d'intensité</h2>
         <p class="field-hint">
-          Bornes appliquées aux <strong>nouveaux</strong> athlètes. Les athlètes
-          existants gardent les leurs — un défaut ne réécrit jamais des valeurs
-          déjà personnalisées.
+          Ils se règlent désormais avec tes zones :
+          <a routerLink="/app/training-zones">Mes zones → Domaines (pour l'analyse de charge)</a>.
         </p>
-        @if (defaults(); as d) {
-          <div class="dom-grid">
-            <label
-              ><span class="dot dom1"></span> Fin du domaine 1 (% VC)
-              <input
-                type="number"
-                step="0.5"
-                min="50"
-                max="150"
-                class="form-control"
-                [(ngModel)]="d.vcDomain1Pct"
-              />
-            </label>
-            <label
-              ><span class="dot dom2"></span> Fin du domaine 2 (% VC)
-              <input
-                type="number"
-                step="0.5"
-                min="50"
-                max="150"
-                class="form-control"
-                [(ngModel)]="d.vcDomain2Pct"
-              />
-            </label>
-            <label
-              ><span class="dot dom1"></span> Fin du domaine 1 (% FC max)
-              <input
-                type="number"
-                step="0.5"
-                min="50"
-                max="100"
-                class="form-control"
-                [(ngModel)]="d.fcDomain1Pct"
-              />
-            </label>
-            <label
-              ><span class="dot dom2"></span> Fin du domaine 2 (% FC max)
-              <input
-                type="number"
-                step="0.5"
-                min="50"
-                max="100"
-                class="form-control"
-                [(ngModel)]="d.fcDomain2Pct"
-              />
-            </label>
-          </div>
-          <button
-            type="button"
-            class="btn btn-primary"
-            (click)="saveDefaults()"
-            [disabled]="savingDefaults()"
-          >
-            <app-icon name="check" [size]="15" /> Enregistrer les défauts
-          </button>
-        } @else {
-          <div class="skeleton" style="height: 90px;"></div>
-        }
       </div>
 
       <!-- ===== Facturation ===== -->
@@ -304,43 +246,13 @@ import { ThemePickerComponent } from '../../shared/components/theme-picker/theme
         margin: var(--sp-4) 0 var(--sp-1);
         font-size: var(--text-md);
       }
-      .dom-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--sp-3);
-        margin-bottom: var(--sp-3);
-      }
-      .dom-grid label {
-        display: flex;
-        flex-direction: column;
-        gap: var(--sp-1);
-        font-size: var(--text-sm);
-        color: var(--ink-2);
-      }
-      .dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: var(--sp-1);
-      }
-      .dom1 {
-        background: var(--domain-1);
-      }
-      .dom2 {
-        background: var(--domain-2);
-      }
-      @media (max-width: 480px) {
-        .dom-grid {
-          grid-template-columns: 1fr;
-        }
-      }
     `,
   ],
 })
 export class SettingsComponent implements OnInit {
+  /** Le rôle s'affichait en code serveur (« HEAD_COACH ») : on montre son libellé français. */
+  readonly roleLabels = ROLE_LABELS as Record<string, string>;
   private readonly auth = inject(AuthService);
-  private readonly clubService = inject(ClubService);
   private readonly toast = inject(ToastService);
   readonly theme = inject(ThemeService);
   readonly user = this.auth.currentUser;
@@ -350,8 +262,6 @@ export class SettingsComponent implements OnInit {
 
   readonly savingProfile = signal(false);
   readonly savingPassword = signal(false);
-  readonly savingDefaults = signal(false);
-  readonly defaults = signal<ClubDefaults | null>(null);
 
   readonly paceOptions: SegmentOption[] = [
     { value: 'PACE', label: 'min/km' },
@@ -367,10 +277,6 @@ export class SettingsComponent implements OnInit {
         paceUnit: u.paceUnit ?? 'PACE',
       };
     }
-    this.clubService.defaults().subscribe({
-      next: (d) => this.defaults.set(d),
-      error: () => this.defaults.set(null),
-    });
   }
 
   /** Signale à l'utilisateur qu'il s'apprête à devoir reconfirmer son adresse. */
@@ -451,24 +357,5 @@ export class SettingsComponent implements OnInit {
           );
         },
       });
-  }
-
-  saveDefaults(): void {
-    const d = this.defaults();
-    if (!d || this.savingDefaults()) return;
-    this.savingDefaults.set(true);
-    this.clubService.updateDefaults(d).subscribe({
-      next: (saved) => {
-        this.defaults.set(saved);
-        this.savingDefaults.set(false);
-        this.toast.success(
-          'Défauts enregistrés — appliqués aux prochains athlètes créés.',
-        );
-      },
-      error: () => {
-        this.savingDefaults.set(false);
-        this.toast.error('Enregistrement impossible.');
-      },
-    });
   }
 }

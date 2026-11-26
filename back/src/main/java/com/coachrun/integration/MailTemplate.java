@@ -30,7 +30,8 @@ public class MailTemplate {
 
     /** Destinataire : détermine où pointe le lien de gestion des notifications. */
     public enum Audience {
-        COACH("/app/notifications"),
+        /** L'onglet Réglages directement : c'est ce que vient chercher le lien « Gérer ». */
+        COACH("/app/notifications?tab=reglages"),
         ATHLETE("/athlete/profile"),
         /** L'équipe plateforme. Ses réglages vivent dans le back-office, pas dans le cockpit. */
         ADMIN("/admin");

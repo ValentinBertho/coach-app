@@ -31,6 +31,17 @@ export interface AthleteSummary {
   canWrite?: boolean;
   /** Le suivi est terminé : la fiche reste en lecture chez le coach qui l'a tenue. */
   coachingEnded?: boolean;
+  /** Coup d'œil sur l'entraînement, fourni par la liste des athlètes. */
+  glance?: AthleteGlance | null;
+}
+
+export interface AthleteGlance {
+  lastSessionDate: string | null;
+  lastSessionStatus: 'PLANNED' | 'COMPLETED' | 'PARTIAL' | 'MISSED' | null;
+  done7: number;
+  planned7: number;
+  nextRaceName: string | null;
+  nextRaceDate: string | null;
 }
 
 export interface Athlete extends AthleteSummary {

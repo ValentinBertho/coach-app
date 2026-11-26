@@ -11,7 +11,9 @@ import java.util.Map;
 public record AnalyticsResponse(
         List<WeekPoint> weeklyVolume,
         Map<String, Integer> zoneDistribution,
-        Map<String, Integer> statusCounts) {
+        Map<String, Integer> statusCounts,
+        /** Couleur des zones nommées du club (clé = nom), absente pour Z1–Z5. */
+        Map<String, String> zoneColors) {
 
     public record WeekPoint(LocalDate weekStart, double plannedKm, double realizedKm) {
     }

@@ -57,6 +57,6 @@ describe('TrialBannerComponent', () => {
     });
 
     expect(TestBed.inject(AuthService).currentUser()?.role).toBe('ATHLETE');
-    expect(navigate).toHaveBeenCalledWith('/athlete/calendar');
+    expect(navigate).toHaveBeenCalledWith('/athlete/today');
   });
 });

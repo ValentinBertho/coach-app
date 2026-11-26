@@ -20,6 +20,111 @@
          sans jamais savoir dans quelle phase il se trouvait, ni quand elle finit. -->
     <app-cycle-banner [cycles]="cycles()" [today]="todayIso" />
 
+    <!-- La séance du jour passe en tête : c'est ce que l'athlète vient chercher en ouvrant
+         l'écran. Elle arrivait en sixième position, sous le check-in, la course, la semaine et
+         les retours en attente — il fallait défiler pour savoir quoi courir. -->
+    @switch (state()) {
+      @case ('loading') {
+        <div class="card hero-skeleton">
+          <div class="skeleton" style="height: 20px; width: 40%;"></div>
+          <div class="skeleton" style="height: 32px; width: 70%; margin-top: 12px;"></div>
+          <div class="skeleton" style="height: 60px; width: 100%; margin-top: 16px;"></div>
+        </div>
+      }
+      @case ('error') {
+        <div class="card">Impossible de charger ta séance.
+          <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
+        </div>
+      }
+      @case ('ready') {
+
+        <!-- ===== Cartes héro : séance(s) de course du jour (double séance possible) ===== -->
+        @for (w of workouts(); track w.id) {
+          <article class="card card-night hero" [class.hero--done]="w.status === 'COMPLETED'">
+            <div class="hero__head">
+              <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
+              <span class="hero__type">{{ typeLabels[w.type] }}</span>
+              <!-- Journée à deux séances : dire laquelle vient d'abord, mais seulement si le coach
+                   l'a demandé. Le libellé est écrit en toutes lettres ici — c'est la carte qu'on
+                   lit le matin, sans le contexte du calendrier pour interpréter un chiffre nu. -->
+              @if (orderRank(w); as rank) {
+                <span class="hero__rank">{{ rank }}<sup>{{ rank === 1 ? 're' : 'e' }}</sup> séance</span>
+              }
+            </div>
+
+            <h2 class="hero__title">{{ w.title }}</h2>
+
+            <!-- « ≈ » quand la distance est estimée depuis la durée, faute d'allure prescrite. -->
+            @if (volumeLabel(w); as km) {
+              <p class="hero__target metric">{{ km }}</p>
+            }
+
+            @if (rxHasContent(w.id)) {
+              <app-course-prescription-view [prescription]="rxFor(w.id)" />
+            } @else if (w.steps.length) {
+              <ol class="timeline">
+                @for (s of w.steps; track s.id) {
+                  <li class="timeline__step">
+                    @if (s.repetitions > 1) { <span class="timeline__rep metric">{{ s.repetitions }}×</span> }
+                    <span class="timeline__label">{{ stepLabels[s.stepType] }}</span>
+                    @if (zoneNum(s.zone); as zn) {
+                      <app-intensity-zone-badge [zone]="zn" [range]="stepTarget(s.distanceM, s.durationS)" />
+                    } @else if (stepTarget(s.distanceM, s.durationS)) {
+                      <span class="timeline__target metric">{{ stepTarget(s.distanceM, s.durationS) }}</span>
+                    }
+                  </li>
+                }
+              </ol>
+            }
+
+            @if (w.notes) { <p class="hero__notes">{{ w.notes }}</p> }
+
+            @if (w.status === 'COMPLETED') {
+              <p class="hero__recap">Ressenti enregistré@if (w.rpe) { · RPE {{ w.rpe }}/10 } <app-icon name="check" [size]="14" /></p>
+            } @else if (needsFeedback(w)) {
+              <button type="button" class="btn btn-primary btn-lg hero__cta" (click)="openFeedback(w)">Noter mon retour</button>
+            }
+          </article>
+        }
+
+        <!-- ===== Renforcement du jour : une carte de lancement, pas un formulaire =====
+             La saisie (charge × reps × RIR, série par série) vit dans le mode séance plein
+             écran. Ici on annonce la séance et on l'ouvre : « Aujourd'hui » porte les séances,
+             il ne les fait pas saisir. -->
+        @for (session of strengthSessions(); track session.id) {
+          <article class="card card-night strength-day">
+            <div class="hero__head">
+              <span class="badge strength-badge"><app-icon name="dumbbell" [size]="13" /> Renforcement</span>
+              @if (session.completed) { <span class="badge badge-success">Réalisé</span> }
+            </div>
+            <h2 class="hero__title">{{ session.title }}</h2>
+
+            @if (session.chargeSummary) {
+              <p class="strength-day__summary metric">{{ session.chargeSummary }}</p>
+            }
+
+            @if (session.completed) {
+              <p class="hero__recap">
+                Séance validée@if (session.sessionFatigue != null) { · fatigue {{ session.sessionFatigue }}/10 }
+                <app-icon name="check" [size]="14" />
+              </p>
+            } @else {
+              <button type="button" class="btn btn-primary btn-lg hero__cta" (click)="openSessionMode(session)">
+                <app-icon name="play" [size]="18" /> Démarrer la séance
+              </button>
+              <p class="strength-day__hint">Un exercice à la fois, en plein écran.</p>
+            }
+          </article>
+        }
+
+        @if (!workouts().length && !strengthSessions().length) {
+          <div class="card empty">
+            <h2>Repos aujourd'hui <app-icon name="moon" [size]="20" /></h2>
+            <p class="field-hint">Aucune séance prévue. Profites-en pour récupérer.</p>
+          </div>
+        }
+      }
+    }
     <!-- Check-in matinal : la forme du coach se mettait à jour seulement APRÈS la séance,
          d'où les « aucun retour récent » permanents. Trois curseurs, moins de dix secondes,
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
@@ -159,7 +264,9 @@
       </section>
     }
 
-    @if (nextRace(); as r) {
+    <!-- Une seule carte course : la trajectoire porte déjà le nom et le compte à rebours.
+         Le compte à rebours seul ne reste que lorsqu'aucune projection n'est disponible. -->
+    @if (!trajectory() && nextRace(); as r) {
       <div class="race-countdown card">
         <div>
           <span class="rc-label">Prochain objectif</span>
@@ -169,108 +276,6 @@
       </div>
     }
 
-    @switch (state()) {
-      @case ('loading') {
-        <div class="card hero-skeleton">
-          <div class="skeleton" style="height: 20px; width: 40%;"></div>
-          <div class="skeleton" style="height: 32px; width: 70%; margin-top: 12px;"></div>
-          <div class="skeleton" style="height: 60px; width: 100%; margin-top: 16px;"></div>
-        </div>
-      }
-      @case ('error') {
-        <div class="card">Impossible de charger ta séance.
-          <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
-        </div>
-      }
-      @case ('ready') {
-
-        <!-- ===== Cartes héro : séance(s) de course du jour (double séance possible) ===== -->
-        @for (w of workouts(); track w.id) {
-          <article class="card card-night hero" [class.hero--done]="w.status === 'COMPLETED'">
-            <div class="hero__head">
-              <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
-              <span class="hero__type">{{ typeLabels[w.type] }}</span>
-              <!-- Journée à deux séances : dire laquelle vient d'abord, mais seulement si le coach
-                   l'a demandé. Le libellé est écrit en toutes lettres ici — c'est la carte qu'on
-                   lit le matin, sans le contexte du calendrier pour interpréter un chiffre nu. -->
-              @if (orderRank(w); as rank) {
-                <span class="hero__rank">{{ rank }}<sup>{{ rank === 1 ? 're' : 'e' }}</sup> séance</span>
-              }
-            </div>
-
-            <h2 class="hero__title">{{ w.title }}</h2>
-
-            <!-- « ≈ » quand la distance est estimée depuis la durée, faute d'allure prescrite. -->
-            @if (volumeLabel(w); as km) {
-              <p class="hero__target metric">{{ km }}</p>
-            }
-
-            @if (rxHasContent(w.id)) {
-              <app-course-prescription-view [prescription]="rxFor(w.id)" />
-            } @else if (w.steps.length) {
-              <ol class="timeline">
-                @for (s of w.steps; track s.id) {
-                  <li class="timeline__step">
-                    @if (s.repetitions > 1) { <span class="timeline__rep metric">{{ s.repetitions }}×</span> }
-                    <span class="timeline__label">{{ stepLabels[s.stepType] }}</span>
-                    @if (zoneNum(s.zone); as zn) {
-                      <app-intensity-zone-badge [zone]="zn" [range]="stepTarget(s.distanceM, s.durationS)" />
-                    } @else if (stepTarget(s.distanceM, s.durationS)) {
-                      <span class="timeline__target metric">{{ stepTarget(s.distanceM, s.durationS) }}</span>
-                    }
-                  </li>
-                }
-              </ol>
-            }
-
-            @if (w.notes) { <p class="hero__notes">{{ w.notes }}</p> }
-
-            @if (w.status === 'COMPLETED') {
-              <p class="hero__recap">Ressenti enregistré@if (w.rpe) { · RPE {{ w.rpe }}/10 } <app-icon name="check" [size]="14" /></p>
-            } @else if (needsFeedback(w)) {
-              <button type="button" class="btn btn-primary btn-lg hero__cta" (click)="openFeedback(w)">Noter mon retour</button>
-            }
-          </article>
-        }
-
-        <!-- ===== Renforcement du jour : une carte de lancement, pas un formulaire =====
-             La saisie (charge × reps × RIR, série par série) vit dans le mode séance plein
-             écran. Ici on annonce la séance et on l'ouvre : « Aujourd'hui » porte les séances,
-             il ne les fait pas saisir. -->
-        @for (session of strengthSessions(); track session.id) {
-          <article class="card card-night strength-day">
-            <div class="hero__head">
-              <span class="badge strength-badge"><app-icon name="dumbbell" [size]="13" /> Renforcement</span>
-              @if (session.completed) { <span class="badge badge-success">Réalisé</span> }
-            </div>
-            <h2 class="hero__title">{{ session.title }}</h2>
-
-            @if (session.chargeSummary) {
-              <p class="strength-day__summary metric">{{ session.chargeSummary }}</p>
-            }
-
-            @if (session.completed) {
-              <p class="hero__recap">
-                Séance validée@if (session.sessionFatigue != null) { · fatigue {{ session.sessionFatigue }}/10 }
-                <app-icon name="check" [size]="14" />
-              </p>
-            } @else {
-              <button type="button" class="btn btn-primary btn-lg hero__cta" (click)="openSessionMode(session)">
-                <app-icon name="play" [size]="18" /> Démarrer la séance
-              </button>
-              <p class="strength-day__hint">Un exercice à la fois, en plein écran.</p>
-            }
-          </article>
-        }
-
-        @if (!workouts().length && !strengthSessions().length) {
-          <div class="card empty">
-            <h2>Repos aujourd'hui <app-icon name="moon" [size]="20" /></h2>
-            <p class="field-hint">Aucune séance prévue. Profites-en pour récupérer.</p>
-          </div>
-        }
-      }
-    }
   </main>
 </div>
 

@@ -363,7 +363,7 @@
 /* Sortie importée qu'aucune séance ne porte : l'état se voit, et le clic mène au rapprochement. */
 .activity-card--loose { border-style: dashed; }
 .ac-loose {
-  margin-left: auto; flex-shrink: 0;
+  margin-left: 6px; flex-shrink: 0;
   font-size: var(--text-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
   color: var(--ink-4);
 }

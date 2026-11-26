@@ -87,9 +87,18 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
           </p>
         </div>
       } @else {
-        @for (z of zones(); track z.zoneId) {
+        <!-- Allure ou cardio : seize cartes empilées faisaient six écrans de haut sur téléphone.
+             Un onglet par famille et des lignes compactes tiennent l'échelle en un ou deux. -->
+        @if (hasBoth()) {
+          <div class="seg-f" role="tablist" aria-label="Famille de zones">
+            <button type="button" role="tab" [class.on]="family() === 'pace'" [attr.aria-selected]="family() === 'pace'" (click)="family.set('pace')">Allure</button>
+            <button type="button" role="tab" [class.on]="family() === 'hr'" [attr.aria-selected]="family() === 'hr'" (click)="family.set('hr')">Cardio</button>
+          </div>
+        }
+        <div class="card zlist">
+        @for (z of shown(); track z.zoneId) {
           <article
-            class="card zone"
+            class="zone"
             [style.--zone-color]="z.color || 'var(--ink-4)'"
           >
             <header class="zone-hd">
@@ -132,6 +141,7 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
             }
           </article>
         }
+        </div>
 
         <p class="foot field-hint">
           Une valeur te semble fausse ? Elle vient de ton profil et de tes tests
@@ -212,17 +222,51 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
 
       /* Le liseré porte la couleur de la zone : c'est le seul repère qui relie cette carte à la
        bande de couleur vue sur la séance et sur le calendrier. */
-      .zone {
+      .zlist {
         padding: 0;
         overflow: hidden;
+      }
+      .zone {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-2) var(--sp-3);
         border-left: 4px solid var(--zone-color);
+        border-top: 1px solid var(--hairline);
+      }
+      .zone:first-child {
+        border-top: none;
       }
       .zone-hd {
-        padding: var(--sp-3) var(--sp-4) 0;
+        padding: 0;
+        min-width: 0;
       }
       .zone-n {
         margin: 0;
-        font-size: var(--text-lg);
+        font-size: var(--text-base);
+      }
+      .seg-f {
+        display: inline-flex;
+        align-self: flex-start;
+        padding: 3px;
+        gap: 2px;
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+      }
+      .seg-f button {
+        border: none;
+        background: transparent;
+        color: var(--ink-2);
+        font-weight: 700;
+        font-size: var(--text-sm);
+        padding: 6px 16px;
+        border-radius: var(--radius-full);
+        cursor: pointer;
+      }
+      .seg-f button.on {
+        background: var(--paper);
+        color: var(--ink);
       }
       .zone-d {
         margin: 2px 0 0;
@@ -231,31 +275,27 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
         margin: 2px 0 0;
       }
       .zone-empty {
-        padding: var(--sp-2) var(--sp-4) var(--sp-3);
         margin: 0;
+        font-size: var(--text-xs);
       }
 
       .mlist {
         margin: 0;
-        padding: var(--sp-2) var(--sp-4) var(--sp-3);
+        padding: 0;
         display: flex;
         flex-direction: column;
-        gap: var(--sp-2);
+        gap: 2px;
       }
       .m {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: auto auto;
+        justify-content: end;
         align-items: baseline;
-        gap: var(--sp-2) var(--sp-3);
-        padding-top: var(--sp-2);
-        border-top: 1px solid var(--hairline);
-      }
-      .m:first-child {
-        border-top: none;
-        padding-top: 0;
+        gap: 0 var(--sp-2);
       }
       .m dt {
-        color: var(--ink-2);
+        font-size: var(--text-xs);
+        color: var(--ink-3);
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -264,7 +304,7 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
       .m dd {
         margin: 0;
         font-weight: 800;
-        font-size: var(--text-lg);
+        font-size: var(--text-sm);
         font-variant-numeric: tabular-nums;
         text-align: right;
         white-space: nowrap;
@@ -353,6 +393,25 @@ export class AthleteZonesComponent implements OnInit {
    * Les métriques qui portent une valeur. Une zone déclarée sur une métrique jamais mesurée
    * (la puissance, par exemple) afficherait une ligne « — » qui n'apprend rien.
    */
+  /** Famille affichée : allure (allure, vitesse) ou cardio (FC, % FC max). */
+  readonly family = signal<'pace' | 'hr'>('pace');
+
+  private isHr(z: AthleteZoneSheet): boolean {
+    const v = this.valued(z);
+    return v.length > 0 && v.every((m) => /fr[ée]quence|fc|cardi/i.test(m.name));
+  }
+
+  readonly hasBoth = computed(() => {
+    const zs = this.zones();
+    return zs.some((z) => this.isHr(z)) && zs.some((z) => !this.isHr(z));
+  });
+
+  readonly shown = computed(() => {
+    const zs = this.zones();
+    if (!this.hasBoth()) return zs;
+    return zs.filter((z) => (this.family() === 'hr') === this.isHr(z));
+  });
+
   valued(z: AthleteZoneSheet): AthleteZoneMetric[] {
     return z.metrics.filter((m) => m.valueMin != null || m.valueMax != null);
   }

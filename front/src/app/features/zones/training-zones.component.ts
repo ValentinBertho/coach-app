@@ -1,3 +1,4 @@
+import { IntensityDomainsComponent } from './intensity-domains.component';
 import {
   CdkDragDrop,
   DragDropModule,
@@ -49,7 +50,7 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
 @Component({
   selector: 'app-training-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, DragDropModule],
+  imports: [IconComponent, FormsModule, DragDropModule, IntensityDomainsComponent],
   template: `
     <section class="page-header">
       <div>
@@ -368,6 +369,7 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
                       <span class="rule-unit">%</span>
                       <span class="rule-ref field-hint">{{ b.refLabel }}</span>
                     </span>
+                    <span class="rule-read">{{ b.plain }}</span>
                     @if (gapWith(z); as gap) {
                       <span class="rule-warn" [title]="gap.detail">
                         <app-icon name="alert-triangle" [size]="13" />
@@ -401,22 +403,30 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
                   >
                     <app-icon name="settings" [size]="16" />
                   </button>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm"
-                    (click)="startEdit(z)"
-                    aria-label="Modifier"
-                  >
-                    <app-icon name="pencil" [size]="16" />
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm danger"
-                    (click)="remove(z)"
-                    aria-label="Supprimer"
-                  >
-                    <app-icon name="x" [size]="15" />
-                  </button>
+                  <!-- Renommer et supprimer passent dans ⋯ : trois icônes par ligne, sur un
+                       téléphone, écrasaient la règle d'allure — et la croix rouge, à un pouce du
+                       crayon, supprimait une zone par mégarde. -->
+                  <span class="zmenu-wrap">
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm"
+                      (click)="menuId.set(menuId() === z.id ? null : z.id)"
+                      [attr.aria-expanded]="menuId() === z.id"
+                      aria-label="Plus d'actions"
+                    >
+                      <app-icon name="ellipsis" [size]="16" />
+                    </button>
+                    @if (menuId() === z.id) {
+                      <span class="zmenu" role="menu">
+                        <button type="button" role="menuitem" (click)="menuId.set(null); startEdit(z)">
+                          <app-icon name="pencil" [size]="14" /> Renommer
+                        </button>
+                        <button type="button" role="menuitem" class="danger" (click)="menuId.set(null); remove(z)">
+                          <app-icon name="trash-2" [size]="14" /> Supprimer
+                        </button>
+                      </span>
+                    }
+                  </span>
                 </span>
               }
 
@@ -541,6 +551,8 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
         </div>
       </div>
     }
+
+    <app-intensity-domains />
   `,
   styles: [
     `
@@ -770,6 +782,43 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
       .btn.active {
         background: var(--paper-sunk);
       }
+      .zmenu-wrap {
+        position: relative;
+      }
+      .zmenu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 20;
+        min-width: 160px;
+        display: flex;
+        flex-direction: column;
+        padding: 4px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+      }
+      .zmenu button {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        border: none;
+        background: none;
+        padding: var(--sp-2) var(--sp-3);
+        border-radius: var(--radius);
+        font: inherit;
+        font-size: var(--text-sm);
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+      }
+      .zmenu button:hover {
+        background: var(--paper-sunk);
+      }
+      .zmenu button.danger {
+        color: var(--danger);
+      }
       .danger {
         color: var(--danger);
       }
@@ -839,9 +888,8 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
         min-width: 0;
       }
       .rule-read {
-        font-size: var(--text-sm);
-        color: var(--ink-2);
-        white-space: nowrap;
+        font-size: var(--text-xs);
+        color: var(--ink-3);
       }
       /* Réglage en ligne des deux pourcentages. Champs courts et collés à leur unité : ce sont deux
        crans à tourner, pas un formulaire. */
@@ -929,21 +977,33 @@ const PREVIEW_ATHLETE_KEY = 'darilab.zones.previewAthlete';
         margin: var(--sp-1) 0 0;
       }
 
+      /* Téléphone : une carte par zone. Le placement est explicite — en laissant la grille
+         couler, la règle d'allure tombait dans la colonne étroite des actions, et les deux
+         pourcentages s'empilaient sur cinq lignes. Ici : nom et actions en haut, métriques puis
+         règle sur toute la largeur. */
       @media (max-width: 760px) {
         .zt-head {
           display: none;
         }
         .zrow {
-          grid-template-columns: 40px 24px 1fr auto;
-          row-gap: var(--sp-1);
+          grid-template-columns: 24px 18px minmax(0, 1fr) auto;
+          column-gap: var(--sp-2);
+          row-gap: var(--sp-2);
+          padding: var(--sp-3);
         }
-        .zcell--metrics {
-          grid-column: 3 / -1;
-        }
-        .zcell--desc {
-          grid-column: 3 / -1;
-          white-space: normal;
-        }
+        .zrow > .zt-order { grid-column: 1; grid-row: 1; }
+        .zrow > .drag-handle { grid-column: 2; grid-row: 1; }
+        .zrow > .zcell--name { grid-column: 3; grid-row: 1; }
+        .zrow > .zcell--actions { grid-column: 4; grid-row: 1; }
+        .zrow > .zcell--metrics { grid-column: 3 / -1; grid-row: 2; }
+        .zrow > .zcell--rule,
+        .zrow > .zcell--desc { grid-column: 1 / -1; grid-row: 3; white-space: normal; }
+        .zrow > .config { grid-row: 4; }
+        .zcell--metrics:empty,
+        .zcell--metrics:has(> .field-hint:only-child) { display: none; }
+        .rule-edit { flex-wrap: nowrap; }
+        .create-row { flex-direction: column; align-items: stretch; }
+        .create-row .name-in { flex: none; }
       }
 
       @media (max-width: 640px) {
@@ -965,6 +1025,8 @@ export class TrainingZonesComponent implements OnInit {
   private readonly athleteService = inject(AthleteService);
 
   readonly zones = signal<TrainingZone[]>([]);
+  /** Zone dont le menu ⋯ est ouvert. */
+  readonly menuId = signal<string | null>(null);
 
   // --- Aperçu des cibles pour un athlète -------------------------------------
 
@@ -1560,6 +1622,7 @@ export class TrainingZonesComponent implements OnInit {
     lowRef: string;
     highRef: string;
     refLabel: string;
+    plain: string;
   } | null {
     const r = this.paceRule(z);
     if (!r || r.lowPct == null || r.highPct == null || !r.anchor) return null;
@@ -1571,7 +1634,22 @@ export class TrainingZonesComponent implements OnInit {
       lowRef,
       highRef,
       refLabel: lowRef === highRef ? lowRef : `${lowRef} → ${highRef}`,
+      plain: this.plainRule(r.lowPct, lowRef, r.highPct, highRef),
     };
+  }
+
+  /**
+   * La règle écrite en clair : « 100 → 93 % LT1 → LT2 » demandait de deviner quel pourcentage
+   * s'appliquait à quelle référence. On l'écrit comme on la dirait : « de LT1 à 93 % de LT2 »,
+   * « de 90 à 100 % de LT1 ». Un 100 % se lit comme la référence elle-même.
+   */
+  private plainRule(low: number, lowRef: string, high: number, highRef: string): string {
+    const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+    const edge = (pct: number, ref: string) => (pct === 100 ? ref : `${fmt(pct)} % de ${ref}`);
+    if (lowRef === highRef) {
+      return `de ${fmt(low)} à ${fmt(high)} % de ${lowRef}`;
+    }
+    return `de ${edge(low, lowRef)} à ${edge(high, highRef)}`;
   }
 
   /**

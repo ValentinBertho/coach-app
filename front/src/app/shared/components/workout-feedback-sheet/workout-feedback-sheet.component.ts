@@ -35,6 +35,7 @@ export interface MatchedActivity {
   distanceM: number | null;
   durationS: number | null;
   avgHr: number | null;
+  paceSPerKm?: number | null;
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -106,6 +107,9 @@ const SOURCE_LABELS: Record<string, string> = {
                 @if (a.durationS) {
                   · {{ durationLabel(a.durationS) }}
                 }
+                @if (a.paceSPerKm) {
+                  · {{ paceLabel(a.paceSPerKm) }}
+                }
                 @if (a.avgHr) {
                   · {{ a.avgHr }} bpm
                 }
@@ -152,6 +156,9 @@ const SOURCE_LABELS: Record<string, string> = {
               <div class="fb__card fb__card--split">
                 <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
                 <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
+                @if (fromCheckIn()) {
+                  <p class="field-hint fb__from-ci">Repris de ton check-in de ce matin. Corrige si ça a changé.</p>
+                }
               </div>
 
               <div class="fb__card">
@@ -508,18 +515,68 @@ export class WorkoutFeedbackSheetComponent {
     this.workout.set(w);
     this.feel.set(w.feel ?? null);
     this.rpe.set(prefill?.rpe ?? w.rpe ?? null);
-    this.fatigue.set(null);
-    this.pain.set(null);
+    this.fatigue.set(w.fatigue ?? null);
+    this.pain.set(w.pain ?? null);
+    this.fromCheckIn.set(false);
     this.comment.set(w.athleteComment ?? '');
     // Rouvrir un débrief déjà rempli doit repartir de ce qui a été déclaré : sinon corriger son
     // RPE effacerait silencieusement la blessure qu'on avait pris la peine de nommer.
     this.injuries.set(w.injuries ?? []);
     this.activity.set(prefill?.activity ?? null);
+    // Ouverture manuelle : l'athlète notait sa séance sans voir ce que sa montre avait enregistré.
+    // On retrouve la sortie rapprochée de cette séance, quand il y en a une.
+    if (!prefill?.activity) this.loadMatchedActivity(w.id);
+    // Fatigue et douleur déjà déclarées ce matin : on les reprend (modifiables) plutôt que de les
+    // redemander. Seulement pour la séance du jour, et seulement si rien n'est encore saisi.
+    if (!this.isLate() && w.fatigue == null && w.pain == null) this.prefillFromCheckIn();
     // Toujours rouvrir sur le ressenti : c'est le geste courant, les deux autres sont des sorties.
     this.step.set('debrief');
     this.actualMinutes.set(null);
     this.missedReason.set('UNEXPECTED');
     this.open.set(true);
+  }
+
+  /** Fatigue et douleur reprises du check-in du matin (affiché sous les deux échelles). */
+  readonly fromCheckIn = signal(false);
+
+  private loadMatchedActivity(workoutId: string): void {
+    this.portal.activities().subscribe({
+      next: (list) => {
+        const a = list.find((x) => x.matchedWorkoutId === workoutId);
+        // La feuille a pu être rouverte sur une autre séance entre-temps.
+        if (!a || this.workout()?.id !== workoutId || this.activity()) return;
+        this.activity.set({
+          source: a.source,
+          distanceM: a.distanceM,
+          durationS: a.durationS,
+          avgHr: a.avgHr,
+          paceSPerKm: a.paceSPerKm,
+        });
+      },
+      error: () => {},
+    });
+  }
+
+  private prefillFromCheckIn(): void {
+    const id = this.workout()?.id;
+    this.portal.checkIn().subscribe({
+      next: (c) => {
+        if (!c || this.workout()?.id !== id) return;
+        if (this.fatigue() !== null || this.pain() !== null) return;
+        if (c.fatigue == null && c.pain == null) return;
+        this.fatigue.set(c.fatigue);
+        this.pain.set(c.pain);
+        this.fromCheckIn.set(true);
+      },
+      error: () => {},
+    });
+  }
+
+  /** « 4:52 /km » à partir de secondes par kilomètre. */
+  protected paceLabel(sPerKm: number): string {
+    const m = Math.floor(sPerKm / 60);
+    const sec = Math.round(sPerKm % 60);
+    return `${m}:${String(sec).padStart(2, '0')} /km`;
   }
 
   /** « 42:10 » ou « 1:08:32 » — durée réalisée, en mono tabulaire. */

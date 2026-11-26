@@ -30,7 +30,6 @@ import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.
 import { ZoneSet } from '../../core/models/zone-set.model';
 import { ZoneSetService } from '../../core/services/zone-set.service';
 import { PhysioService } from '../../core/services/physio.service';
-import { VdotPacesPanelComponent } from '../../shared/components/vdot-paces/vdot-paces-panel.component';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import {
@@ -51,7 +50,7 @@ interface EditState {
 @Component({
   selector: 'app-athlete-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, RouterLink, VdotPacesPanelComponent],
+  imports: [IconComponent, FormsModule, RouterLink],
   template: `
     <section class="page-header">
       <div>
@@ -137,11 +136,12 @@ interface EditState {
         ancrées sur ces allures, et un nouveau chrono les resynchronise.
         La saisie reste sur l'écran des tests — un seul endroit où corriger un record.
       -->
-      <app-vdot-paces-panel
-        [vdot]="vdot()"
-        [performances]="performances()"
-        [manageLink]="['/app/athletes', athleteId(), 'tests']"
-      />
+      <!-- Records et allures avaient ici leur deuxième copie (la troisième avec le Résumé) :
+           elles vivent dans Tests, l'onglet Zones ne garde que l'échelle. -->
+      <a class="zones-tests-link field-hint" [routerLink]="['/app/athletes', athleteId(), 'tests']">
+        Les bornes sont ancrées sur les records et seuils de l'athlète — VDOT {{ vdotLabel() }}.
+        Les modifier dans Tests →
+      </a>
 
       <!-- Échelles par métrique (façon Nolio) : chaque onglet isole l'échelle d'une métrique. -->
       <div class="scale-tabs" role="tablist">
@@ -317,6 +317,9 @@ interface EditState {
   `,
   styles: [
     `
+      .zones-tests-link { display: block; margin: 0 0 var(--sp-3); text-decoration: none; }
+      .zones-tests-link:hover { color: var(--primary); }
+
       .page-header {
         display: flex;
         align-items: flex-start;
@@ -591,6 +594,10 @@ export class AthleteZonesComponent implements OnInit {
 
   /** VDOT et allures d'équivalence : ce qui ancre les zones affichées plus bas. */
   readonly vdot = signal<Vdot | null>(null);
+  vdotLabel(): string {
+    const v = this.vdot()?.vdot;
+    return v != null ? v.toFixed(1).replace('.', ',') : '—';
+  }
   readonly performances = signal<Performance[] | null>(null);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);

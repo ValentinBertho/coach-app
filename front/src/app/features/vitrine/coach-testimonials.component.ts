@@ -22,10 +22,10 @@ export interface ReceivedTestimonial {
   imports: [DatePipe],
   template: `
     <section class="card ct">
-      <h2>Témoignages de vos athlètes</h2>
+      <h2>Témoignages de tes athlètes</h2>
       <p class="field-hint">
-        Vos athlètes peuvent écrire quelques mots depuis leur profil. Rien ne paraît sur votre page
-        sans votre accord ; un texte repris par son auteur repasse en attente.
+        Tes athlètes peuvent écrire quelques mots depuis leur profil. Rien ne paraît sur ta page
+        sans ton accord ; un texte repris par son auteur repasse en attente.
       </p>
       @if (items().length === 0) {
         <p class="field-hint">Aucun témoignage pour l'instant.</p>
@@ -69,7 +69,7 @@ export class CoachTestimonialsComponent implements OnInit {
       { params: { published: String(!t.published) } }).subscribe({
       next: (u) => {
         this.items.update((l) => l.map((x) => (x.id === u.id ? u : x)));
-        this.toast.success(u.published ? 'Publié sur votre page.' : 'Retiré de votre page.');
+        this.toast.success(u.published ? 'Publié sur ta page.' : 'Retiré de ta page.');
       },
       error: () => this.toast.error('Modification impossible pour le moment.'),
     });

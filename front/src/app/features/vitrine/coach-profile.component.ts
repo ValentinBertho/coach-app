@@ -39,7 +39,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
       <div>
         <h1 class="display-sm">Ma fiche publique</h1>
         <p class="field-hint">
-          C'est ce qu'un athlète lit avant de vous demander de le coacher.
+          C'est ce qu'un athlète lit avant de te demander de le coacher.
         </p>
       </div>
       @if (profile(); as p) {
@@ -55,7 +55,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
         <div class="card cp-note" role="alert">
           <app-icon name="info" [size]="18" />
           <div>
-            <strong>Votre fiche a été renvoyée pour correction.</strong>
+            <strong>Ta fiche a été renvoyée pour correction.</strong>
             <p>{{ p.reviewNote }}</p>
           </div>
         </div>
@@ -65,10 +65,10 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
         <div class="card cp-note">
           <app-icon name="info" [size]="18" />
           <div>
-            <strong>Votre fiche est en cours de validation.</strong>
+            <strong>Ta fiche est en cours de validation.</strong>
             <p>
-              Elle est relue à la main — comptez 48 h. Elle ne peut pas être modifiée d'ici là :
-              sans quoi nous validerions un texte que vous auriez changé entre-temps.
+              Elle est relue à la main — compte 48 h. Elle ne peut pas être modifiée d'ici là :
+              sans quoi nous validerions un texte que tu aurais changé entre-temps.
             </p>
           </div>
         </div>
@@ -78,8 +78,8 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
         <div class="card cp-note cp-note--danger" role="alert">
           <app-icon name="alert-triangle" [size]="18" />
           <div>
-            <strong>Votre fiche a été retirée de l'annuaire.</strong>
-            <p>{{ p.reviewNote || "Répondez à l'e-mail reçu pour en discuter avec l'équipe." }}</p>
+            <strong>Ta fiche a été retirée de l'annuaire.</strong>
+            <p>{{ p.reviewNote || "Réponds à l'e-mail reçu pour en discuter avec l'équipe." }}</p>
           </div>
         </div>
       }
@@ -87,7 +87,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
       <section class="card cp-block cp-photo">
         <div class="cp-photo__preview">
           @if (photoSrc(); as src) {
-            <img [src]="src" alt="Votre photo de profil" />
+            <img [src]="src" alt="Ta photo de profil" />
           } @else {
             <span class="cp-photo__empty" aria-hidden="true">
               <app-icon name="user" [size]="32" />
@@ -95,10 +95,10 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
           }
         </div>
         <div class="cp-photo__side">
-          <h2 class="cp-block__title">Votre photo</h2>
+          <h2 class="cp-block__title">Ta photo</h2>
           <p class="field-hint">
             C'est la première chose qu'un athlète voit. JPEG ou PNG, 5 Mo au plus — elle sera
-            réduite et ré-encodée : les données de votre appareil, y compris le lieu de la prise
+            réduite et ré-encodée : les données de ton appareil, y compris le lieu de la prise
             de vue, ne sont pas conservées.
           </p>
           @if (!frozen()) {
@@ -120,17 +120,17 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
       <form class="card cp-form" [formGroup]="form" (ngSubmit)="save()">
         <fieldset [disabled]="frozen()">
           <div class="form-group">
-            <label for="headline">Votre accroche</label>
+            <label for="headline">Ton accroche</label>
             <input id="headline" type="text" class="form-control" formControlName="headline"
                    maxlength="140" placeholder="Coach route et trail, du 10 km à l'ultra" />
             <span class="field-hint">Une ligne. C'est ce qu'on lit dans la liste avant de cliquer.</span>
           </div>
 
           <div class="form-group">
-            <label for="bio">Votre présentation</label>
+            <label for="bio">Ta présentation</label>
             <textarea id="bio" class="form-control" formControlName="bio" rows="7"
                       maxlength="4000"
-                      placeholder="Votre parcours, votre façon de travailler, les athlètes que vous accompagnez…"></textarea>
+                      placeholder="Ton parcours, ta façon de travailler, les athlètes que tu accompagnes…"></textarea>
             <span class="field-hint">{{ bioLength() }} / 4000 — 120 caractères minimum pour publier.</span>
           </div>
 
@@ -155,7 +155,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
               }
             </div>
             <span class="field-hint">
-              Ce sont les filtres de l'annuaire : n'en cochez que ce sur quoi vous voulez être trouvé.
+              Ce sont les filtres de l'annuaire : n'en coche que ce sur quoi tu veux être trouvé.
             </span>
           </div>
 
@@ -198,7 +198,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
               <label for="city">Ville</label>
               <input id="city" type="text" class="form-control" formControlName="city"
                      placeholder="Lyon" />
-              <span class="field-hint">Requise si vous proposez du présentiel.</span>
+              <span class="field-hint">Requise si tu proposes du présentiel.</span>
             </div>
           </div>
 
@@ -209,12 +209,12 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
                      formControlName="experienceYears" />
             </div>
             <div class="form-group">
-              <label for="capacityMax">Athlètes que vous pouvez suivre</label>
+              <label for="capacityMax">Athlètes que tu peux suivre</label>
               <input id="capacityMax" type="number" class="form-control" min="1" max="500"
                      formControlName="capacityMax" />
               <span class="field-hint">
-                Indicatif : c'est vous qui acceptez ou refusez chaque demande. Cela évite qu'on
-                vous sollicite quand vous êtes complet.
+                Indicatif : c'est toi qui acceptes ou refuses chaque demande. Cela évite qu'on
+                te sollicite quand tu es complet.
               </span>
             </div>
           </div>
@@ -233,14 +233,20 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
               }
             </div>
             <span class="field-hint">
-              Ce qu'un athlète regarde pour savoir à qui il a affaire. Votre e-mail et votre
+              Ce qu'un athlète regarde pour savoir à qui il a affaire. Ton e-mail et ton
               téléphone, eux, ne sont jamais affichés.
             </span>
           </div>
 
-          <button type="submit" class="btn btn-secondary" [disabled]="saving() || frozen()">
-            {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
-          </button>
+          <!-- Barre collée en bas dès qu'un champ change : le bouton gris, au milieu d'une
+               longue page, passait inaperçu et l'on quittait l'écran sans enregistrer. -->
+          <div class="cp-savebar" [class.cp-savebar--dirty]="form.dirty">
+            @if (form.dirty) { <span class="cp-savebar__msg">Modifications non enregistrées</span> }
+            <button type="submit" class="btn" [class.btn-primary]="form.dirty" [class.btn-secondary]="!form.dirty"
+                    [disabled]="saving() || frozen()">
+              {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+          </div>
         </fieldset>
       </form>
 
@@ -250,7 +256,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
         <h2 class="cp-block__title">Mes formules</h2>
         <p class="field-hint">
           Aucun paiement ne passe par la plateforme : ces montants s'affichent, et l'athlète
-          les voit avant de vous contacter.
+          les voit avant de te contacter.
         </p>
 
         @if (p.offers.length) {
@@ -293,8 +299,8 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
       <section class="card cp-block">
         <h2 class="cp-block__title">Mes diplômes et certifications</h2>
         <p class="field-hint">
-          Ils s'affichent comme <strong>déclarés par vous</strong> : la plateforme ne les certifie
-          pas. Tenez vos justificatifs à disposition, l'équipe peut vous les demander.
+          Ils s'affichent comme <strong>déclarés par toi</strong> : la plateforme ne les certifie
+          pas. Garde tes justificatifs à disposition, l'équipe peut te les demander.
         </p>
 
         @if (p.certifications.length) {
@@ -337,8 +343,8 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
         <section class="card cp-share">
           <h2>Partager ma fiche</h2>
           <p class="field-hint">
-            Collez ce lien dans votre bio Instagram, votre signature ou un groupe WhatsApp :
-            l'aperçu affiche votre photo, votre nom et vos spécialités.
+            Colle ce lien dans ta bio Instagram, ta signature ou un groupe WhatsApp :
+            l'aperçu affiche ta photo, ton nom et tes spécialités.
           </p>
           <app-share-kit [url]="shareUrl(p.slug)"
                          [title]="(p.coachName ?? 'Mon coaching') + ' sur DARI Lab'"
@@ -354,7 +360,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
       <section class="card cp-publish">
         @if (p.status === 'PUBLISHED' || p.status === 'CLOSED') {
           <div>
-            <strong>Votre fiche est publiée.</strong>
+            <strong>Ta fiche est publiée.</strong>
             <p class="field-hint">{{ visibilityHint(p.status) }}</p>
           </div>
           <button type="button" class="btn btn-secondary"
@@ -369,7 +375,7 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
                 @for (m of p.missing; track m) { <li>{{ m }}</li> }
               </ul>
             } @else {
-              <strong>Votre fiche est prête.</strong>
+              <strong>Ta fiche est prête.</strong>
               <p class="field-hint">Elle sera relue à la main avant d'apparaître dans l'annuaire.</p>
             }
           </div>
@@ -395,6 +401,14 @@ import { CoachTestimonialsComponent } from './coach-testimonials.component';
     .cp-form { padding: var(--sp-5); margin-bottom: var(--sp-4); }
     .cp-form fieldset { border: 0; padding: 0; margin: 0; }
     .cp-form fieldset[disabled] { opacity: 0.6; }
+    .cp-savebar { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-3); }
+    .cp-savebar--dirty {
+      position: sticky; bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)); z-index: 30;
+      margin: var(--sp-4) calc(-1 * var(--sp-3)) 0; padding: var(--sp-3);
+      background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+    }
+    .cp-savebar__msg { font-size: var(--text-sm); color: var(--ink-2); font-weight: 600; margin-right: auto; }
     .cp-legend { display: block; font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); margin-bottom: var(--sp-2); }
     .cp-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
     .cp-chip { padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-full); background: var(--paper); color: var(--ink-2); font-size: var(--text-sm); cursor: pointer; min-height: 36px; }
@@ -532,6 +546,9 @@ export class CoachProfileComponent implements OnInit {
     }
     next[group] = set;
     this.sets.set(next);
+    // Les cases à cocher vivent hors du formulaire : on le marque modifié pour faire paraître
+    // la barre « Enregistrer ».
+    this.form.markAsDirty();
   }
 
   save(): void {
@@ -561,6 +578,7 @@ export class CoachProfileComponent implements OnInit {
       next: (p) => {
         this.apply(p);
         this.saving.set(false);
+        this.form.markAsPristine();
         this.toast.success('Fiche enregistrée');
       },
       error: (e) => {
@@ -624,7 +642,7 @@ export class CoachProfileComponent implements OnInit {
   async removeOffer(offer: CoachOffer): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Retirer cette formule ?',
-      message: `« ${offer.name} » disparaîtra de votre fiche. Elle reste lisible dans les accords `
+      message: `« ${offer.name} » disparaîtra de ta fiche. Elle reste lisible dans les accords `
         + `déjà passés sur cette base.`,
       confirmLabel: 'Retirer',
     });
@@ -691,8 +709,8 @@ export class CoachProfileComponent implements OnInit {
 
   async removePhoto(): Promise<void> {
     const ok = await this.confirm.ask({
-      title: 'Retirer votre photo ?',
-      message: 'Votre fiche affichera un portrait vide tant que vous n\'en aurez pas remis une.',
+      title: 'Retirer ta photo ?',
+      message: 'Ta fiche affichera un portrait vide tant que tu n\'en auras pas remis une.',
       confirmLabel: 'Retirer',
     });
     if (!ok) {

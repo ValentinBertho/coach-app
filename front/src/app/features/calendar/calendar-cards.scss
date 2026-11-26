@@ -40,3 +40,22 @@
   font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.02em;
 }
 @media (max-width: 900px) { .cal-rail { display: none; } }
+
+/* Rattachement en un clic d'une sortie libre à la seule séance libre du jour. */
+.ac-attach {
+  display: flex; align-items: center; gap: 4px; width: 100%;
+  margin-top: 2px; padding: 3px 6px; border: 1px dashed var(--primary-light, var(--primary));
+  border-radius: 6px; background: var(--primary-wash); color: var(--primary);
+  font-size: var(--text-2xs); font-weight: 700; text-align: left; cursor: pointer;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.ac-attach:hover { background: var(--primary); color: #fff; }
+
+/* Nombre d'exercices d'une séance de force, discret, à droite du titre. */
+.strength-chip .sc-count {
+  flex: none;
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.75;
+}

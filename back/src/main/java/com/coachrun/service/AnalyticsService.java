@@ -7,7 +7,13 @@ import com.coachrun.entity.WorkoutStep;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
+import com.coachrun.repository.TrainingZoneRepository;
 import com.coachrun.repository.WorkoutRepository;
+import com.coachrun.dto.session.CourseBlock;
+import com.coachrun.dto.session.CourseStep;
+import com.coachrun.dto.session.SessionStructure;
+import com.coachrun.entity.TrainingZone;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +39,8 @@ public class AnalyticsService {
     private final AthleteRepository athleteRepository;
     private final EndurancePaceService endurancePaceService;
     private final ClockService clock;
+    private final TrainingZoneRepository trainingZoneRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * Distance prévue d'une séance pour les totaux : la cible si elle décrit bien une séance,
@@ -143,17 +151,43 @@ public class AnalyticsService {
                     Math.round(realized[i] * 10) / 10.0));
         }
 
-        // Répartition par zone (nb d'étapes, pondéré par répétitions)
-        Map<String, Integer> zones = new LinkedHashMap<>();
+        // Répartition par zone (nb d'étapes, pondéré par répétitions).
+        //
+        // Les séances construites dans l'éditeur portent les zones nommées du club (« EF »,
+        // « Seuil 1 »…) ; la répartition ne lisait que les anciennes étapes Z1–Z5 et parlait
+        // donc une autre langue que le reste de l'application. Les zones nommées passent en
+        // premier, dans l'ordre du modèle ; les Z1–Z5 hérités ne restent que s'ils comptent.
+        Map<UUID, Integer> named = new LinkedHashMap<>();
+        Map<String, Integer> legacy = new LinkedHashMap<>();
         for (String z : List.of("Z1", "Z2", "Z3", "Z4", "Z5")) {
-            zones.put(z, 0);
+            legacy.put(z, 0);
         }
         for (Workout w : workouts) {
             for (WorkoutStep s : w.getSteps()) {
                 if (s.getZone() != null) {
-                    zones.merge(s.getZone().name(), Math.max(1, s.getRepetitions()), Integer::sum);
+                    legacy.merge(s.getZone().name(), Math.max(1, s.getRepetitions()), Integer::sum);
                 }
             }
+            countNamedZones(w.getSessionSnapshot(), named);
+        }
+        Map<String, Integer> zones = new LinkedHashMap<>();
+        Map<String, String> zoneColors = new LinkedHashMap<>();
+        if (!named.isEmpty()) {
+            List<TrainingZone> found = new java.util.ArrayList<>(trainingZoneRepository.findAllById(named.keySet()));
+            found.sort(java.util.Comparator.comparingInt(TrainingZone::getSortOrder));
+            for (TrainingZone z : found) {
+                zones.merge(z.getName(), named.get(z.getId()), Integer::sum);
+                if (z.getColor() != null) {
+                    zoneColors.putIfAbsent(z.getName(), z.getColor());
+                }
+            }
+            legacy.forEach((k, v) -> {
+                if (v > 0) {
+                    zones.merge(k, v, Integer::sum);
+                }
+            });
+        } else {
+            zones.putAll(legacy);
         }
 
         // Adhérence (statuts)
@@ -162,7 +196,34 @@ public class AnalyticsService {
             statuses.merge(w.getStatus().name(), 1, Integer::sum);
         }
 
-        return new AnalyticsResponse(weekly, zones, statuses);
+        return new AnalyticsResponse(weekly, zones, statuses, zoneColors);
+    }
+
+    /** Ajoute à {@code into} les zones nommées d'une structure de séance (répétitions × séries). */
+    private void countNamedZones(String snapshot, Map<UUID, Integer> into) {
+        if (snapshot == null || snapshot.isBlank()) {
+            return;
+        }
+        SessionStructure structure;
+        try {
+            structure = objectMapper.readValue(snapshot, SessionStructure.class);
+        } catch (Exception e) {
+            return;   // snapshot illisible : la séance ne compte simplement pas
+        }
+        for (List<CourseBlock> section : List.of(structure.warmup(), structure.main(), structure.cooldown())) {
+            for (CourseBlock b : section) {
+                int times = Math.max(1, b.repCount() * b.setCount());
+                if (b.isChain()) {
+                    for (CourseStep st : b.stepList()) {
+                        if (st.prescription() != null && st.prescription().zoneId() != null) {
+                            into.merge(st.prescription().zoneId(), times, Integer::sum);
+                        }
+                    }
+                } else if (b.prescription() != null && b.prescription().zoneId() != null) {
+                    into.merge(b.prescription().zoneId(), times, Integer::sum);
+                }
+            }
+        }
     }
 
     private int weekIndex(LocalDate monday, LocalDate date, int n) {

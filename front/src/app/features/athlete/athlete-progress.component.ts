@@ -261,7 +261,7 @@ const SOURCE_LABEL: Record<string, string> = {
                 <div class="zline">
                   <span class="ztag">{{ z.zone }}</span>
                   <span class="ztrack"
-                    ><span class="zfill" [style.width.%]="z.pct"></span
+                    ><span class="zfill" [style.width.%]="z.pct" [style.background]="z.color"></span
                   ></span>
                   <span class="metric zval">{{ z.count }}</span>
                 </div>
@@ -723,24 +723,26 @@ const SOURCE_LABEL: Record<string, string> = {
         background: var(--form-orange, #ff8a3c);
       }
 
+      /* Accès rapides en pastilles : six cartes pleine largeur empilées repoussaient les
+         graphiques sous la ligne de flottaison. */
       .quick {
-        display: grid;
+        display: flex;
+        flex-wrap: wrap;
         gap: var(--sp-2);
       }
       .quick-l {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: var(--sp-3);
-        padding: var(--sp-3) var(--sp-4);
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: var(--radius-full);
         text-decoration: none;
         color: var(--ink);
         font-weight: 700;
+        font-size: var(--text-sm);
       }
-      .quick-l span {
-        flex: 1;
-      }
-      .quick-l :last-child {
-        color: var(--ink-4);
+      .quick-l > :last-child {
+        display: none;
       }
 
       .chart {
@@ -875,7 +877,12 @@ const SOURCE_LABEL: Record<string, string> = {
         padding: var(--sp-1) 0;
       }
       .ztag {
-        width: 28px;
+        /* Assez large pour un nom de zone du club (« Seuil 2 haut »), pas seulement « Z1 ». */
+        width: 96px;
+        flex-shrink: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: var(--text-sm);
         font-weight: 700;
         color: var(--ink-3);
@@ -1055,6 +1062,7 @@ export class AthleteProgressComponent implements OnInit {
       zone,
       count,
       pct: Math.round((count / max) * 100),
+      color: a.zoneColors?.[zone] ?? null,
     }));
   });
 

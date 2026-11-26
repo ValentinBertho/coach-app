@@ -23,6 +23,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-activity-list',
@@ -34,6 +35,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
     DatePipe,
     ActivityLapsComponent,
     TimeInZoneBarComponent,
+    IconComponent,
   ],
   templateUrl: './activity-list.component.html',
   styleUrl: './activity-list.component.scss',
@@ -78,13 +80,38 @@ export class ActivityListComponent implements OnInit {
     this.zonesOpen.update((cur) => (cur === id ? null : id));
   }
 
+  /** Formulaire de saisie manuelle, replié par défaut. */
+  readonly manualOpen = signal(false);
+  /** Menu ⋯ ouvert (id de l'activité). */
+  readonly menuOpen = signal<string | null>(null);
+  toggleMenu(id: string): void {
+    this.menuOpen.update((cur) => (cur === id ? null : id));
+  }
+
+  // Distance en km et durée en h:mm:ss : c'est ce qu'affiche une montre. Les champs en mètres
+  // et en secondes obligeaient à convertir de tête « 52:30 » en 3150.
   readonly form = this.fb.group({
     activityDate: ['', Validators.required],
     title: [''],
-    distanceM: [null as number | null, Validators.min(0)],
-    durationS: [null as number | null, Validators.min(0)],
+    distanceKm: [''],
+    duration: [''],
     avgHr: [null as number | null, Validators.min(0)],
   });
+
+  /** « 10,5 » ou « 10.5 » → 10500 m ; null si vide ou illisible. */
+  private toMeters(txt: string | null): number | null {
+    const n = Number(String(txt ?? '').trim().replace(',', '.'));
+    return txt && !isNaN(n) && n > 0 ? Math.round(n * 1000) : null;
+  }
+
+  /** « 52:30 », « 1:02:30 » → secondes ; null si vide ou illisible. */
+  private toSeconds(txt: string | null): number | null {
+    const t = String(txt ?? '').trim();
+    if (!t) return null;
+    const parts = t.split(/[:h']/).map((x) => Number(x));
+    if (parts.some((n) => isNaN(n))) return null;
+    return parts.reduce((acc, n) => acc * 60 + n, 0) || null;
+  }
 
   ngOnInit(): void {
     this.load();
@@ -107,8 +134,15 @@ export class ActivityListComponent implements OnInit {
       return;
     }
     this.submitting.set(true);
+    const v = this.form.getRawValue();
     this.activityService
-      .import(this.athleteId(), this.form.getRawValue() as never)
+      .import(this.athleteId(), {
+        activityDate: v.activityDate,
+        title: v.title || null,
+        distanceM: this.toMeters(v.distanceKm),
+        durationS: this.toSeconds(v.duration),
+        avgHr: v.avgHr,
+      } as never)
       .subscribe({
         next: (a) => {
           this.toast.success(
@@ -117,6 +151,7 @@ export class ActivityListComponent implements OnInit {
               : 'Activité importée.',
           );
           this.form.reset();
+          this.manualOpen.set(false);
           this.submitting.set(false);
           this.load();
         },

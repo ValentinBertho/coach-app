@@ -3,10 +3,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnInit,
+  computed,
   inject,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AppNotification } from '../../core/models/notification.model';
 import {
   NotificationCategory,
@@ -60,6 +61,16 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       }
     </section>
 
+    <!-- L'historique d'abord : c'est ce que la cloche promet. Les réglages, qu'on touche une
+         fois, passent dans leur onglet au lieu d'occuper tout le haut de la page. -->
+    <div class="ntabs" role="tablist">
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'history'"
+              [class.on]="tab() === 'history'" (click)="tab.set('history')">Historique</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'settings'"
+              [class.on]="tab() === 'settings'" (click)="tab.set('settings')">Réglages</button>
+    </div>
+
+    @if (tab() === 'settings') {
     <div class="card">
       <h2>Comment je suis prévenu</h2>
       <p class="field-hint">
@@ -254,8 +265,8 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       </div>
     </div>
 
+    } @else {
     <div class="card">
-      <h2>Historique</h2>
       @if (loading()) {
         <app-skeleton shape="text" [rows]="4" />
       } @else if (items().length === 0) {
@@ -267,39 +278,82 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
           </p>
         </div>
       } @else {
-        <ul class="nlist">
-          @for (n of items(); track n.id) {
-            <li>
-              <button
-                type="button"
-                class="nrow"
-                [class.unread]="!n.read"
-                (click)="open(n)"
-              >
-                @if (!n.read) {
-                  <span class="dot" aria-hidden="true"></span>
+        <!-- Regroupé par jour, puis par type : douze « Record personnel » à la même minute se
+             lisent en une ligne « 12 × Record personnel », qu'on déplie au besoin. -->
+        @for (day of days(); track day.key) {
+          <h3 class="nday">{{ day.label }}</h3>
+          <ul class="nlist">
+            @for (g of day.groups; track g.key) {
+              @if (g.items.length > 1 && !expanded().has(g.key)) {
+                <li>
+                  <button type="button" class="nrow" [class.unread]="g.unread" (click)="expand(g.key)">
+                    @if (g.unread) { <span class="dot" aria-hidden="true"></span> }
+                    <span class="nrow__body">
+                      <span class="nrow__title">{{ g.items.length }} × {{ g.items[0].title }}</span>
+                      <span class="nrow__text">Déplier pour voir le détail</span>
+                      <span class="nrow__date">{{ g.items[0].createdAt | date: 'HH:mm' }}</span>
+                    </span>
+                    <app-icon name="chevron-down" [size]="16" />
+                  </button>
+                </li>
+              } @else {
+                @for (n of g.items; track n.id) {
+                  <li>
+                    <button type="button" class="nrow" [class.unread]="!n.read" (click)="open(n)">
+                      @if (!n.read) { <span class="dot" aria-hidden="true"></span> }
+                      <span class="nrow__body">
+                        <span class="nrow__title">{{ n.title }}</span>
+                        @if (n.body) { <span class="nrow__text">{{ n.body }}</span> }
+                        <span class="nrow__date">{{ n.createdAt | date: 'HH:mm' }}</span>
+                      </span>
+                      @if (n.link) { <app-icon name="chevron-right" [size]="16" /> }
+                    </button>
+                  </li>
                 }
-                <span class="nrow__body">
-                  <span class="nrow__title">{{ n.title }}</span>
-                  @if (n.body) {
-                    <span class="nrow__text">{{ n.body }}</span>
-                  }
-                  <span class="nrow__date">{{
-                    n.createdAt | date: 'EEE d MMM, HH:mm'
-                  }}</span>
-                </span>
-                @if (n.link) {
-                  <app-icon name="chevron-right" [size]="16" />
-                }
-              </button>
-            </li>
-          }
-        </ul>
+              }
+            }
+          </ul>
+        }
       }
     </div>
+    }
   `,
   styles: [
     `
+      .ntabs {
+        display: inline-flex;
+        gap: 4px;
+        padding: 4px;
+        margin-bottom: var(--sp-4);
+        background: var(--paper-sunk);
+        border-radius: var(--radius-full);
+      }
+      .ntabs button {
+        border: none;
+        background: none;
+        padding: 6px var(--sp-4);
+        border-radius: var(--radius-full);
+        font: inherit;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--ink-2);
+        cursor: pointer;
+      }
+      .ntabs button.on {
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: var(--shadow-sm);
+      }
+      .nday {
+        margin: var(--sp-4) 0 var(--sp-1);
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--ink-3);
+      }
+      .nday:first-child {
+        margin-top: 0;
+      }
       .chan {
         list-style: none;
         margin: var(--sp-3) 0 0;
@@ -490,9 +544,51 @@ export class NotificationsComponent implements OnInit {
   private readonly notif = inject(NotificationService);
   private readonly push = inject(PushService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
 
   readonly items = signal<AppNotification[]>([]);
+  readonly tab = signal<'history' | 'settings'>('history');
+  /** Groupes « N × même type » que le coach a dépliés. */
+  readonly expanded = signal<Set<string>>(new Set());
+
+  /** Historique par jour (« Aujourd'hui », « Hier », « mardi 24 novembre »), puis par type. */
+  readonly days = computed(() => {
+    const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const iso = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const out: {
+      key: string;
+      label: string;
+      groups: { key: string; items: AppNotification[]; unread: boolean }[];
+    }[] = [];
+    for (const n of this.items()) {
+      const d = new Date(n.createdAt);
+      const key = iso(d);
+      let day = out.find((x) => x.key === key);
+      if (!day) {
+        const label =
+          key === iso(today) ? "Aujourd'hui" : key === iso(yesterday) ? 'Hier' : fmt.format(d);
+        day = { key, label, groups: [] };
+        out.push(day);
+      }
+      const gkey = `${key}|${n.type}`;
+      let g = day.groups.find((x) => x.key === gkey);
+      if (!g) {
+        g = { key: gkey, items: [], unread: false };
+        day.groups.push(g);
+      }
+      g.items.push(n);
+      g.unread ||= !n.read;
+    }
+    return out;
+  });
+
+  expand(key: string): void {
+    this.expanded.update((s) => new Set(s).add(key));
+  }
   readonly prefs = signal<NotificationPreferences | null>(null);
   /** `null` tant que la liste n'est pas revenue — à distinguer de « aucun appareil ». */
   readonly devices = signal<PushDevice[] | null>(null);
@@ -537,6 +633,8 @@ export class NotificationsComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    // Le lien « Gérer mes notifications » des e-mails ouvre directement les réglages.
+    if (this.route.snapshot.queryParamMap.get('tab') === 'reglages') this.tab.set('settings');
     this.notif.list().subscribe({
       next: (list) => {
         this.items.set(list);

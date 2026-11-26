@@ -36,7 +36,6 @@ import {
 import { LactateTest } from '../../core/models/lactate.model';
 import { RaceObjective } from '../../core/models/race.model';
 import { supportMailto as supportLink } from '../../shared/components/support-link';
-import { VdotPacesPanelComponent } from '../../shared/components/vdot-paces/vdot-paces-panel.component';
 import {
   Unavailability,
   UnavailabilityReason,
@@ -72,7 +71,6 @@ interface LtPoint {
     PushButtonComponent,
     PushTestButtonComponent,
     ThemePickerComponent,
-    VdotPacesPanelComponent,
   ],
   template: `
     <div class="shell">
@@ -82,6 +80,16 @@ interface LtPoint {
       <main class="wrap">
         <h1 class="display-sm">Profil & confidentialité</h1>
         <p class="subtitle">{{ user()?.fullName }}</p>
+
+        <!-- Sommaire : la page fait une dizaine d'écrans de haut sur téléphone. On saute
+             directement à la partie cherchée au lieu de tout dérouler. -->
+        <nav class="toc" aria-label="Sections du profil">
+          <a href="#p-compte" (click)="jump($event, 'p-compte')">Mon compte</a>
+          <a href="#p-app" (click)="jump($event, 'p-app')">Notifications</a>
+          <a href="#p-sport" (click)="jump($event, 'p-sport')">Mon profil sportif</a>
+          @if (hasCoach()) { <a href="#p-coach" (click)="jump($event, 'p-coach')">Mon coach</a> }
+          <a href="#p-donnees" (click)="jump($event, 'p-donnees')">Mes données</a>
+        </nav>
 
         <a routerLink="/athlete/help" class="card help-link">
           <span class="help-link__ic"
@@ -115,7 +123,7 @@ interface LtPoint {
         <!-- Compte : changer son mot de passe, son nom ou son adresse. Les endpoints existaient
              et acceptaient le rôle athlète, mais aucun écran ne les appelait — le seul recours
              pour un mot de passe compromis était « mot de passe oublié ». -->
-        <section class="card acct">
+        <section class="card acct" id="p-compte">
           <h2>Mon compte</h2>
 
           <label class="field">
@@ -199,7 +207,7 @@ interface LtPoint {
           }
         </section>
 
-        <section class="card app-settings">
+        <section class="card app-settings" id="p-app">
           <h2>L'application</h2>
           <p class="field-hint">
             Installe Darilab sur ton téléphone et reçois un rappel quand une
@@ -289,6 +297,7 @@ interface LtPoint {
           }
         </section>
 
+        <span id="p-sport" class="toc-anchor"></span>
         <!-- Mon profil physio (lecture seule) -->
         @if (physio(); as p) {
           <section class="card">
@@ -458,12 +467,16 @@ interface LtPoint {
           d'équivalence, sous les codes bruts du serveur (« 5km », « semi »), sans les chronos qui
           les produisent ni les allures d'entraînement.
         -->
-        <app-vdot-paces-panel
-          heading="Mes records & allures"
-          [vdot]="vdot()"
-          [performances]="performances()"
-          [manageLink]="['/athlete/performances']"
-        />
+        <!-- Records et allures avaient leur troisième copie ici (Progrès et Zones les montrent
+             déjà) : un lien suffit, le profil reste une page de réglages. -->
+        <a routerLink="/athlete/performances" class="card help-link">
+          <span class="help-link__ic"><app-icon name="timer" [size]="20" /></span>
+          <span class="help-link__txt">
+            <strong>Mes records & allures</strong>
+            <span class="field-hint">Chronos, VDOT et allures d'entraînement.</span>
+          </span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
 
         <!-- Mes objectifs -->
         @if (races(); as rs) {
@@ -660,7 +673,7 @@ interface LtPoint {
              qui la portait, disparaît de la navigation dès qu'un coach accepte — un athlète
              suivi n'avait donc aucun chemin visible pour mettre fin à son coaching. -->
         @if (hasCoach()) {
-          <div class="card">
+          <div class="card" id="p-coach">
             <h2>Mon coaching</h2>
             @if (myCoach(); as c) {
               <p>Suivi par <strong>{{ c.coachName }}</strong>@if (c.clubName) { au sein de <strong>{{ c.clubName }}</strong>} depuis le {{ c.since | date: 'd MMMM y' : '' : 'fr' }}.</p>
@@ -698,7 +711,7 @@ interface LtPoint {
           </div>
         }
 
-        <div class="card">
+        <div class="card" id="p-donnees">
           <h2>Synchronisation</h2>
           <p class="field-hint">
             Connecte ta montre (Strava) pour importer tes activités
@@ -796,6 +809,19 @@ interface LtPoint {
   `,
   styles: [
     `
+      .toc {
+        display: flex; flex-wrap: wrap; gap: var(--sp-2);
+        margin: 0 0 var(--sp-3);
+      }
+      .toc a {
+        padding: 6px 12px; border-radius: var(--radius-full);
+        background: var(--paper-sunk); color: var(--ink-2);
+        font-size: var(--text-sm); font-weight: 600; text-decoration: none;
+      }
+      .toc a:hover { color: var(--ink); }
+      [id^='p-'] { scroll-margin-top: 72px; }
+      .toc-anchor { display: block; height: 0; }
+
       .shell {
         min-height: 100dvh;
         background: var(--canvas);
@@ -1221,6 +1247,12 @@ export class AthleteProfileComponent implements OnInit {
    * Le mailto reste disponible en repli (cf. {@link #supportMailto}) — un athlète hors ligne ou
    * dont la session a expiré doit garder une adresse à qui écrire.
    */
+  /** Saut vers une section du sommaire, sans changer l'URL (le routeur gère le hash). */
+  jump(ev: Event, id: string): void {
+    ev.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   openFeedback(): void {
     this.feedbackPanel.open();
   }

@@ -15,7 +15,7 @@
 <div class="search-bar">
   <!-- Le filtre par statut existait côté API depuis toujours mais n'était jamais envoyé : les
        athlètes archivés restaient mêlés aux actifs, sans moyen de les masquer. -->
-  <select class="form-control" style="max-width:170px" [(ngModel)]="filterStatus"
+  <select class="form-control sb-status" [(ngModel)]="filterStatus"
           (ngModelChange)="goToPage(0)" aria-label="Filtrer par statut">
     <option value="ACTIVE">Actifs</option>
     <option value="PAUSED">En pause</option>
@@ -24,13 +24,13 @@
     <option value="">Tous les statuts</option>
   </select>
   @if (groups().length) {
-    <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)"
+    <select class="form-control sb-group" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)"
             aria-label="Filtrer par groupe">
       <option value="">Tous les groupes</option>
       @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
     </select>
   }
-  <input type="search" class="form-control" placeholder="Rechercher un athlète…"
+  <input type="search" class="form-control sb-search" placeholder="Rechercher un athlète…"
          [(ngModel)]="search" (ngModelChange)="onSearchChange()" />
 </div>
 
@@ -78,11 +78,38 @@
                 @if (a.level) { <span class="field-hint">{{ levelLabel(a.level) }}</span> }
               </div>
             </div>
+            <!-- Dernière séance, semaine, prochaine course : de quoi repérer qui décroche sans
+                 ouvrir chaque fiche. -->
+            @if (a.glance; as g) {
+              <div class="athlete-glance">
+                @if (g.lastSessionDate) {
+                  <span class="gl" [class.gl--ok]="g.lastSessionStatus === 'COMPLETED' || g.lastSessionStatus === 'PARTIAL'"
+                        [class.gl--ko]="g.lastSessionStatus === 'MISSED'"
+                        [title]="'Dernière séance : ' + lastLabel(g.lastSessionStatus)">
+                    <!-- ✓ faite, ✗ non faite, « ? » quand l'athlète n'a rien dit : l'absence de retour n'est
+                         pas un échec. -->
+                    {{ g.lastSessionStatus === 'COMPLETED' || g.lastSessionStatus === 'PARTIAL' ? '✓' : g.lastSessionStatus === 'MISSED' ? '✗' : '?' }}
+                    {{ shortDate(g.lastSessionDate) }}
+                  </span>
+                }
+                @if (g.planned7) {
+                  <span class="gl metric" title="Séances faites sur les 7 derniers jours">{{ g.done7 }}/{{ g.planned7 }} sur 7 j</span>
+                }
+                @if (g.nextRaceName) {
+                  <span class="gl gl--race" [title]="g.nextRaceName">
+                    <app-icon name="flag" [size]="12" /> {{ g.nextRaceName }} · {{ shortDate(g.nextRaceDate) }}
+                  </span>
+                }
+              </div>
+            }
             <div class="athlete-tags">
               @if (a.groupName) { <span class="badge badge-neutral">{{ a.groupName }}</span> }
-              @if (a.invitationPending) { <span class="badge badge-info">Invité</span> }
+              <!-- Un seul statut : « Invité » et « Actif » côte à côte se contredisaient. Tant que
+                   l'invitation court, c'est elle qui compte. -->
               @if (a.coachingEnded) {
                 <span class="badge badge-warning" title="Cet athlète n'est plus suivi par vous : sa fiche reste consultable, en lecture.">Suivi terminé</span>
+              } @else if (a.invitationPending && a.status === 'ACTIVE') {
+                <span class="badge badge-info" title="Invitation envoyée, pas encore acceptée">Invité</span>
               } @else {
                 <span class="badge" [class]="statusClass(a.status)">{{ statusLabel(a.status) }}</span>
               }

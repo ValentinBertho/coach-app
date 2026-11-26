@@ -25,7 +25,8 @@ import { AthleteRecordsPanelComponent } from './athlete-records-panel.component'
 /** Un effort du test de Vitesse Critique : distance couverte, temps, FC moyenne relevée. */
 interface VcTrial {
   distanceM: number | null;
-  timeS: number | null;
+  /** Temps saisi tel quel (« 4:00 ») ; converti en secondes au calcul. */
+  timeTxt: string;
   avgHr: number | null;
 }
 
@@ -146,7 +147,7 @@ interface VcTrial {
         <thead>
           <tr>
             <th>Distance (m)</th>
-            <th>Temps (s)</th>
+            <th>Temps (mm:ss)</th>
             <th>FC moy (bpm)</th>
             <th></th>
           </tr>
@@ -162,10 +163,13 @@ interface VcTrial {
                 />
               </td>
               <td>
+                <!-- Saisie en mm:ss : « 720 » secondes obligeait à convertir de tête un 12:00. -->
                 <input
-                  type="number"
+                  type="text"
+                  inputmode="numeric"
                   class="form-control"
-                  [(ngModel)]="tr.timeS"
+                  placeholder="4:00"
+                  [(ngModel)]="tr.timeTxt"
                 />
               </td>
               <td>
@@ -200,19 +204,15 @@ interface VcTrial {
         >
           + Effort
         </button>
+        <!-- Un seul geste à la fois : on calcule, on lit le résultat, puis on l'applique
+             depuis le résultat. Deux boutons côte à côte (« Calculer », « Appliquer ») plus
+             « Enregistrer les seuils » au-dessus faisaient trois façons d'enregistrer. -->
         <button
           type="button"
-          class="btn btn-ghost btn-sm"
+          class="btn btn-primary btn-sm"
           (click)="computeVc(false)"
         >
-          Calculer
-        </button>
-        <button
-          type="button"
-          class="btn btn-accent btn-sm"
-          (click)="computeVc(true)"
-        >
-          Appliquer au profil
+          Calculer la VC
         </button>
       </div>
       @if (vcResult(); as r) {
@@ -224,6 +224,9 @@ interface VcTrial {
           @if (r.avgHr) {
             <span class="field-hint metric">FC moy {{ r.avgHr }} bpm</span>
           }
+          <button type="button" class="btn btn-accent btn-sm vc-apply" (click)="computeVc(true)">
+            Utiliser cette VC dans le profil
+          </button>
         </div>
       }
     </section>
@@ -449,8 +452,8 @@ export class ThresholdsComponent implements OnInit {
   // --- Test de Vitesse Critique --------------------------------------------
 
   vcTrials: VcTrial[] = [
-    { distanceM: 1200, timeS: 240, avgHr: null },
-    { distanceM: 3000, timeS: 720, avgHr: null },
+    { distanceM: 1200, timeTxt: '4:00', avgHr: null },
+    { distanceM: 3000, timeTxt: '12:00', avgHr: null },
   ];
   readonly vcResult = signal<{
     vcKmh: number;
@@ -461,15 +464,25 @@ export class ThresholdsComponent implements OnInit {
   addVcTrial(): void {
     this.vcTrials = [
       ...this.vcTrials,
-      { distanceM: null, timeS: null, avgHr: null },
+      { distanceM: null, timeTxt: '', avgHr: null },
     ];
   }
+  /** « 4:00 », « 4'00 », « 1:02:30 » ou un nombre de secondes → secondes ; null si illisible. */
+  parseTime(txt: string): number | null {
+    const t = (txt ?? '').trim().replace(/['’]/g, ':');
+    if (!t) return null;
+    const parts = t.split(':').map((x) => Number(x));
+    if (parts.some((n) => isNaN(n))) return null;
+    return parts.reduce((acc, n) => acc * 60 + n, 0) || null;
+  }
+
   removeVcTrial(i: number): void {
     this.vcTrials = this.vcTrials.filter((_, idx) => idx !== i);
   }
 
   computeVc(apply: boolean): void {
     const trials = this.vcTrials
+      .map((t) => ({ ...t, timeS: this.parseTime(t.timeTxt) }))
       .filter((t) => t.distanceM && t.timeS)
       .map((t) => ({
         distanceM: t.distanceM as number,

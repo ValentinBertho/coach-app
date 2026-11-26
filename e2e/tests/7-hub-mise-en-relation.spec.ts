@@ -59,7 +59,7 @@ test('la coach accepte la demande, et l\'athlète entre dans son espace d\'entra
   await expect(page.getByText('Tom Bertrand')).toBeVisible();
   await page.getByRole('button', { name: 'Accepter' }).first().click();
   await page.locator('.dialog').getByRole('button', { name: 'Accepter' }).click();
-  await expect(page.getByText(/Tom Bertrand fait maintenant partie de vos athlètes/)).toBeVisible();
+  await expect(page.getByText(/Tom Bertrand fait maintenant partie de tes athlètes/)).toBeVisible();
 
   // Après : nouvelle connexion, la messagerie avec sa coach remplace l'onglet « Coach ».
   const after = await (await browser.newContext()).newPage();

@@ -14,7 +14,7 @@
     <div class="kpi-rail">
       <app-metric-card label="Volume prévu" [value]="t.planned" unit="km" origin="calcule" />
       <app-metric-card label="Volume réalisé" [value]="t.realized" unit="km" origin="calcule" />
-      <app-metric-card label="Adhérence volume" [value]="t.compliance ?? '—'" [unit]="t.compliance != null ? '%' : ''"
+      <app-metric-card [label]="'Adhérence volume' + (t.closedWeeks ? ' · ' + t.closedWeeks + ' sem. terminée' + (t.closedWeeks > 1 ? 's' : '') : '')" [value]="t.compliance ?? '—'" [unit]="t.compliance != null ? '%' : ''"
         [tone]="complianceTone(t.compliance)" origin="calcule" />
     </div>
   }
@@ -48,9 +48,9 @@
           @if (z.num) {
             <app-intensity-zone-badge [zone]="z.num" />
           } @else {
-            <span class="zone-tag">{{ z.zone }}</span>
+            <span class="zone-tag"><span class="zdot" [style.background]="z.color || 'var(--ink-4)'"></span>{{ z.zone }}</span>
           }
-          <span class="ztrack"><span class="zfill" [class]="'zb-' + z.zone.toLowerCase()" [style.width.%]="z.pct"></span></span>
+          <span class="ztrack"><span class="zfill" [class]="'zb-' + z.zone.toLowerCase()" [style.width.%]="z.pct" [style.background]="z.color"></span></span>
           <span class="metric zval">{{ z.count }}</span>
         </div>
       }

@@ -98,7 +98,7 @@ describe('athlete-calendar — grille du mois', () => {
       expect(chips[0].strong).toBeTrue();
       // La sortie réalisée se distingue du prescrit sans lire l'étiquette.
       expect(chips[2].done).toBeTrue();
-      expect(chips[2].value).toBe('12.4 km');
+      expect(chips[2].value).toBe('12,4 km');
     });
 
     /**

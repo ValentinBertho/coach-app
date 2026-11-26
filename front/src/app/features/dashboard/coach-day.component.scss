@@ -253,8 +253,11 @@ app-install-prompt, app-push-prompt { display: block; margin-bottom: var(--sp-3)
 .cd-row__badges a.badge { text-decoration: none; }
 .cd-row__acts { display: inline-flex; gap: 2px; }
 .cd-row__full { grid-column: 1 / -1; }
+/* Téléphone : une ligne par athlète. Le statut passait sous le nom et doublait la hauteur de
+   chaque ligne ; il reste à côté, et « Prévu » — l'état par défaut, qui ne dit rien — disparaît. */
 @media (max-width: 480px) {
-  .cd-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .cd-row__badges { grid-column: 1; justify-content: flex-start; margin-top: -6px; padding-bottom: var(--sp-1); }
-  .cd-row__acts { grid-row: 1; grid-column: 2; }
+  .cd-row { grid-template-columns: minmax(0, 1fr) auto auto; column-gap: var(--sp-2); padding-block: 6px; }
+  .cd-row__badges { grid-row: 1; grid-column: 2; }
+  .cd-row__badges .badge-neutral { display: none; }
+  .cd-row__acts { grid-row: 1; grid-column: 3; }
 }
