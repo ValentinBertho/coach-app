@@ -61,6 +61,7 @@ public class AthleteService {
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
     private final com.coachrun.repository.WorkoutRepository workoutRepository;
     private final com.coachrun.repository.RaceObjectiveRepository raceRepository;
+    private final ClockService clockService;
     /**
      * Journal. Trois gestes seulement y entrent : créer, archiver, inviter. Ce sont ceux qui
      * ouvrent ou ferment un dossier — le reste (une VMA corrigée, une zone retouchée) se compte en
@@ -115,7 +116,7 @@ public class AthleteService {
      */
     private java.util.Map<UUID, AthleteSummaryResponse.Glance> glances(List<UUID> ids) {
         if (ids.isEmpty()) return java.util.Map.of();
-        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate today = clockService.today();
         var byAthlete = new java.util.HashMap<UUID, List<com.coachrun.entity.Workout>>();
         for (var w : workoutRepository.findByAthleteIdInAndScheduledDateBetween(ids, today.minusDays(6), today)) {
             if (w.getType() == com.coachrun.entity.enums.WorkoutType.REST) continue;
