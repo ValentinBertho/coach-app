@@ -11,5 +11,7 @@ public interface Athlete1rmProfileRepository extends JpaRepository<Athlete1rmPro
 
     List<Athlete1rmProfile> findByAthleteId(UUID athleteId);
 
+    List<Athlete1rmProfile> findByAthleteIdIn(java.util.Collection<UUID> athleteIds);
+
     Optional<Athlete1rmProfile> findByAthleteIdAndExerciseId(UUID athleteId, UUID exerciseId);
 }

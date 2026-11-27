@@ -10,5 +10,7 @@ public interface StrengthTestRepository extends JpaRepository<StrengthTest, UUID
 
     List<StrengthTest> findByAthleteIdOrderByTestDateDesc(UUID athleteId);
 
+    List<StrengthTest> findByAthleteIdIn(java.util.Collection<UUID> athleteIds);
+
     List<StrengthTest> findByAthleteIdAndExerciseIdOrderByTestDateDesc(UUID athleteId, UUID exerciseId);
 }

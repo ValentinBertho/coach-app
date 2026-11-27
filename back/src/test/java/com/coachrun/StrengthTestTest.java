@@ -104,4 +104,24 @@ class StrengthTestTest {
         assertThat(list.size()).isEqualTo(1);
         assertThat(list.get(0).get("protocol").asText()).isEqualTo("REP_TEST_3_5");
     }
+
+    @Test
+    void overviewCountsTestsAndIgnoresUnknownAthletes() throws Exception {
+        String exerciseId = createExercise();
+        mvc.perform(post("/clubs/{c}/athletes/{a}/pp/tests", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"exerciseId\":\"" + exerciseId + "\",\"protocol\":\"TRUE_1RM\",\"weightKg\":120,\"reps\":1}"))
+                .andExpect(status().isCreated());
+
+        // Un identifiant inconnu (ou d'un autre coach) est ignoré en silence, pas une erreur.
+        String stranger = java.util.UUID.randomUUID().toString();
+        JsonNode rows = objectMapper.readTree(mvc.perform(get("/clubs/{c}/pp/overview", clubId)
+                        .param("athleteIds", athleteId, stranger)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(rows.size()).isEqualTo(1);
+        assertThat(rows.get(0).get("athleteId").asText()).isEqualTo(athleteId);
+        assertThat(rows.get(0).get("oneRmCount").asInt()).isGreaterThanOrEqualTo(1);
+        assertThat(rows.get(0).get("lastTestDate").isNull()).isFalse();
+    }
 }

@@ -132,3 +132,19 @@
 .coachsay__i { display: flex; flex-direction: column; gap: 1px; min-height: 44px; justify-content: center; text-decoration: none; }
 .coachsay__quote { font-size: var(--text-sm); color: var(--ink); font-style: italic; }
 .coachsay__meta { font-size: var(--text-xs); }
+
+/* Grand écran : deux colonnes. Les enveloppes n'existent pas pour la mise en page en dessous
+   du seuil, si bien que le téléphone garde exactement sa colonne unique. */
+.today-col { display: contents; }
+@media (min-width: 1100px) {
+  .athlete-main {
+    max-width: 1120px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+    column-gap: var(--sp-6);
+  }
+  .today-col { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+  /* La colonne de droite commence sous le titre, à hauteur de la séance. */
+  .today-col--side { padding-top: calc(var(--sp-12) + var(--sp-2)); }
+}

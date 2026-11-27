@@ -4,6 +4,10 @@
   <app-offline-banner />
 
   <main class="athlete-main">
+    <!-- Deux colonnes sur grand écran : la séance du jour à gauche, ce qui l'entoure (forme,
+         messages, semaine, montre) à droite. Sur téléphone, ces enveloppes s'effacent
+         (display: contents) et l'ordre de lecture reste celui d'avant. -->
+    <div class="today-col today-col--main">
     <div class="title-row">
       <h1 class="display-sm">Aujourd'hui</h1>
       <app-help-hint section="seance-jour" label="Aide : ma séance du jour" />
@@ -125,6 +129,8 @@
         }
       }
     }
+    </div>
+    <div class="today-col today-col--side">
     <!-- Check-in matinal : la forme du coach se mettait à jour seulement APRÈS la séance,
          d'où les « aucun retour récent » permanents. Trois curseurs, moins de dix secondes,
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
@@ -275,6 +281,7 @@
         <span class="rc-days metric">{{ r.daysUntil > 0 ? 'J-' + r.daysUntil : (r.daysUntil === 0 ? "Jour J" : '') }}</span>
       </div>
     }
+    </div>
 
   </main>
 </div>

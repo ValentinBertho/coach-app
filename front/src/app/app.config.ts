@@ -13,7 +13,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import {
   LucideAngularModule,
   LayoutDashboard, Users, User, UsersRound, Calendar, CalendarDays, Library, GraduationCap,
-  Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, Footprints,
+  Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, TrendingDown, Minus, Footprints,
   Mountain, MountainSnow, Bike, Moon, Timer, Gauge, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
@@ -41,7 +41,7 @@ registerLocaleData(localeFr);
 export const ICONS = {
   ExternalLink, QrCode, Link,
   LayoutDashboard, Users, User, UsersRound, Calendar, CalendarDays, Library, GraduationCap,
-  Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, Footprints,
+  Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, TrendingDown, Minus, Footprints,
   Mountain, MountainSnow, Bike, Moon, Timer, Gauge, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
