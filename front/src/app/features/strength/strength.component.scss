@@ -332,3 +332,18 @@
 .lib-menu button.danger { color: var(--danger); }
 .lib-menu__field { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-1) var(--sp-2); font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
 .lib-menu__field .form-control { min-height: 32px; padding: 2px var(--sp-2); font-size: var(--text-sm); }
+
+/* Vue d'ensemble « Suivi & Analyse » : une ligne par athlète, cliquable vers son détail. */
+.ov-card { margin-bottom: var(--sp-3); }
+.ov-scroll { overflow-x: auto; }
+.ov-table { min-width: 620px; }
+.ov-row { cursor: pointer; }
+.ov-row:hover { background: var(--paper-sunk); }
+.ov-row.on { background: var(--primary-wash); }
+.ov-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.ov-miss { color: var(--warning-text, #92400e); font-family: inherit; font-size: var(--text-xs); font-weight: 700; }
+.ov-trend { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); font-weight: 700; }
+.tr-up { color: var(--success, #15803d); }
+.tr-down { color: var(--danger, #b91c1c); }
+.tr-flat { color: var(--ink-2); }
+.tr-none { color: var(--ink-3); }

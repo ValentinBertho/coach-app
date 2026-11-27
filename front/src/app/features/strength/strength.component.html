@@ -408,6 +408,37 @@
 
 <!-- ===================== SUIVI & ANALYSE ===================== -->
 @if (tab() === 'analysis') {
+  <div class="card ov-card">
+    <h2>Vue d'ensemble</h2>
+    <p class="field-hint">Séances et charge mécanique sur les 4 dernières semaines, comparées aux 4 précédentes. Clique un athlète pour son détail.</p>
+    @if (!overviewLoaded()) {
+      <app-skeleton shape="list" [rows]="3" />
+    } @else if (!overviewRows().length) {
+      <p class="empty-hint">Aucun athlète à afficher.</p>
+    } @else {
+      <div class="ov-scroll">
+        <table class="data-table ov-table">
+          <thead>
+            <tr><th>Athlète</th><th>1RM</th><th>Dernier test</th><th>Séances (4 sem.)</th><th>Charge méca. (4 sem.)</th><th>Tendance</th></tr>
+          </thead>
+          <tbody>
+            @for (x of overviewRows(); track x.athlete.id) {
+              <tr class="ov-row" [class.on]="selectedAthlete() === x.athlete.id" tabindex="0"
+                  (click)="onAthleteChange(x.athlete.id)" (keydown.enter)="onAthleteChange(x.athlete.id)">
+                <td>{{ x.athlete.firstName }} {{ x.athlete.lastName }}</td>
+                <td class="metric">@if (x.row.oneRmCount) { {{ x.row.oneRmCount }} } @else { <span class="ov-miss">aucun</span> }</td>
+                <td class="metric">{{ x.row.lastTestDate ? (x.row.lastTestDate | date: 'dd/MM/yy') : '—' }}</td>
+                <td class="metric">{{ x.row.sessions4w }} <span class="field-hint">({{ x.row.sessionsPrev4w }} avant)</span></td>
+                <td class="metric">{{ x.row.mechanicalLoad4w | number: '1.0-0' }} UA</td>
+                <td>@let t = trend(x.row);<span class="ov-trend {{ t.cls }}"><app-icon [name]="t.icon" [size]="14" /> {{ t.label }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
   <div class="card">
     <div class="form-group">
       <label>Athlète</label>

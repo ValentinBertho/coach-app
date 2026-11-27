@@ -15,6 +15,10 @@ public interface StrengthLoadTrackingRepository extends JpaRepository<StrengthLo
 
     List<StrengthLoadTracking> findByAthleteIdOrderBySessionDateAsc(UUID athleteId);
 
+    /** Vue d'ensemble force : toutes les séances chargées d'un lot d'athlètes, en une requête. */
+    List<StrengthLoadTracking> findByAthleteIdInAndSessionDateBetween(
+            java.util.Collection<UUID> athleteIds, LocalDate from, LocalDate to);
+
     /** Première séance de force chargée : borne l'historique disponible pour l'ACWR. */
     Optional<StrengthLoadTracking> findFirstByAthleteIdOrderBySessionDateAsc(UUID athleteId);
 }

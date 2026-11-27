@@ -15,6 +15,7 @@ import {
   ScheduledStrength,
   StrengthCycle,
   StrengthLoadPoint,
+  StrengthOverviewRow,
   StrengthPrescriptionView,
   StrengthSession,
   StrengthStructure,
@@ -156,6 +157,12 @@ export class StrengthService {
   }
 
   // --- Charge interne (UA méca/métab) ---
+  /** Vue d'ensemble force de plusieurs athlètes en un appel (le serveur filtre les droits). */
+  overview(athleteIds: string[]): Observable<StrengthOverviewRow[]> {
+    const params = new HttpParams().set('athleteIds', athleteIds.join(','));
+    return this.http.get<StrengthOverviewRow[]>(`${this.club()}/pp/overview`, { params });
+  }
+
   loadTracking(athleteId: string): Observable<StrengthLoadPoint[]> {
     return this.http.get<StrengthLoadPoint[]>(`${this.club()}/athletes/${athleteId}/pp/load`);
   }

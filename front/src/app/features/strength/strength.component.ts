@@ -1,4 +1,4 @@
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -38,6 +38,7 @@ import {
   RmFormula,
   StrengthCycle,
   StrengthLoadPoint,
+  StrengthOverviewRow,
   StrengthSession,
   StrengthTest,
   StrengthTestProtocol,
@@ -54,6 +55,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
     IconComponent,
     FormsModule,
     DatePipe,
+    DecimalPipe,
     RouterLink,
     TrendChartComponent,
     SidePanelComponent,
@@ -380,6 +382,44 @@ export class StrengthComponent implements OnInit {
   readonly history = signal<E1rmHistory[]>([]);
   readonly loadPoints = signal<StrengthLoadPoint[]>([]);
 
+  /**
+   * Vue d'ensemble : tous les athlètes sur une table, pour repérer d'un coup d'œil celui qui n'a
+   * aucun 1RM, dont le dernier test date, ou qui a lâché la force ces 4 dernières semaines.
+   * Cliquer une ligne ouvre son détail juste en dessous.
+   */
+  readonly overview = signal<StrengthOverviewRow[]>([]);
+  readonly overviewLoaded = signal(false);
+  readonly overviewRows = computed(() => {
+    const byId = new Map(this.overview().map((r) => [r.athleteId, r]));
+    return this.athleteList()
+      .map((a) => ({ athlete: a, row: byId.get(a.id) }))
+      .filter((x): x is { athlete: AthleteSummary; row: StrengthOverviewRow } => !!x.row);
+  });
+
+  loadOverview(): void {
+    const ids = this.athleteList().map((a) => a.id);
+    if (!ids.length || this.overviewLoaded()) return;
+    this.strength.overview(ids).subscribe({
+      next: (rows) => {
+        this.overview.set(rows);
+        this.overviewLoaded.set(true);
+      },
+      error: () => this.overviewLoaded.set(true),
+    });
+  }
+
+  /** Tendance de la charge mécanique : 4 dernières semaines contre les 4 d'avant. */
+  trend(r: StrengthOverviewRow): { icon: string; label: string; cls: string } {
+    const now = Number(r.mechanicalLoad4w) || 0;
+    const before = Number(r.mechanicalLoadPrev4w) || 0;
+    if (!now && !before) return { icon: 'minus', label: 'Aucune séance', cls: 'tr-none' };
+    if (!before) return { icon: 'trending-up', label: 'Reprise', cls: 'tr-up' };
+    const pct = Math.round(((now - before) / before) * 100);
+    if (pct >= 10) return { icon: 'trending-up', label: `+${pct} %`, cls: 'tr-up' };
+    if (pct <= -10) return { icon: 'trending-down', label: `${pct} %`, cls: 'tr-down' };
+    return { icon: 'minus', label: 'Stable', cls: 'tr-flat' };
+  }
+
   readonly categories: ExerciseCategory[] = [
     'FORCE_MAX',
     'HYPERTROPHIE',
@@ -414,7 +454,10 @@ export class StrengthComponent implements OnInit {
     this.computeRm();
     this.athletes
       .list({ page: 0 })
-      .subscribe((p) => this.athleteList.set(p.content));
+      .subscribe((p) => {
+        this.athleteList.set(p.content);
+        if (this.tab() === 'analysis') this.loadOverview();
+      });
   }
 
   private loadStrengthCategories(): void {
@@ -587,8 +630,11 @@ export class StrengthComponent implements OnInit {
     this.tab.set(t);
     // « Suivi & Analyse » s'ouvrait sur une page vide avec un seul menu déroulant : on affiche
     // d'emblée le premier athlète, le menu sert à en changer.
-    if (t === 'analysis' && !this.selectedAthlete() && this.athleteList().length) {
-      this.onAthleteChange(this.athleteList()[0].id);
+    if (t === 'analysis') {
+      this.loadOverview();
+      if (!this.selectedAthlete() && this.athleteList().length) {
+        this.onAthleteChange(this.athleteList()[0].id);
+      }
     }
   }
 

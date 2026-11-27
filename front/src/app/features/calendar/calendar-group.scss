@@ -78,3 +78,18 @@
 .gg-tot__dots { position: absolute; top: 2px; right: 2px; }
 .gg-tot--all { background: transparent; padding: 0; align-items: stretch; }
 .gg-tot__more { justify-content: space-between; height: 100%; font-size: var(--text-xs); white-space: normal; text-align: left; }
+
+/* --- Deux semaines, et planifier d'un clic --------------------------------- */
+.gg-weeks { align-self: flex-end; margin-bottom: var(--sp-1); }
+.group-grid--2w .gg-head, .group-grid--2w .gg-row {
+  grid-template-columns: 160px repeat(14, minmax(84px, 1fr)) 120px;
+}
+/* Le lundi de la seconde semaine : un trait, pour lire deux semaines et non quatorze jours. */
+.gg-wk2 { box-shadow: inset 2px 0 0 var(--line); }
+.gg-cell { position: relative; }
+.gg-cell--write { cursor: pointer; }
+.gg-plus {
+  position: absolute; right: 4px; bottom: 4px; display: none; color: var(--primary);
+  pointer-events: none;
+}
+.gg-cell--write:hover .gg-plus { display: inline-flex; }

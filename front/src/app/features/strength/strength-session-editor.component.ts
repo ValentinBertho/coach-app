@@ -993,6 +993,17 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     }
   }
 
+  /** Un filtre est posé : on affiche « n sur N · Tout afficher », comme côté calendrier. */
+  readonly libFiltersActive = computed(
+    () => this.libTab() !== 'all' || !!this.libQuery().trim() || !!this.libCategory(),
+  );
+
+  clearLibFilters(): void {
+    this.libTab.set('all');
+    this.libQuery.set('');
+    this.libCategory.set('');
+  }
+
   setLibTab(tab: 'all' | 'favorites' | 'frequent'): void {
     this.libTab.set(tab);
     this.libCategory.set('');

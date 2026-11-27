@@ -30,6 +30,8 @@ import { MessageService } from '../../core/services/message.service';
 import { Workout } from '../../core/models/workout.model';
 import { Activity } from '../../core/models/activity.model';
 import { frNumber } from '../../core/utils/number-format';
+import { formatPace } from '../../core/utils/pace';
+import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 
 /**
@@ -49,7 +51,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 @Component({
   selector: 'app-feedback-queue',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, IconComponent, FormsModule],
+  imports: [RouterLink, DatePipe, IconComponent, FormsModule, ActivityLapsComponent],
   template: `
       @if (loading()) {
         <div class="card"><div class="skeleton" style="height: 96px;"></div></div>
@@ -186,6 +188,11 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
                 <div><span class="fr__lb">Prévu</span><strong>{{ plannedText() || '—' }}</strong></div>
                 <div><span class="fr__lb">Réalisé</span><strong>{{ doneText() || (detailLoading() ? '…' : 'pas d’activité rattachée') }}</strong></div>
               </div>
+              <!-- Les tours de la montre, ici même : sur un fractionné, la moyenne ne dit pas si les
+                   répétitions ont été tenues. On juge la séance sans quitter la file des retours. -->
+              @if (detail().a; as a) {
+                <div class="fr__laps"><app-activity-laps [athleteId]="it.athleteId" [activityId]="a.id" /></div>
+              }
             }
 
             <div class="fq__metrics fr__metrics">
@@ -395,6 +402,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
       .fr__who { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; color: var(--ink-3); }
       .fr__athlete { font-weight: 800; color: var(--ink); text-decoration: none; }
       .fr__title { margin: 0; font-size: var(--text-lg); }
+      .fr__laps { margin-top: var(--sp-2); }
       .fr__pvr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
       .fr__pvr > div { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-3); background: var(--paper-sunk); border-radius: var(--radius-sm); }
       .fr__lb { font-size: var(--text-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-4); }
@@ -500,8 +508,14 @@ export class FeedbackQueueComponent implements OnInit {
   readonly doneText = computed(() => {
     const a = this.detail().a;
     if (!a) return '';
-    const v = volumeText(a.distanceM, a.durationS);
-    return a.avgHr ? `${v} · ${a.avgHr} bpm` : v;
+    const parts = [volumeText(a.distanceM, a.durationS)];
+    // L'allure moyenne d'abord : c'est le chiffre que le coach compare à la consigne.
+    if (a.distanceM && a.durationS && a.distanceM > 0) {
+      const pace = formatPace(a.durationS / (a.distanceM / 1000));
+      if (pace) parts.push(`${pace}/km`);
+    }
+    if (a.avgHr) parts.push(`${a.avgHr} bpm`);
+    return parts.filter(Boolean).join(' · ');
   });
 
   openReader(index: number): void {

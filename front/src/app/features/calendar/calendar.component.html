@@ -294,13 +294,21 @@
       </aside>
     }
 
-    <div class="group-grid">
+    <div class="group-grid" [class.group-grid--2w]="groupWeeks() === 2">
+      <!-- Une ou deux semaines : la seconde montre l'enchaînement d'un bloc. -->
+      <div class="gg-weeks seg" role="group" aria-label="Semaines affichées">
+        <button type="button" class="seg__b" [class.on]="groupWeeks() === 1" [attr.aria-pressed]="groupWeeks() === 1"
+                (click)="setGroupWeeks(1)">1 semaine</button>
+        <button type="button" class="seg__b" [class.on]="groupWeeks() === 2" [attr.aria-pressed]="groupWeeks() === 2"
+                (click)="setGroupWeeks(2)">2 semaines</button>
+      </div>
       <div class="gg-head">
         <span class="gg-corner">Athlète</span>
-        @for (d of weekDates(); track d.date) {
-          <span class="gg-day" [class.today]="d.isToday" [class.weekend]="d.weekend">{{ d.label }} {{ d.dayNum }}</span>
+        @for (d of groupDates(); track d.date) {
+          <span class="gg-day" [class.today]="d.isToday" [class.weekend]="d.weekend"
+                [class.gg-wk2]="d.weekStart">{{ d.label }} {{ d.dayNum }}</span>
         }
-        <span class="gg-day gg-day--tot">Semaine</span>
+        <span class="gg-day gg-day--tot">{{ groupWeeks() === 2 ? '1re semaine' : 'Semaine' }}</span>
       </div>
 
       <!-- Ligne « tout le groupe » : déposer une séance ici la planifie pour chaque athlète du
@@ -311,8 +319,8 @@
           <span class="avatar avatar-sm gg-all-avatar"><app-icon name="users-round" [size]="14" /></span>
           <span class="gg-name">Tout le groupe</span>
         </span>
-        @for (d of weekDates(); track d.date) {
-          <div class="gg-cell gg-cell--all" [class.today]="d.isToday"
+        @for (d of groupDates(); track d.date) {
+          <div class="gg-cell gg-cell--all" [class.today]="d.isToday" [class.gg-wk2]="d.weekStart"
                [class.gg-cell--busy]="groupScheduling()"
                cdkDropList (cdkDropListDropped)="onGroupAllDrop($event, d.date)"
                (contextmenu)="openGroupAllMenu(d.date, $event)"
@@ -337,9 +345,12 @@
             @if (!row.canWrite) { <app-icon name="lock" [size]="12" title="Lecture seule" /> }
           </a>
 
-          @for (d of weekDates(); track d.date) {
-            <div class="gg-cell" [class.today]="d.isToday" [class.weekend]="d.weekend"
+          @for (d of groupDates(); track d.date) {
+            <!-- Un clic sur la case (hors séance) planifie pour cet athlète ce jour-là. -->
+            <div class="gg-cell" [class.today]="d.isToday" [class.weekend]="d.weekend" [class.gg-wk2]="d.weekStart"
+                 [class.gg-cell--write]="row.canWrite"
                  [class.gg-cell--hover]="hoveredCell()?.athleteId === row.athleteId && hoveredCell()?.date === d.date"
+                 (click)="planInGroupCell(row, d.date, $event)"
                  cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)"
                  (mouseenter)="onGroupCellEnter(row, d.date)" (mouseleave)="onGroupCellLeave(row, d.date)"
                  (contextmenu)="openGroupCellMenu(row, d.date, $event)">
@@ -371,6 +382,7 @@
                   <span class="sc-title">{{ s.title }}</span>
                 </div>
               }
+              @if (row.canWrite) { <span class="gg-plus" aria-hidden="true"><app-icon name="plus" [size]="13" /></span> }
             </div>
           }
           @let t = rowWeekTotal(row);

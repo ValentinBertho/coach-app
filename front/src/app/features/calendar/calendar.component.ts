@@ -596,6 +596,70 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   });
 
+  /**
+   * Nombre de semaines affichées en vue groupe (1 ou 2). Une seule semaine ne laissait pas voir
+   * l'enchaînement d'un bloc : la séance clé du lundi suivant restait hors champ.
+   */
+  readonly groupWeeks = signal<1 | 2>(this.storedGroupWeeks());
+
+  private storedGroupWeeks(): 1 | 2 {
+    try {
+      return localStorage.getItem('coach-cal-group-weeks') === '2' ? 2 : 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  setGroupWeeks(n: 1 | 2): void {
+    this.groupWeeks.set(n);
+    try {
+      localStorage.setItem('coach-cal-group-weeks', String(n));
+    } catch {
+      /* stockage indisponible : le choix vaut pour la session */
+    }
+    this.loadGroup();
+  }
+
+  /** Les dates affichées en vue groupe : la semaine courante, plus la suivante si demandé. */
+  readonly groupDates = computed(() => {
+    const first = this.weekDates();
+    if (this.groupWeeks() === 1) return first.map((d) => ({ ...d, weekStart: false }));
+    const today = toIso(new Date());
+    const start = mondayOf(this.anchor());
+    const second = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + 7 + i);
+      const iso = toIso(d);
+      return {
+        date: iso,
+        label: this.dayNames[i],
+        dayNum: d.getDate(),
+        isToday: iso === today,
+        weekend: i >= 5,
+      };
+    });
+    return [...first, ...second].map((d, i) => ({ ...d, weekStart: i === 7 }));
+  });
+
+  /**
+   * Clic sur une case vide de la vue groupe : planifier pour CET athlète, ce jour-là, avec la
+   * même fenêtre que le « + » d'un jour en vue athlète. Il fallait jusqu'ici glisser depuis la
+   * bibliothèque, ou repasser en vue athlète pour un simple ajout.
+   */
+  planInGroupCell(row: GroupCalendarRow, date: string, ev?: MouseEvent): void {
+    if (ev && (ev.target as HTMLElement).closest('[data-chip]')) return;
+    if (!row.canWrite) {
+      this.toast.warning(`Lecture seule sur ${row.firstName} ${row.lastName}.`);
+      return;
+    }
+    this.selectedAthleteId = row.athleteId;
+    this.pickerAthleteName.set(`${row.firstName} ${row.lastName}`);
+    this.pickerDates.set([date]);
+  }
+
+  /** Athlète visé par la fenêtre de planification ouverte depuis la vue groupe. */
+  readonly pickerAthleteName = signal('');
+
   /** Séances d'un athlète pour un jour donné (mode groupe). */
   rowWorkouts(row: GroupCalendarRow, date: string): Workout[] {
     return row.workouts.filter((w) => w.scheduledDate === date);
@@ -612,6 +676,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * de référence ici (elle est propre à chaque athlète), on la compte donc en temps.</p>
    */
   rowWeekTotal(row: GroupCalendarRow): { sessions: number; km: string | null; time: string | null } {
+    // Sur deux semaines, la colonne reste « la semaine » : celle affichée en premier.
+    const end = this.weekDates()[6].date;
+    row = {
+      ...row,
+      workouts: row.workouts.filter((w) => w.scheduledDate <= end),
+      strength: row.strength.filter((x) => x.scheduledDate <= end),
+    };
     const sessions = row.workouts.length + row.strength.length;
     const m = row.workouts.reduce((s, w) => s + (w.targetDistanceM ?? 0), 0);
     const sec = row.workouts.reduce((s, w) => s + (w.targetDurationS ?? 0), 0);
@@ -642,7 +713,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Les séances d'une ligne du groupe, en entrées de presse-papier. */
   private rowEntries(row: GroupCalendarRow): ClipEntry[] {
-    return [...row.workouts, ...row.strength].map((c) => this.groupEntry(row, c));
+    // Les gestes « semaine » portent sur la première semaine affichée, même quand deux le sont.
+    const end = this.weekDates()[6].date;
+    return [...row.workouts, ...row.strength]
+      .filter((c) => c.scheduledDate <= end)
+      .map((c) => this.groupEntry(row, c));
   }
 
   /** Copie la semaine d'un athlète du groupe, pour la recoller chez un autre ou pour tous. */
@@ -780,10 +855,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
       this.groupRows.set([]);
       return;
     }
-    const dates = this.weekDates();
+    const dates = this.groupDates();
     this.groupLoading.set(true);
     this.groupService
-      .calendar(this.selectedGroupId, dates[0].date, dates[6].date)
+      .calendar(this.selectedGroupId, dates[0].date, dates[dates.length - 1].date)
       .subscribe({
         next: (c) => {
           this.groupRows.set(c.athletes);
@@ -1857,7 +1932,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Titre du sélecteur : une date lisible, ou le nombre de jours visés. */
   readonly pickerLabel = computed(() => {
     const d = this.pickerDates();
-    return d.length > 1 ? `${d.length} jours` : d[0] ? this.fmtDate(d[0]) : '';
+    const when = d.length > 1 ? `${d.length} jours` : d[0] ? this.fmtDate(d[0]) : '';
+    // Ouverte depuis la vue groupe : on rappelle pour qui l'on planifie.
+    return this.scopeMode() === 'group' && this.pickerAthleteName()
+      ? `${this.pickerAthleteName()}, ${when}`
+      : when;
   });
 
   /**
@@ -2380,7 +2459,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Alt (ou ⌘ sur mac) enfoncé/relâché **pendant** le glisser : le coach change d'avis en route. */
-  @HostListener('document:keydown', ['$event'])
+  // keyup seulement : le keydown passe par onKeydown, qui appelle cette méthode. Déclarer ici un
+  // second écouteur 'document:keydown' remplaçait celui du `host` du composant (même clé) :
+  // aucun raccourci du calendrier (Ctrl+Z, Ctrl+C, Ctrl+V…) ne répondait plus au clavier.
   @HostListener('document:keyup', ['$event'])
   protected onModifierChange(ev: KeyboardEvent): void {
     if (this.dragging) this.setCopyCursor(ev.altKey || ev.metaKey);
@@ -4143,6 +4224,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * tableur). La liste complète est documentée dans `calendar-shortcuts.ts` et affichée par « ? ».
    */
   onKeydown(ev: KeyboardEvent): void {
+    this.onModifierChange(ev);
     const el = ev.target as HTMLElement | null;
     // Jamais dans un champ de saisie : Cmd+C doit y copier du texte, pas des séances.
     if (

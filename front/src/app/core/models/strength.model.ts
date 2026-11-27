@@ -293,6 +293,18 @@ export interface StrengthLoadPoint {
   metabolicLoad: number;
 }
 
+/** Une ligne de la vue d'ensemble « Suivi & Analyse » (fenêtres de 4 semaines glissantes). */
+export interface StrengthOverviewRow {
+  athleteId: string;
+  oneRmCount: number;
+  lastOneRmUpdate: string | null;
+  lastTestDate: string | null;
+  sessions4w: number;
+  sessionsPrev4w: number;
+  mechanicalLoad4w: number;
+  mechanicalLoadPrev4w: number;
+}
+
 export interface ExerciseProgression {
   exerciseId: string;
   exerciseName: string;

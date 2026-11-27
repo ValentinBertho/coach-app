@@ -108,24 +108,31 @@
         }
       </div>
 
-      <div class="ex-lib__tabs" role="tablist" aria-label="Filtrer la bibliothèque">
-        <button type="button" role="tab" class="ex-lib__tab" [class.on]="libTab() === 'all'"
-                [attr.aria-selected]="libTab() === 'all'" (click)="setLibTab('all')">
-          Tous <span class="ex-lib__n">{{ exercises().length }}</span>
+      <!-- Mêmes filtres, dans le même ordre, que la bibliothèque de séances du calendrier :
+           recherche, puis puces, puis catégorie. Le coach passe d'un éditeur à l'autre sans
+           réapprendre où chercher. -->
+      <div class="ex-lib__search">
+        <app-icon name="search" [size]="15" />
+        <input id="ex-lib-search" class="form-control" type="search" placeholder="Rechercher un exercice…"
+               [ngModel]="libQuery()" (ngModelChange)="libQuery.set($event)"
+               aria-label="Rechercher un exercice" />
+      </div>
+
+      <div class="ex-lib__chips" role="group" aria-label="Filtrer la bibliothèque">
+        <button type="button" class="ex-lib__chip" [class.on]="libTab() === 'all'"
+                [attr.aria-pressed]="libTab() === 'all'" (click)="setLibTab('all')">
+          <app-icon name="library" [size]="13" /> Tous <span class="ex-lib__n">{{ exercises().length }}</span>
         </button>
-        <button type="button" role="tab" class="ex-lib__tab" [class.on]="libTab() === 'favorites'"
-                [attr.aria-selected]="libTab() === 'favorites'" (click)="setLibTab('favorites')">
-          <app-icon name="star" [size]="12" /> Favoris <span class="ex-lib__n">{{ favoriteCount() }}</span>
+        <button type="button" class="ex-lib__chip" [class.on]="libTab() === 'favorites'"
+                [attr.aria-pressed]="libTab() === 'favorites'" (click)="setLibTab('favorites')">
+          <app-icon name="star" [size]="13" /> Favoris <span class="ex-lib__n">{{ favoriteCount() }}</span>
         </button>
-        <button type="button" role="tab" class="ex-lib__tab" [class.on]="libTab() === 'frequent'"
-                [attr.aria-selected]="libTab() === 'frequent'" (click)="setLibTab('frequent')">
-          Fréquents <span class="ex-lib__n">{{ frequentCount() }}</span>
+        <button type="button" class="ex-lib__chip" [class.on]="libTab() === 'frequent'"
+                [attr.aria-pressed]="libTab() === 'frequent'" (click)="setLibTab('frequent')">
+          <app-icon name="trending-up" [size]="13" /> Fréquents <span class="ex-lib__n">{{ frequentCount() }}</span>
         </button>
       </div>
 
-      <input id="ex-lib-search" class="form-control" type="search" placeholder="Rechercher un exercice…"
-             [ngModel]="libQuery()" (ngModelChange)="libQuery.set($event)"
-             aria-label="Rechercher un exercice" />
       @if (libCategoryChoices().length > 1) {
         <select class="form-control" [ngModel]="libCategory()" (ngModelChange)="libCategory.set($event)"
                 aria-label="Filtrer par catégorie">
@@ -134,6 +141,17 @@
             <option [value]="c.key">{{ c.title }} ({{ c.count }})</option>
           }
         </select>
+      }
+
+      <!-- Un filtre oublié se lit comme une bibliothèque qui a perdu des exercices : on dit ce
+           qu'on regarde et on donne la sortie, comme côté calendrier. -->
+      @if (libFiltersActive()) {
+        <div class="ex-lib__active">
+          <span><strong>{{ libCount() }}</strong> sur {{ exercises().length }}</span>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="clearLibFilters()">
+            <app-icon name="x" [size]="13" /> Tout afficher
+          </button>
+        </div>
       }
 
       <div class="ex-lib__list">
